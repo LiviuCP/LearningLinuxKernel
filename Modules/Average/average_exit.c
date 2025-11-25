@@ -3,9 +3,9 @@
 
 MODULE_LICENSE("GPL");
 
-static char *exitMessage = "";
+static char* exitMessage = "";
 
-extern int is_empty_string(const char *);
+extern int is_empty_string(const char*);
 
 module_param(exitMessage, charp, S_IRUSR | S_IWUSR);
 MODULE_PARM_DESC(exitMessage, " an optional message to be sent upon average module unloading");

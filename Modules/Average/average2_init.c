@@ -12,8 +12,8 @@ MODULE_DESCRIPTION("This module calculates a rounded average of up to 10 integer
 static int intArray[INT_ARRAY_SZ];
 static uint averagedElementsCount = 0;
 
-extern int print_array_elements_to_be_averaged(const int *, uint);
-extern int get_average(const int *, uint);
+extern int print_array_elements_to_be_averaged(const int*, uint);
+extern int get_average(const int*, uint);
 
 module_param_array(intArray, int, &averagedElementsCount, S_IRUSR | S_IWUSR);
 MODULE_PARM_DESC(intArray, " an array of integers that are supposed to be averaged");

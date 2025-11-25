@@ -3,7 +3,7 @@
 
 MODULE_LICENSE("GPL");
 
-void print_array_elements_to_be_averaged(const int *array, uint arraySize)
+void print_array_elements_to_be_averaged(const int* array, uint arraySize)
 {
     if (array != NULL)
     {

@@ -2,7 +2,7 @@
 
 MODULE_LICENSE("GPL");
 
-uint get_string_length(const char *str)
+uint get_string_length(const char* str)
 {
     uint len = 0;
 
@@ -17,12 +17,12 @@ uint get_string_length(const char *str)
     return len;
 }
 
-int is_empty_string(const char *str)
+int is_empty_string(const char* str)
 {
     return 0 == get_string_length(str);
 }
 
-int get_average(const int *array, uint arraySize)
+int get_average(const int* array, uint arraySize)
 {
     int sum = 0;
 
