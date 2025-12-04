@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cassert>
 #include <cstdlib>
 #include <filesystem>
@@ -46,60 +47,51 @@ bool areDivisionSysfsFilesValid()
            std::filesystem::exists(remainderFilePath) || std::filesystem::is_regular_file(remainderFilePath);
 }
 
-int retrieveRemainderUsingKernelModule(int divided, int divider)
+void passDivisionOperandsToKernelModule(int divided, int divider)
 {
-    int result = 0;
-
-    do
+    if (!areDivisionSysfsFilesValid())
     {
-        if (!areDivisionSysfsFilesValid())
-        {
-            throw std::runtime_error("At least one sysfs file from kernel module \"division\" does not exist or is "
-                                     "invalid!\nPlease check that the module is loaded and generates correct files.");
-        }
+        throw std::runtime_error("At least one sysfs file from kernel module \"division\" does not exist or is "
+                                 "invalid!\nPlease check that the module is loaded and generates correct files.");
+    }
 
-        std::ofstream toDivided{std::string{dividedFilePath}};
+    std::ofstream toDividedFile{std::string{dividedFilePath}};
 
-        if (!toDivided.is_open())
-        {
-            throw std::runtime_error(
-                "File " + std::string{dividedFilePath} +
-                " could not be opened for writing!\nPlease try again by running the app with sudo.");
-        }
+    if (!toDividedFile.is_open())
+    {
+        throw std::runtime_error("File " + std::string{dividedFilePath} +
+                                 " could not be opened for writing!\nPlease try again by running the app with sudo.");
+    }
 
-        std::ofstream toDivider{std::string{dividerFilePath}};
+    std::ofstream toDividerFile{std::string{dividerFilePath}};
 
-        if (!toDivider.is_open())
-        {
-            throw std::runtime_error("File " + std::string{dividerFilePath} + " could not be opened for writing!");
-        }
+    if (!toDividerFile.is_open())
+    {
+        throw std::runtime_error("File " + std::string{dividerFilePath} + " could not be opened for writing!");
+    }
 
-        toDivided << divided;
-        toDivider << divider;
+    toDividedFile << divided;
+    toDividerFile << divider;
+}
 
-        // output streams should be closed prior to reading the result (remainder)
-        // otherwise result might get corrupted
-        toDivided.close();
-        toDivider.close();
+int retrieveResultFromKernelModule(const std::string_view resultFilePath)
+{
+    std::ifstream fromResultFile{std::string{resultFilePath}};
 
-        std::ifstream fromRemainder{std::string{remainderFilePath}};
+    if (!fromResultFile.is_open())
+    {
+        throw std::runtime_error("File " + std::string{resultFilePath} +
+                                 " could not be opened for reading!\nPlease try again by running the app with sudo.");
+    }
 
-        if (!fromRemainder.is_open())
-        {
-            throw std::runtime_error("File " + std::string{remainderFilePath} + " could not be opened for reading!");
-        }
+    int result;
+    fromResultFile >> result;
 
-        int temp;
-        fromRemainder >> temp;
-
-        if (fromRemainder.fail())
-        {
-            throw std::runtime_error("Reading the file " + std::string{remainderFilePath} +
-                                     " failed!\nPossibly it contains an invalid (non-integer) value.");
-        }
-
-        result = temp;
-    } while (false);
+    if (fromResultFile.fail())
+    {
+        throw std::runtime_error("Reading the file " + std::string{resultFilePath} +
+                                 " failed!\nPossibly it contains an invalid (non-integer) value.");
+    }
 
     return result;
 }
@@ -145,13 +137,40 @@ ParsedArguments GcdUtils::parseArguments(int argc, char** argv)
     return result;
 }
 
-int GcdUtils::retrieveGreatestCommonDivisor(int first, int second)
+int GcdUtils::retrieveQuotient(int divided, int divider)
 {
-    if (second == 0)
+    if (divider == 0)
     {
         throw std::runtime_error{"Division by 0!"};
     }
 
-    const int remainder{retrieveRemainderUsingKernelModule(first, second)};
+    passDivisionOperandsToKernelModule(divided, divider);
+    return retrieveResultFromKernelModule(quotientFilePath);
+}
+
+int GcdUtils::retrieveRemainder(int divided, int divider)
+{
+    if (divider == 0)
+    {
+        throw std::runtime_error{"Division by 0!"};
+    }
+
+    passDivisionOperandsToKernelModule(divided, divider);
+    return retrieveResultFromKernelModule(remainderFilePath);
+}
+
+int GcdUtils::retrieveGreatestCommonDivisor(int first, int second)
+{
+    if (first == 0 && second == 0)
+    {
+        throw std::runtime_error{"Cannot retrieve greatest common divisor when both numbers are 0!"};
+    }
+
+    if (second == 0)
+    {
+        std::swap(first, second);
+    }
+
+    const int remainder{retrieveRemainder(first, second)};
     return remainder == 0 ? second : retrieveGreatestCommonDivisor(second, remainder);
 }

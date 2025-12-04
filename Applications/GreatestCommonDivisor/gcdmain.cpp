@@ -1,3 +1,4 @@
+#include <cmath>
 #include <iostream>
 
 #include "gcdutils.h"
@@ -26,6 +27,26 @@ int main(int argc, char** argv)
             const int gcd{GcdUtils::retrieveGreatestCommonDivisor(parsedArguments->first, parsedArguments->second)};
             std::cout << "Greatest common divisor of " << parsedArguments->first << " and " << parsedArguments->second
                       << " is: " << gcd << "\n";
+
+            try
+            {
+                const int firstUncommonDivisor{GcdUtils::retrieveQuotient(parsedArguments->first, gcd)};
+                const int secondUncommonDivisor{GcdUtils::retrieveQuotient(parsedArguments->second, gcd)};
+
+                std::cout << "Uncommon divisor for first number is: " << firstUncommonDivisor << "\n";
+                std::cout << "Uncommon divisor for second number is: " << secondUncommonDivisor << "\n";
+            }
+            catch (...)
+            {
+                // there should be no exception here as the gcd should be different from 0 (just for safety purposes as
+                // the retrieveQuotient() is a throwing function
+            }
+
+            if (std::abs(gcd) == 1)
+            {
+                std::cout << "Numbers " << parsedArguments->first << " and " << parsedArguments->second
+                          << " are prime with each other!\n";
+            }
         }
         catch (const std::runtime_error& err)
         {
