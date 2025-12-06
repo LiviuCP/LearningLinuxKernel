@@ -13,6 +13,15 @@ MODULE_DESCRIPTION("This module divides two integers and provides the quotient a
                    "being used: 2 are read/write (divided/divider) and 2 are read-only (quotient/remainder)\n");
 MODULE_AUTHOR("Liviu Popa");
 
+struct division_data
+{
+    struct kobject division_kobj;
+    int divided;
+    int divider;
+    int quotient;
+    int remainder;
+};
+
 /* VARIABLES */
 
 static int divided = 0;
