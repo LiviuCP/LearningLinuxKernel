@@ -7,8 +7,6 @@
 #include <linux/sysfs.h>
 
 #define EDIVBYZERO 1
-#define EREADONLY 2
-#define ENULLDATAOBJ 3
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("This module divides two integers and provides the quotient and remainder. Four attributes are "
@@ -132,8 +130,7 @@ static int compute_quotient_and_remainder(void)
     }
     else
     {
-        pr_err("%s: NULL data object!\n", THIS_MODULE->name);
-        result = -ENULLDATAOBJ;
+        pr_warn("%s: NULL data object!\n", THIS_MODULE->name);
     }
 
     return result;
