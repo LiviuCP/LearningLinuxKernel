@@ -22,7 +22,37 @@ struct division_data
     int remainder;
 };
 
-/* PARAMETERS */
+static int compute_quotient_and_remainder(struct division_data* data)
+{
+    int result = 0;
+
+    if (data)
+    {
+        if (data->divider != 0)
+        {
+            data->quotient = data->divided / data->divider;
+            data->remainder = data->divided % data->divider;
+
+            pr_info("%s: divided: %d\n", THIS_MODULE->name, data->divided);
+            pr_info("%s: divider: %d\n", THIS_MODULE->name, data->divider);
+            pr_info("%s: quotient: %d\n", THIS_MODULE->name, data->quotient);
+            pr_info("%s: remainder: %d\n", THIS_MODULE->name, data->remainder);
+        }
+        else
+        {
+            result = -EDIVBYZERO;
+            pr_err("%s: cannot perform operation (division by 0)!\n", THIS_MODULE->name);
+        }
+    }
+    else
+    {
+        pr_warn("%s: NULL data object!\n", THIS_MODULE->name);
+    }
+
+    return result;
+}
+
+/* VARIABLES AND PARAMETERS */
 
 static int divided = 0;
 static int divider = 1;
@@ -30,9 +60,9 @@ static int divider = 1;
 module_param(divided, int, S_IRUSR | S_IWUSR);
 module_param(divider, int, S_IRUSR | S_IWUSR);
 
-/* SYSFS objects/attributes */
+struct division_data* data = NULL;
 
-static int compute_quotient_and_remainder(void);
+/* SYSFS objects/attributes */
 
 static ssize_t divided_show(struct kobject* kobj, struct kobj_attribute* attr, char* buf)
 {
@@ -48,7 +78,7 @@ static ssize_t divided_store(struct kobject* kobj, struct kobj_attribute* attr, 
     if (result >= 0)
     {
         pr_info("%s: new divided value, recalculating quotient and remainder\n", THIS_MODULE->name);
-        (void)compute_quotient_and_remainder();
+        (void)compute_quotient_and_remainder(data);
     }
 
     return result < 0 ? 0 : count;
@@ -68,7 +98,7 @@ static ssize_t divider_store(struct kobject* kobj, struct kobj_attribute* attr, 
     if (result >= 0)
     {
         pr_info("%s: new divider value, recalculating quotient and remainder\n", THIS_MODULE->name);
-        (void)compute_quotient_and_remainder();
+        (void)compute_quotient_and_remainder(data);
     }
 
     return result < 0 ? 0 : count;
@@ -104,38 +134,6 @@ static struct kobj_type division_ktype = {
 
 /* INIT/EXIT */
 
-struct division_data* data = NULL;
-
-static int compute_quotient_and_remainder(void)
-{
-    int result = 0;
-
-    if (data)
-    {
-        if (data->divider != 0)
-        {
-            data->quotient = data->divided / data->divider;
-            data->remainder = data->divided % data->divider;
-
-            pr_info("%s: divided: %d\n", THIS_MODULE->name, data->divided);
-            pr_info("%s: divider: %d\n", THIS_MODULE->name, data->divider);
-            pr_info("%s: quotient: %d\n", THIS_MODULE->name, data->quotient);
-            pr_info("%s: remainder: %d\n", THIS_MODULE->name, data->remainder);
-        }
-        else
-        {
-            result = -EDIVBYZERO;
-            pr_err("%s: cannot perform operation (division by 0)!\n", THIS_MODULE->name);
-        }
-    }
-    else
-    {
-        pr_warn("%s: NULL data object!\n", THIS_MODULE->name);
-    }
-
-    return result;
-}
-
 static int division_init(void)
 {
     pr_info("%s: initializing module\n", THIS_MODULE->name);
@@ -158,7 +156,7 @@ static int division_init(void)
 
             pr_info("%s: doing calculation\n", THIS_MODULE->name);
 
-            result = compute_quotient_and_remainder();
+            result = compute_quotient_and_remainder(data);
         }
         else
         {
