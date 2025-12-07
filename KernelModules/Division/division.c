@@ -2,148 +2,181 @@
 #include <linux/kobject.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/sysfs.h>
 
 #define EDIVBYZERO 1
-#define EREADONLY 2
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("This module divides two integers and provides the quotient and remainder. Four attributes are "
                    "being used: 2 are read/write (divided/divider) and 2 are read-only (quotient/remainder)\n");
 MODULE_AUTHOR("Liviu Popa");
 
-/* VARIABLES */
+struct division_data
+{
+    struct kobject division_kobj;
+    int divided;
+    int divider;
+    int quotient;
+    int remainder;
+};
 
-static int divided = 0;
-static int divider = 1;
-static int quotient = 0;
-static int remainder = 0;
-
-static int compute_quotient_and_remainder(void)
+static int compute_quotient_and_remainder(struct division_data* data)
 {
     int result = 0;
 
-    if (divider != 0)
+    if (data)
     {
-        quotient = divided / divider;
-        remainder = divided % divider;
+        if (data->divider != 0)
+        {
+            data->quotient = data->divided / data->divider;
+            data->remainder = data->divided % data->divider;
 
-        pr_info("%s: divided: %d\n", THIS_MODULE->name, divided);
-        pr_info("%s: divider: %d\n", THIS_MODULE->name, divider);
-        pr_info("%s: quotient: %d\n", THIS_MODULE->name, quotient);
-        pr_info("%s: remainder: %d\n", THIS_MODULE->name, remainder);
+            pr_info("%s: divided: %d\n", THIS_MODULE->name, data->divided);
+            pr_info("%s: divider: %d\n", THIS_MODULE->name, data->divider);
+            pr_info("%s: quotient: %d\n", THIS_MODULE->name, data->quotient);
+            pr_info("%s: remainder: %d\n", THIS_MODULE->name, data->remainder);
+        }
+        else
+        {
+            result = -EDIVBYZERO;
+            pr_err("%s: cannot perform operation (division by 0)!\n", THIS_MODULE->name);
+        }
     }
     else
     {
-        result = -EDIVBYZERO;
-        pr_err("%s: cannot perform operation (division by 0)!\n", THIS_MODULE->name);
+        pr_warn("%s: NULL data object!\n", THIS_MODULE->name);
     }
 
     return result;
 }
 
-/* PARAMETERS */
+/* VARIABLES AND PARAMETERS */
+
+static int divided = 0;
+static int divider = 1;
 
 module_param(divided, int, S_IRUSR | S_IWUSR);
 module_param(divider, int, S_IRUSR | S_IWUSR);
 
-/* SYSFS objects/attributes */
+struct division_data* data = NULL;
 
-struct kobject division_kobj;
+/* SYSFS access methods for attributes */
 
-static struct attribute divided_attribute = {.name = "divided", .mode = 0600};
-static struct attribute divider_attribute = {.name = "divider", .mode = 0600};
-static struct attribute quotient_attribute = {.name = "quotient", .mode = 0400};
-static struct attribute remainder_attribute = {.name = "remainder", .mode = 0400};
+static ssize_t divided_show(struct kobject* kobj, struct kobj_attribute* attr, char* buf)
+{
+    struct division_data* data = container_of(kobj, struct division_data, division_kobj);
+    return sysfs_emit(buf, "%d\n", data->divided);
+}
 
-static struct attribute* division_attrs[] = {&divided_attribute, &divider_attribute, &quotient_attribute,
-                                             &remainder_attribute, NULL};
+static ssize_t divided_store(struct kobject* kobj, struct kobj_attribute* attr, const char* buf, size_t count)
+{
+    struct division_data* data = container_of(kobj, struct division_data, division_kobj);
+    const int result = kstrtoint(buf, 10, &data->divided);
+
+    if (result >= 0)
+    {
+        pr_info("%s: new divided value, recalculating quotient and remainder\n", THIS_MODULE->name);
+        (void)compute_quotient_and_remainder(data);
+    }
+
+    return result < 0 ? 0 : count;
+}
+
+static ssize_t divider_show(struct kobject* kobj, struct kobj_attribute* attr, char* buf)
+{
+    struct division_data* data = container_of(kobj, struct division_data, division_kobj);
+    return sysfs_emit(buf, "%d\n", data->divider);
+}
+
+static ssize_t divider_store(struct kobject* kobj, struct kobj_attribute* attr, const char* buf, size_t count)
+{
+    struct division_data* data = container_of(kobj, struct division_data, division_kobj);
+    const int result = kstrtoint(buf, 10, &data->divider);
+
+    if (result >= 0)
+    {
+        pr_info("%s: new divider value, recalculating quotient and remainder\n", THIS_MODULE->name);
+        (void)compute_quotient_and_remainder(data);
+    }
+
+    return result < 0 ? 0 : count;
+}
+
+// no store to be defined here as the quotient is read-only
+static ssize_t quotient_show(struct kobject* kobj, struct kobj_attribute* attr, char* buf)
+{
+    struct division_data* data = container_of(kobj, struct division_data, division_kobj);
+    return sysfs_emit(buf, "%d\n", data->quotient);
+}
+
+// same here
+static ssize_t remainder_show(struct kobject* kobj, struct kobj_attribute* attr, char* buf)
+{
+    struct division_data* data = container_of(kobj, struct division_data, division_kobj);
+    return sysfs_emit(buf, "%d\n", data->remainder);
+}
+
+/* SYSFS attributes */
+
+static struct kobj_attribute divided_attribute = __ATTR(divided, 0600, divided_show, divided_store);
+static struct kobj_attribute divider_attribute = __ATTR(divider, 0600, divider_show, divider_store);
+static struct kobj_attribute quotient_attribute = __ATTR(quotient, 0400, quotient_show, NULL);
+static struct kobj_attribute remainder_attribute = __ATTR(remainder, 0400, remainder_show, NULL);
+
+static struct attribute* division_attrs[] = {&divided_attribute.attr, &divider_attribute.attr, &quotient_attribute.attr,
+                                             &remainder_attribute.attr, NULL};
 
 // these statements can be replaced by: "ATTRIBUTE_GROUPS(division);" (see sysfs.h)
 // I preferred to keep the unwrapped for better readability
 static const struct attribute_group division_group = {.attrs = division_attrs};
 static const struct attribute_group* division_groups[] = {&division_group, NULL};
 
-static ssize_t division_show(struct kobject* kobj, struct attribute* attr, char* buf)
-{
-    int result = 0;
-
-    if (strncmp(attr->name, "divided", 7) == 0)
-    {
-        result = sysfs_emit(buf, "%d\n", divided);
-    }
-    else if (strncmp(attr->name, "divider", 7) == 0)
-    {
-        result = sysfs_emit(buf, "%d\n", divider);
-    }
-    else if (strncmp(attr->name, "quotient", 8) == 0)
-    {
-        result = sysfs_emit(buf, "%d\n", quotient);
-    }
-    else
-    {
-        result = sysfs_emit(buf, "%d\n", remainder);
-    }
-
-    return result;
-}
-
-static ssize_t division_store(struct kobject* kobj, struct attribute* attr, const char* buf, size_t count)
-{
-    int result = -EREADONLY;
-
-    if (strncmp(attr->name, "divided", 7) == 0)
-    {
-        pr_info("%s: new divided value, recalculating quotient and remainder\n", THIS_MODULE->name);
-        result = kstrtoint(buf, 10, &divided);
-    }
-    else if (strncmp(attr->name, "divider", 7) == 0)
-    {
-        pr_info("%s: new divider value, recalculating quotient and remainder\n", THIS_MODULE->name);
-        result = kstrtoint(buf, 10, &divider);
-    }
-    else
-    {
-        pr_err("%s: attribute %s is read-only!\n", THIS_MODULE->name, attr->name);
-    }
-
-    if (result == 0)
-    {
-        result = compute_quotient_and_remainder();
-    }
-
-    return result < 0 ? result : count;
-}
-
-struct sysfs_ops division_ops = {.show = division_show, .store = division_store};
-
+// kobj_sysfs_ops is the default sysfs_ops (binds all access functions defined above into division_ktype)
 static struct kobj_type division_ktype = {
-    .sysfs_ops = &division_ops, .release = NULL, .default_groups = division_groups};
+    .sysfs_ops = &kobj_sysfs_ops, .release = NULL, .default_groups = division_groups};
 
 /* INIT/EXIT */
 
 static int division_init(void)
 {
+    // resulting directory structure: "/sys/kernel/division"
+    // - kernel_kobj (parent kobject) => "/sys/kernel"
+    // - division_kobj_name => "/division"
+    const char* division_kobj_name = "division";
+
+    int result = 0;
+
     pr_info("%s: initializing module\n", THIS_MODULE->name);
-    pr_info("%s: doing calculation\n", THIS_MODULE->name);
+    data = kzalloc(sizeof(struct division_data), GFP_KERNEL);
 
-    int result = compute_quotient_and_remainder();
-
-    if (result == 0)
+    if (data)
     {
-        // resulting directory structure: "/sys/kernel/division"
-        // - kernel_kobj (parent kobject) => "/sys/kernel"
-        // - division_kobj_name => "/division"
-        const char* division_kobj_name = "division";
-        result = kobject_init_and_add(&division_kobj, &division_ktype, kernel_kobj, "%s", division_kobj_name);
+        result = kobject_init_and_add(&data->division_kobj, &division_ktype, kernel_kobj, "%s", division_kobj_name);
 
-        if (result != 0)
+        if (result == 0)
         {
-            pr_err("%s: unable to initialize sysfs object \"%s\" (no memory)!\n", THIS_MODULE->name,
-                   division_kobj_name);
+            data->divided = divided;
+            data->divider = divider;
+
+            pr_info("%s: doing calculation\n", THIS_MODULE->name);
+
+            result = compute_quotient_and_remainder(data);
+        }
+        else
+        {
             result = -ENOMEM;
         }
+    }
+    else
+    {
+        result = -ENOMEM;
+    }
+
+    if (result == -ENOMEM)
+    {
+        pr_err("%s: unable to initialize sysfs object \"%s\" (no memory)!\n", THIS_MODULE->name, division_kobj_name);
     }
 
     return result;
@@ -151,7 +184,8 @@ static int division_init(void)
 
 static void division_exit(void)
 {
-    kobject_put(&division_kobj);
+    kobject_put(&data->division_kobj);
+    kfree(data);
     pr_info("%s: the module exited!\n", THIS_MODULE->name);
 }
 
