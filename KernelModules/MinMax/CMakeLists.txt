@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.5)
+
+project(MinMax LANGUAGES C)
+
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+
+execute_process(COMMAND bash -c "cd ${KERNEL_MODULES_SOURCE_DIR}/${PROJECT_NAME} && make MY_DIR=${KERNEL_MODULES_BUILD_DIR}/${PROJECT_NAME}")
