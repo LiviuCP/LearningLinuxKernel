@@ -4,7 +4,10 @@ obj-m += average2.o
 average1-objs := average1_init.o common.o average_exit.o utilities.o
 average2-objs := average2_init.o common.o average_exit.o utilities.o
 
-BUILD_DIR := $(PWD)/build
+ifndef BUILD_DIR
+	BUILD_DIR := $(PWD)/build
+endif
+
 BUILD_DIR_MAKEFILE := $(BUILD_DIR)/Makefile
 
 all: $(BUILD_DIR_MAKEFILE)

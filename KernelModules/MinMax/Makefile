@@ -1,6 +1,9 @@
 obj-m += minMax.o
 
-BUILD_DIR := $(PWD)/build
+ifndef BUILD_DIR
+	BUILD_DIR := $(PWD)/build
+endif
+
 BUILD_DIR_MAKEFILE := $(BUILD_DIR)/Makefile
 
 all: $(BUILD_DIR_MAKEFILE)

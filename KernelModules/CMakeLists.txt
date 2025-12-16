@@ -1,0 +1,10 @@
+cmake_minimum_required(VERSION 3.5)
+
+project(KernelModules LANGUAGES C)
+
+set(KERNEL_MODULES_SOURCE_DIR ${CMAKE_SOURCE_DIR}/KernelModules)
+set(KERNEL_MODULES_BUILD_DIR ${CMAKE_BINARY_DIR}/KernelModules)
+
+add_subdirectory(Average)
+add_subdirectory(Division)
+add_subdirectory(MinMax)

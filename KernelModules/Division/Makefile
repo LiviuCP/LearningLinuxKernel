@@ -2,7 +2,10 @@ obj-m += division.o
 
 division-objs := division_main.o division_impl.o
 
-BUILD_DIR := $(PWD)/build
+ifndef BUILD_DIR
+	BUILD_DIR := $(PWD)/build
+endif
+
 BUILD_DIR_MAKEFILE := $(BUILD_DIR)/Makefile
 
 all: $(BUILD_DIR_MAKEFILE)
