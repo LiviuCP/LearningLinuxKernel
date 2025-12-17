@@ -1,0 +1,2 @@
+execute_process(COMMAND bash -c "cd ${KERNEL_MODULES_SRC_DIR}/${PROJECT_NAME} &&
+		make clean BUILD_DIR=${KERNEL_MODULES_BUILD_DIR}/${PROJECT_NAME}")

@@ -5,6 +5,7 @@ project(Division LANGUAGES C)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 include(${KERNEL_MODULES_SOURCE_DIR}/CMakeUtils/customtarget.cmake)
+include(${KERNEL_MODULES_SOURCE_DIR}/CMakeUtils/customcleantarget.cmake)
 
 target_sources(${PROJECT_NAME} PRIVATE
     include/division_impl.h
