@@ -11,3 +11,5 @@ target_sources(${PROJECT_NAME} PRIVATE
     source/division_impl.c
     source/division_main.c
     Makefile)
+
+copy_file_to_consolidated_output(division.ko)

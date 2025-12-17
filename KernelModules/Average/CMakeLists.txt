@@ -13,3 +13,6 @@ target_sources(${PROJECT_NAME} PRIVATE
     source/V1/average_init.c
     source/V2/average_init.c
     Makefile)
+
+copy_file_to_consolidated_output(average1.ko)
+copy_file_to_consolidated_output(average2.ko)

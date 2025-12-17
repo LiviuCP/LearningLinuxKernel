@@ -5,3 +5,5 @@ add_custom_target(${PROJECT_NAME} ALL
     -DPROJECT_NAME=${PROJECT_NAME}
     -P ${KERNEL_MODULES_SOURCE_DIR}/CMakeUtils/make.cmake
 )
+
+include(${KERNEL_MODULES_SOURCE_DIR}/CMakeUtils/copyoutput.cmake)
