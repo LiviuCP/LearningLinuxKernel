@@ -6,4 +6,4 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 include(${KERNEL_MODULES_SOURCE_DIR}/CMakeUtils/customtarget.cmake)
 
-target_sources(${PROJECT_NAME} PRIVATE minMax.c Makefile)
+target_sources(${PROJECT_NAME} PRIVATE min_max.c Makefile)

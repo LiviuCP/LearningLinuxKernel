@@ -7,9 +7,9 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 include(${KERNEL_MODULES_SOURCE_DIR}/CMakeUtils/customtarget.cmake)
 
 target_sources(${PROJECT_NAME} PRIVATE
-    average1_init.c
-    average2_init.c
-    average_exit.c
-    common.c
-    utilities.c
+    source/Common/average_exit.c
+    source/Common/average_print.c
+    source/Common/average_utilities.c
+    source/V1/average_init.c
+    source/V2/average_init.c
     Makefile)

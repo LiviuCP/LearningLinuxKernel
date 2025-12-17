@@ -1,6 +1,8 @@
+SRC := source/division_impl.c source/division_main.c
+
 obj-m += division.o
 
-division-objs := division_main.o division_impl.o
+division-objs := $(SRC:.c=.o)
 
 ifndef BUILD_DIR
 	BUILD_DIR := $(PWD)/build
@@ -20,4 +22,4 @@ $(BUILD_DIR_MAKEFILE): $(BUILD_DIR)
 clean:
 	make -C /lib/modules/$(shell uname -r)/build M=$(BUILD_DIR) src=$(PWD) clean
 
-EXTRA_CFLAGS := -I$(src)/include
+EXTRA_CFLAGS := -I$(src)/include -I$(src)/source

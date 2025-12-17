@@ -1,4 +1,4 @@
-obj-m += minMax.o
+obj-m += min_max.o
 
 ifndef BUILD_DIR
 	BUILD_DIR := $(PWD)/build
