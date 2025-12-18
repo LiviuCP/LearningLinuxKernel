@@ -1,6 +1,5 @@
 SRC_COMMON := source/Common/average_exit.c \
-	source/Common/average_print.c \
-	source/Common/average_utilities.c
+        source/Common/average_utilities.c
 
 SRC_V1 := source/V1/average_init.c
 SRC_V2 := source/V2/average_init.c
@@ -29,4 +28,4 @@ $(BUILD_DIR_MAKEFILE): $(BUILD_DIR)
 clean:
 	make -C /lib/modules/$(shell uname -r)/build M=$(BUILD_DIR) src=$(PWD) clean
 
-EXTRA_CFLAGS := -I$(src)/source
+EXTRA_CFLAGS := -I$(src)/include -I$(src)/source

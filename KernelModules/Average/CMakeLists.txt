@@ -8,8 +8,8 @@ include(${KERNEL_MODULES_SOURCE_DIR}/CMakeUtils/customtarget.cmake)
 include(${KERNEL_MODULES_SOURCE_DIR}/CMakeUtils/customcleantarget.cmake)
 
 target_sources(${PROJECT_NAME} PRIVATE
+    include/Common/average_utilities.h
     source/Common/average_exit.c
-    source/Common/average_print.c
     source/Common/average_utilities.c
     source/V1/average_init.c
     source/V2/average_init.c

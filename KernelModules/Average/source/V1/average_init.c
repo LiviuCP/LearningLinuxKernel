@@ -2,7 +2,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 
-#define INT_ARRAY_SZ 10
+#include "Common/average_utilities.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Liviu Popa");
@@ -10,45 +10,42 @@ MODULE_DESCRIPTION("This module calculates a rounded average of up to 10 integer
                    "within integers array. The number of integers to be averaged should be explicitly passed as "
                    "parameters. Minimum 2 integers are required.");
 
-static int intArray[INT_ARRAY_SZ];
-static uint averagedElementsCount = 0;
+static int int_array[INT_ARRAY_SIZE];
+static uint averaged_elements_count = 0;
 
-extern int print_array_elements_to_be_averaged(const int*, uint);
-extern int get_average(const int*, uint);
+module_param_array(int_array, int, NULL, S_IRUSR | S_IWUSR);
+MODULE_PARM_DESC(int_array, " an array of integers that are supposed to be averaged");
 
-module_param_array(intArray, int, NULL, S_IRUSR | S_IWUSR);
-MODULE_PARM_DESC(intArray, " an array of integers that are supposed to be averaged");
-
-module_param(averagedElementsCount, uint, S_IRUSR | S_IWUSR);
-MODULE_PARM_DESC(averagedElementsCount,
+module_param(averaged_elements_count, uint, S_IRUSR | S_IWUSR);
+MODULE_PARM_DESC(averaged_elements_count,
                  " user provided number of elements to be averaged (should not exceed the intrinsic array size "
-                 "INT_ARRAY_SZ; in case it exceeds the user provided values count the extra values will be 0)");
+                 "INT_ARRAY_SIZE; in case it exceeds the user provided values count the extra values will be 0)");
 
-static const uint minAveragedParamsCount = 2;
+static const uint min_averaged_params_count = 2;
 
 static int __init average1_init(void)
 {
     int result = -1;
 
     pr_info("%s: this module is supposed to calculate a rounded average of array integers!\n", THIS_MODULE->name);
-    pr_info("%s: maximum count of integers is: %ld\n", THIS_MODULE->name, ARRAY_SIZE(intArray));
+    pr_info("%s: maximum count of integers is: %ld\n", THIS_MODULE->name, ARRAY_SIZE(int_array));
     pr_info("%s: elements count to be averaged is provided as argument\n", THIS_MODULE->name);
 
-    if (averagedElementsCount < minAveragedParamsCount)
+    if (averaged_elements_count < min_averaged_params_count)
     {
         pr_err("%s: invalid averaged elements count (%d)! There should be at least %d elements to be averaged!\n",
-               THIS_MODULE->name, averagedElementsCount, minAveragedParamsCount);
+               THIS_MODULE->name, averaged_elements_count, min_averaged_params_count);
     }
-    else if (averagedElementsCount > ARRAY_SIZE(intArray))
+    else if (averaged_elements_count > ARRAY_SIZE(int_array))
     {
         pr_err("%s: invalid averaged elements count (%d)! There should be at most %ld elements to be averaged!\n",
-               THIS_MODULE->name, averagedElementsCount, ARRAY_SIZE(intArray));
+               THIS_MODULE->name, averaged_elements_count, ARRAY_SIZE(int_array));
     }
     else
     {
         result = 0;
-        print_array_elements_to_be_averaged(intArray, averagedElementsCount);
-        pr_info("%s: the average is: %d\n", THIS_MODULE->name, get_average(intArray, averagedElementsCount));
+        print_array_elements_to_be_averaged(int_array, averaged_elements_count);
+        pr_info("%s: the average is: %d\n", THIS_MODULE->name, get_average(int_array, averaged_elements_count));
     }
 
     return result;

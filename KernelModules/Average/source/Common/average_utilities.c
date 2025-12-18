@@ -1,35 +1,31 @@
 #include <linux/module.h>
 
+#include "Common/average_utilities.h"
+
 MODULE_LICENSE("GPL");
 
-uint get_string_length(const char* str)
+void print_array_elements_to_be_averaged(const int* array, uint array_size)
 {
-    uint len = 0;
-
-    if (str != NULL)
+    if (array != NULL)
     {
-        while (str[len] != '\0')
+        pr_info("%s: %d elements to be averaged\n", THIS_MODULE->name, array_size);
+        pr_info("%s: the elements to be averaged are:\n", THIS_MODULE->name);
+
+        for (uint index = 0; index < array_size; ++index)
         {
-            ++len;
+            pr_info("%s: intArray[%d] = %d\n", THIS_MODULE->name, index, array[index]);
         }
     }
-
-    return len;
 }
 
-int is_empty_string(const char* str)
-{
-    return 0 == get_string_length(str);
-}
-
-int get_average(const int* array, uint arraySize)
+int get_average(const int* array, uint array_size)
 {
     int sum = 0;
 
-    for (uint index = 0; index < arraySize; ++index)
+    for (uint index = 0; index < array_size; ++index)
     {
         sum += array[index];
     }
 
-    return arraySize > 0 ? sum / (int)arraySize : sum;
+    return array_size > 0 ? sum / (int)array_size : sum;
 }

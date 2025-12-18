@@ -3,18 +3,16 @@
 
 MODULE_LICENSE("GPL");
 
-static char* exitMessage = "";
+static char* exit_message = "";
 
-extern int is_empty_string(const char*);
-
-module_param(exitMessage, charp, S_IRUSR | S_IWUSR);
-MODULE_PARM_DESC(exitMessage, " an optional message to be sent upon average module unloading");
+module_param(exit_message, charp, S_IRUSR | S_IWUSR);
+MODULE_PARM_DESC(exit_message, " an optional message to be sent upon average module unloading");
 
 static void __exit average_exit(void)
 {
-    if (!is_empty_string(exitMessage))
+    if (strlen(exit_message) > 0)
     {
-        pr_info("%s: %s\n", THIS_MODULE->name, exitMessage);
+        pr_info("%s: %s\n", THIS_MODULE->name, exit_message);
     }
     else
     {
