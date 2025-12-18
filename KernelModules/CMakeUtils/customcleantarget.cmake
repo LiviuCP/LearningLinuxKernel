@@ -10,3 +10,5 @@ add_custom_target("${PROJECT_NAME}_clean"
     -DPROJECT_NAME=${PROJECT_NAME}
     -P ${KERNEL_MODULES_SOURCE_DIR}/CMakeUtils/makeclean.cmake
 )
+
+add_dependencies(${KERNEL_MODULES_PROJECT_NAME}_clean "${PROJECT_NAME}_clean")
