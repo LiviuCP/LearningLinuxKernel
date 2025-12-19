@@ -1,44 +1,49 @@
 #include <cmath>
 #include <iostream>
 
+#include "gcdcore.h"
+#include "gcdloader.h"
+#include "gcdparser.h"
 #include "gcdutils.h"
 
+#define SUCCESS 0
 #define ERROR 1
 
 /* How to use:
-   - compile the kernel module "division" by running "make" from within its directory (Modules/Division)
-   - load the kernel module by running "sudo insmod division.ko"
-   - check that the module is loaded by running "lsmod | grep -i division"
-   - run this application: sudo ./GreatestCommonDivisor [integer1] [integer2] # g.c.d. is retrieved
+    - build the whole LearningLinuxKernel project
+    - run this application: sudo ./GreatestCommonDivisor [integer1] [integer2] # g.c.d. is retrieved
      (e.g. sudo ./GreatestCommonDivisor 6 10 # g.c.d. is 2)
+
+    Note: the application requests loading of the Division kernel module so no action is required from user side other
+   that running the app with "sudo" and the required arguments (divided and divider).
  */
 
 int main(int argc, char** argv)
 {
-    int retVal{0};
-    const ParsedArguments parsedArguments{GcdUtils::parseArguments(argc, argv)};
+    int retVal{SUCCESS};
+    const ParsedArguments parsedArguments{GCD::Parser::parseArguments(argc, argv)};
 
-    system("clear");
+    GCD::Utils::clearScreen();
 
     if (parsedArguments.has_value())
     {
         try
         {
-            const bool isDivisionModuleAlreadyLoaded{GcdUtils::isKernelModuleDivisionLoaded()};
+            const bool isDivisionModuleInitiallyLoaded{GCD::Loader::isKernelModuleDivisionLoaded()};
 
-            if (!isDivisionModuleAlreadyLoaded)
+            if (!isDivisionModuleInitiallyLoaded)
             {
-                GcdUtils::loadKernelModuleDivision();
+                GCD::Loader::loadKernelModuleDivision();
             }
 
-            const int gcd{GcdUtils::retrieveGreatestCommonDivisor(parsedArguments->first, parsedArguments->second)};
+            const int gcd{GCD::Core::retrieveGreatestCommonDivisor(parsedArguments->first, parsedArguments->second)};
             std::cout << "Greatest common divisor of " << parsedArguments->first << " and " << parsedArguments->second
                       << " is: " << gcd << "\n";
 
             try
             {
-                const int firstUncommonDivisor{GcdUtils::retrieveQuotient(parsedArguments->first, gcd)};
-                const int secondUncommonDivisor{GcdUtils::retrieveQuotient(parsedArguments->second, gcd)};
+                const int firstUncommonDivisor{GCD::Core::retrieveQuotient(parsedArguments->first, gcd)};
+                const int secondUncommonDivisor{GCD::Core::retrieveQuotient(parsedArguments->second, gcd)};
 
                 std::cout << "Uncommon divisor for first number is: " << firstUncommonDivisor << "\n";
                 std::cout << "Uncommon divisor for second number is: " << secondUncommonDivisor << "\n";
@@ -56,9 +61,9 @@ int main(int argc, char** argv)
                           << " are prime with each other!\n";
             }
 
-            if (!isDivisionModuleAlreadyLoaded)
+            if (!isDivisionModuleInitiallyLoaded)
             {
-                GcdUtils::unloadKernelModuleDivision();
+                GCD::Loader::unloadKernelModuleDivision();
             }
         }
         catch (const std::runtime_error& err)
