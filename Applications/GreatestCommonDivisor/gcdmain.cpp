@@ -24,6 +24,13 @@ int main(int argc, char** argv)
     {
         try
         {
+            const bool isDivisionModuleAlreadyLoaded{GcdUtils::isKernelModuleDivisionLoaded()};
+
+            if (!isDivisionModuleAlreadyLoaded)
+            {
+                GcdUtils::loadKernelModuleDivision();
+            }
+
             const int gcd{GcdUtils::retrieveGreatestCommonDivisor(parsedArguments->first, parsedArguments->second)};
             std::cout << "Greatest common divisor of " << parsedArguments->first << " and " << parsedArguments->second
                       << " is: " << gcd << "\n";
@@ -40,12 +47,18 @@ int main(int argc, char** argv)
             {
                 // there should be no exception here as the gcd should be different from 0 (just for safety purposes as
                 // the retrieveQuotient() is a throwing function
+                throw std::runtime_error{"An unknown error occurred!"};
             }
 
             if (std::abs(gcd) == 1)
             {
                 std::cout << "Numbers " << parsedArguments->first << " and " << parsedArguments->second
                           << " are prime with each other!\n";
+            }
+
+            if (!isDivisionModuleAlreadyLoaded)
+            {
+                GcdUtils::unloadKernelModuleDivision();
             }
         }
         catch (const std::runtime_error& err)

@@ -1,11 +1,14 @@
 #include <algorithm>
 #include <cassert>
+#include <climits>
+#include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
 #include <string_view>
+#include <unistd.h>
 
 #include "gcdutils.h"
 
@@ -22,6 +25,7 @@ static constexpr std::string_view statusFilePath{"/sys/kernel/division/status"};
 
 static constexpr std::string_view divideCommandStr{"divide"};
 static constexpr std::string_view syncedStatusStr{"synced"};
+static constexpr std::string_view divisionModuleRelativePath{"KernelModules/ConsolidatedOutput/division.ko"};
 
 bool isValidIntArg(const char* arg)
 {
@@ -52,6 +56,55 @@ bool areDivisionSysfsFilesValid()
            std::filesystem::exists(remainderFilePath) || std::filesystem::is_regular_file(remainderFilePath) ||
            std::filesystem::exists(commandFilePath) || std::filesystem::is_regular_file(commandFilePath) ||
            std::filesystem::exists(statusFilePath) || std::filesystem::is_regular_file(statusFilePath);
+}
+
+std::filesystem::path getApplicationPath()
+{
+    char applicationPath[PATH_MAX + 1];
+    ssize_t pathSize = readlink("/proc/self/exe", applicationPath, PATH_MAX);
+    applicationPath[pathSize] = '\0';
+
+    return {applicationPath};
+}
+
+std::optional<std::filesystem::path> getDivisionModulePath()
+{
+    const std::filesystem::path applicationPath{getApplicationPath()};
+
+    std::filesystem::path divisionModulePath{applicationPath.parent_path().parent_path().parent_path()};
+    divisionModulePath /= divisionModuleRelativePath;
+
+    return std::filesystem::is_regular_file(divisionModulePath) ? std::optional{divisionModulePath} : std::nullopt;
+}
+
+std::string executeCommand(const std::string& command)
+{
+    std::string commandOutput;
+    char buffer[128];
+
+    FILE* pipe{popen(command.c_str(), "r")};
+
+    if (!pipe)
+    {
+        throw std::runtime_error{"Failed to open pipe!"};
+    }
+
+    try
+    {
+        while (fgets(buffer, sizeof buffer, pipe) != NULL)
+        {
+            commandOutput += buffer;
+        }
+    }
+    catch (...)
+    {
+        pclose(pipe);
+        throw std::runtime_error{"Error in reading from pipe!"};
+    }
+
+    pclose(pipe);
+
+    return commandOutput;
 }
 
 void passDivisionOperandsToKernelModule(int divided, int divider)
@@ -129,7 +182,6 @@ int retrieveResultFromKernelModule(const std::string_view resultFilePath)
 
     return result;
 }
-
 } // namespace
 } // namespace GcdUtils
 
@@ -169,6 +221,44 @@ ParsedArguments GcdUtils::parseArguments(int argc, char** argv)
     }
 
     return result;
+}
+
+void GcdUtils::loadKernelModuleDivision()
+{
+    const std::optional<std::filesystem::path> divisionModulePath{getDivisionModulePath()};
+
+    if (divisionModulePath.has_value())
+    {
+        // no need to include sudo in the command string -> the user needs to run the app with sudo anyway and if so the
+        // command will be executed in sudo mode
+        const std::string loadCommand{"insmod " + divisionModulePath->string() + " 2> /dev/null"};
+        system(loadCommand.c_str());
+    }
+
+    if (!isKernelModuleDivisionLoaded())
+    {
+        throw std::runtime_error{
+            "Could not load kernel module Division!\nPlease try again by running the app with sudo."};
+    }
+}
+
+void GcdUtils::unloadKernelModuleDivision()
+{
+    const std::optional<std::filesystem::path> divisionModulePath{getDivisionModulePath()};
+
+    if (divisionModulePath.has_value())
+    {
+        // no need to include sudo in the command string -> the user needs to run the app with sudo anyway and if so the
+        // command will be executed in sudo mode
+        const std::string unloadCommand{"rmmod " + divisionModulePath->filename().stem().string()};
+        system(unloadCommand.c_str());
+    }
+}
+
+bool GcdUtils::isKernelModuleDivisionLoaded()
+{
+    const std::string commandOutput{executeCommand("lsmod | grep -w division")};
+    return commandOutput.starts_with("division");
 }
 
 int GcdUtils::retrieveQuotient(int divided, int divider)
