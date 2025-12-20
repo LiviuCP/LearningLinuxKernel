@@ -74,6 +74,13 @@ static ssize_t command_store(struct kobject* kobj, struct kobj_attribute* attr, 
     return count;
 }
 
+static void division_release(struct kobject* kobj)
+{
+    struct division_data* data = container_of(kobj, struct division_data, division_kobj);
+    pr_info("%s: freeing data object that contains kobject \"%s\"\n", THIS_MODULE->name, kobj->name);
+    kfree(data);
+}
+
 // no store to be defined here as the status is read-only
 static ssize_t status_show(struct kobject* kobj, struct kobj_attribute* attr, char* buf)
 {
@@ -105,7 +112,7 @@ static const struct attribute_group* division_groups[] = {&division_group, NULL}
 
 // kobj_sysfs_ops is the default sysfs_ops (binds all access functions defined above into division_ktype)
 static struct kobj_type division_ktype = {
-    .sysfs_ops = &kobj_sysfs_ops, .release = NULL, .default_groups = division_groups};
+    .sysfs_ops = &kobj_sysfs_ops, .release = division_release, .default_groups = division_groups};
 
 /* INIT/EXIT */
 
@@ -149,8 +156,11 @@ static int division_init(void)
 
 static void division_exit(void)
 {
+    pr_info("%s: putting the kobject: %s\n", THIS_MODULE->name, data->division_kobj.name);
+
+    // this calls the release function (division_release()) for the data object containing the kobject
     kobject_put(&data->division_kobj);
-    kfree(data);
+
     pr_info("%s: the module exited!\n", THIS_MODULE->name);
 }
 
