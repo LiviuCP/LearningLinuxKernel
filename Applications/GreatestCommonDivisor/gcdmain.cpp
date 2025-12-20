@@ -23,12 +23,12 @@ int main(int argc, char** argv)
     int retVal{SUCCESS};
     const ParsedArguments parsedArguments{GCD::Parser::parseArguments(argc, argv)};
 
-    GCD::Utils::clearScreen();
-
     if (parsedArguments.has_value())
     {
         try
         {
+            GCD::Utils::clearScreen();
+
             const bool isDivisionModuleInitiallyLoaded{GCD::Loader::isKernelModuleDivisionLoaded()};
 
             if (!isDivisionModuleInitiallyLoaded)
@@ -37,6 +37,7 @@ int main(int argc, char** argv)
             }
 
             const int gcd{GCD::Core::retrieveGreatestCommonDivisor(parsedArguments->first, parsedArguments->second)};
+
             std::cout << "Greatest common divisor of " << parsedArguments->first << " and " << parsedArguments->second
                       << " is: " << gcd << "\n";
 

@@ -32,13 +32,13 @@ void GCD::Loader::loadKernelModuleDivision()
         // no need to include sudo in the command string -> the user needs to run the app with sudo anyway and if so the
         // command will be executed in sudo mode
         const std::string loadCommand{"insmod " + divisionModulePath->string() + " 2> /dev/null"};
-        system(loadCommand.c_str());
+        GCD::Utils::executeCommand(loadCommand, READ_MODE);
     }
 
     if (!isKernelModuleDivisionLoaded())
     {
-        throw std::runtime_error{
-            "Could not load kernel module Division!\nPlease try again by running the app with sudo."};
+        throw std::runtime_error{"Could not load kernel module Division!\nPlease check that the module file exists in "
+                                 "consolidated output and try again by running the app with sudo."};
     }
 }
 
@@ -51,7 +51,7 @@ void GCD::Loader::unloadKernelModuleDivision()
         // no need to include sudo in the command string -> the user needs to run the app with sudo anyway and if so the
         // command will be executed in sudo mode
         const std::string unloadCommand{"rmmod " + divisionModulePath->filename().stem().string()};
-        system(unloadCommand.c_str());
+        GCD::Utils::executeCommand(unloadCommand, READ_MODE);
     }
 }
 

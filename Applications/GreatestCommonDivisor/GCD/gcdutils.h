@@ -11,4 +11,5 @@ namespace GCD::Utils
 void clearScreen();
 std::string executeCommand(const std::string& command, bool isWriteMode);
 std::filesystem::path getApplicationPath();
+bool isValidInteger(const char* str);
 } // namespace GCD::Utils

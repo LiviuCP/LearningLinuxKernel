@@ -2,8 +2,8 @@
 #include <filesystem>
 #include <fstream>
 #include <stdexcept>
-#include <string_view>
 #include <string>
+#include <string_view>
 
 #include "gcdcore.h"
 
