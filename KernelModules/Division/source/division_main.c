@@ -6,6 +6,8 @@
 
 #include "division_impl.h"
 
+#define SUCCESS 0
+
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("This module divides two integers and provides the quotient and remainder. Six attributes are "
                    "being used: 2 are read/write (divided/divider), 3 are read-only (quotient/remainder/status), 1 is "
@@ -122,9 +124,10 @@ static int division_init(void)
     // resulting directory structure: "/sys/kernel/division"
     // - kernel_kobj (parent kobject) => "/sys/kernel"
     // - division_kobj_name => "/division"
+    // - all attributes appearing as files in "/division"
     const char* division_kobj_name = "division";
 
-    int result = 0;
+    int result = SUCCESS;
 
     pr_info("%s: initializing module\n", THIS_MODULE->name);
     data = kzalloc(sizeof(struct division_data), GFP_KERNEL);
@@ -132,22 +135,18 @@ static int division_init(void)
     if (data)
     {
         result = kobject_init_and_add(&data->division_kobj, &division_ktype, kernel_kobj, "%s", division_kobj_name);
-
-        if (result == 0)
-        {
-            result = init_data(data, divided, divider);
-        }
-        else
-        {
-            result = -ENOMEM;
-        }
+        result = result == SUCCESS ? init_data(data, divided, divider) : -ENOMEM;
     }
     else
     {
         result = -ENOMEM;
     }
 
-    if (result == -ENOMEM)
+    if (result == SUCCESS)
+    {
+        kobject_uevent(&data->division_kobj, KOBJ_ADD);
+    }
+    else if (result == -ENOMEM)
     {
         pr_err("%s: unable to initialize sysfs object \"%s\" (no memory)!\n", THIS_MODULE->name, division_kobj_name);
     }
