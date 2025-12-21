@@ -7,8 +7,9 @@
 #include "division_impl.h"
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("This module divides two integers and provides the quotient and remainder. Four attributes are "
-                   "being used: 2 are read/write (divided/divider) and 2 are read-only (quotient/remainder)\n");
+MODULE_DESCRIPTION("This module divides two integers and provides the quotient and remainder. Six attributes are "
+                   "being used: 2 are read/write (divided/divider), 3 are read-only (quotient/remainder/status), 1 is "
+                   "write-only (command).\n");
 MODULE_AUTHOR("Liviu Popa");
 
 /* VARIABLES AND PARAMETERS */
