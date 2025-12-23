@@ -77,18 +77,18 @@ static ssize_t command_store(struct kobject* kobj, struct kobj_attribute* attr, 
     return count;
 }
 
-static void division_release(struct kobject* kobj)
-{
-    struct division_data* data = container_of(kobj, struct division_data, division_kobj);
-    pr_info("%s: freeing data object that contains kobject \"%s\"\n", THIS_MODULE->name, kobj->name);
-    kfree(data);
-}
-
 // no store to be defined here as the status is read-only
 static ssize_t status_show(struct kobject* kobj, struct kobj_attribute* attr, char* buf)
 {
     struct division_data* data = container_of(kobj, struct division_data, division_kobj);
     return sysfs_emit(buf, "%s\n", data->status);
+}
+
+static void division_release(struct kobject* kobj)
+{
+    struct division_data* data = container_of(kobj, struct division_data, division_kobj);
+    pr_info("%s: freeing data object that contains kobject \"%s\"\n", THIS_MODULE->name, kobj->name);
+    kfree(data);
 }
 
 /* SYSFS attributes */
