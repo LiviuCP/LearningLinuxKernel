@@ -11,4 +11,5 @@ add_custom_target(${KERNEL_MODULES_PROJECT_NAME}_clean)
 
 add_subdirectory(Average)
 add_subdirectory(Division)
+add_subdirectory(Mapping)
 add_subdirectory(MinMax)
