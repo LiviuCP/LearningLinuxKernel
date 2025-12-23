@@ -37,8 +37,8 @@ static ssize_t key_show(struct kobject* kobj, struct kobj_attribute* attr, char*
 static ssize_t key_store(struct kobject* kobj, struct kobj_attribute* attr, const char* buf, size_t count)
 {
     struct mapping_data* data = container_of(kobj, struct mapping_data, mapping_kobj);
-    // memset(data->command, '\0', MAX_KEY_STR_LENGTH);
-    // strncpy(data->command, buf, MAX_KEY_STR_LENGTH - 1);
+    memset(data->key, '\0', MAX_KEY_STR_LENGTH);
+    strncpy(data->key, buf, MAX_KEY_STR_LENGTH - 1);
 
     return count;
 }
@@ -52,7 +52,7 @@ static ssize_t value_show(struct kobject* kobj, struct kobj_attribute* attr, cha
 static ssize_t value_store(struct kobject* kobj, struct kobj_attribute* attr, const char* buf, size_t count)
 {
     struct mapping_data* data = container_of(kobj, struct mapping_data, mapping_kobj);
-    int result = kstrtoint(buf, 10, &data->value);
+    const int result = kstrtoint(buf, 10, &data->value);
     return result < 0 ? 0 : count;
 }
 
@@ -116,7 +116,16 @@ static int mapping_init(void)
     if (data)
     {
         result = kobject_init_and_add(&data->mapping_kobj, &mapping_ktype, kernel_kobj, "%s", mapping_kobj_name);
-        if (result != SUCCESS)
+
+        if (result == SUCCESS)
+        {
+            memset(data->key, '\0', MAX_KEY_STR_LENGTH);
+            data->value = 0;
+            memset(data->command, '\0', MAX_COMMAND_STR_LENGTH);
+            memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
+            strncpy(data->status, "synced", 6);
+        }
+        else
         {
             result = -ENOMEM;
         }
