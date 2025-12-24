@@ -13,6 +13,9 @@ MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("This module illustrates a dictionary.");
 MODULE_AUTHOR("Liviu Popa");
 
+static const char* dirty_status_str = "dirty";
+static const char* synced_status_str = "synced";
+
 /* VARIABLES AND PARAMETERS */
 
 struct mapping_data
@@ -49,6 +52,9 @@ static ssize_t key_store(struct kobject* kobj, struct kobj_attribute* attr, cons
     struct mapping_data* data = container_of(kobj, struct mapping_data, mapping_kobj);
     memset(data->key, '\0', MAX_KEY_STR_LENGTH);
     strncpy(data->key, buf, MAX_KEY_STR_LENGTH - 1);
+    memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
+    strncpy(data->status, dirty_status_str, strlen(dirty_status_str));
+    pr_info("%s: new key entered: %s\n", THIS_MODULE->name, data->key);
 
     return count;
 }
@@ -63,6 +69,14 @@ static ssize_t value_store(struct kobject* kobj, struct kobj_attribute* attr, co
 {
     struct mapping_data* data = container_of(kobj, struct mapping_data, mapping_kobj);
     const int result = kstrtoint(buf, 10, &data->value);
+
+    if (result >= 0)
+    {
+        memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
+        strncpy(data->status, dirty_status_str, strlen(dirty_status_str));
+        pr_info("%s: new value entered: %d\n", THIS_MODULE->name, data->value);
+    }
+
     return result < 0 ? 0 : count;
 }
 
@@ -186,7 +200,7 @@ static int mapping_init(void)
             data->value = 0;
             memset(data->command, '\0', MAX_COMMAND_STR_LENGTH);
             memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
-            strncpy(data->status, "synced", 6);
+            strncpy(data->status, synced_status_str, strlen(synced_status_str));
         }
         else
         {
