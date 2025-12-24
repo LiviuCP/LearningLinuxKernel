@@ -117,7 +117,13 @@ static struct kobj_type mapping_ktype = {
 
 /* SYSFS attributes for MapElement */
 
-static struct kobj_attribute element_value_attribute = __ATTR(value, 0400, value_show, NULL);
+static ssize_t element_value_show(struct kobject* kobj, struct kobj_attribute* attr, char* buf)
+{
+    struct map_element_data* data = container_of(kobj, struct map_element_data, map_element_kobj);
+    return sysfs_emit(buf, "%d\n", data->value);
+}
+
+static struct kobj_attribute element_value_attribute = __ATTR(value, 0400, element_value_show, NULL);
 static struct attribute* map_element_attrs[] = {&element_value_attribute.attr, NULL};
 
 ATTRIBUTE_GROUPS(map_element);
