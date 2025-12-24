@@ -109,6 +109,7 @@ int init_data(struct division_data* data, int divided, int divider)
     {
         data->divided = divided;
         data->divider = divider;
+        memset(data->command, '\0', MAX_COMMAND_STR_LENGTH);
         memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
         strncpy(data->status, dirty_status_str, strlen(dirty_status_str));
 
