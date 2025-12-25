@@ -1,3 +1,4 @@
+#include <linux/ctype.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -81,12 +82,87 @@ static ssize_t value_store(struct kobject* kobj, struct kobj_attribute* attr, co
     return result < 0 ? 0 : count;
 }
 
-// no show to be defined here as the command is write-only
+static void trim_and_copy_command_str(struct mapping_data* data, const char* command_str)
+{
+    do
+    {
+        if (!data)
+        {
+            pr_warn("%s: NULL data object!\n", THIS_MODULE->name);
+            break;
+        }
+
+        if (!command_str)
+        {
+            pr_warn("%s: NULL command string!\n", THIS_MODULE->name);
+            break;
+        }
+
+        memset(data->command, '\0', MAX_COMMAND_STR_LENGTH);
+
+        char temp[MAX_COMMAND_STR_LENGTH];
+
+        memset(temp, '\0', MAX_COMMAND_STR_LENGTH);
+        strncpy(temp, command_str, MAX_COMMAND_STR_LENGTH - 1);
+
+        const size_t temp_length = strlen(temp);
+
+        if (temp_length == 0)
+        {
+            break;
+        }
+
+        size_t left_index = 0;
+        size_t right_index = temp_length - 1;
+
+        while (left_index <= right_index && isspace(temp[left_index]))
+        {
+            ++left_index;
+        }
+
+        while (left_index < right_index && isspace(temp[right_index]))
+        {
+            --right_index;
+        }
+
+        const size_t command_length = right_index >= left_index ? right_index - left_index + 1 : 0;
+        const char* command_start = temp + left_index;
+
+        strncpy(data->command, command_start, command_length);
+    } while (false);
+}
+
+// no show to be defined here as the command is write-only (TODO: update the command checking mechanism - see Division)
 static ssize_t command_store(struct kobject* kobj, struct kobj_attribute* attr, const char* buf, size_t count)
 {
     struct mapping_data* data = container_of(kobj, struct mapping_data, mapping_kobj);
 
-    // store_command(data, buf);
+    trim_and_copy_command_str(data, buf);
+    const size_t command_length = strlen(data->command);
+
+    pr_info("%s: issued command: %s\n", THIS_MODULE->name, data->command);
+
+    if (command_length == 6 && strncmp(data->command, "update", 6) == 0)
+    {
+        pr_info("%s: updating key/value\n", THIS_MODULE->name);
+    }
+    else if (command_length == 6 && strncmp(data->command, "remove", 6) == 0)
+    {
+        pr_info("%s: removing key/value\n", THIS_MODULE->name);
+    }
+    else if (command_length == 3 && strncmp(data->command, "get", 3) == 0)
+    {
+        pr_info("%s: getting value from key\n", THIS_MODULE->name);
+    }
+    else if (command_length == 5 && strncmp(data->command, "reset", 5) == 0)
+    {
+        pr_info("%s: resetting all map elements\n", THIS_MODULE->name);
+    }
+    else
+    {
+        pr_warn("%s: invalid command: %s\n", THIS_MODULE->name, data->command);
+    }
+
     return count;
 }
 
