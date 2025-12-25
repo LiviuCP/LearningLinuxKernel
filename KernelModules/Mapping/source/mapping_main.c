@@ -8,6 +8,7 @@
 #define MAX_COMMAND_STR_LENGTH 32
 #define MAX_STATUS_STR_LENGTH 16
 #define MAX_KEY_STR_LENGTH 64
+#define MAX_ELEMENTS_COUNT 256
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("This module illustrates a dictionary.");
@@ -36,8 +37,7 @@ struct map_element_data
 struct mapping_data* data = NULL;
 
 static struct kset* map_elements_kset = NULL;
-struct map_element_data* element_data_1 = NULL;
-struct map_element_data* element_data_2 = NULL;
+static struct map_element_data* map_elements[MAX_ELEMENTS_COUNT];
 
 /* SYSFS access methods for attributes */
 
@@ -179,6 +179,11 @@ static struct map_element_data* create_map_element(const char* key, int value)
 
 static int mapping_init(void)
 {
+    for (size_t index = 0; index < MAX_ELEMENTS_COUNT; ++index)
+    {
+        map_elements[index] = NULL;
+    }
+
     // resulting directory structure: "/sys/kernel/mapping"
     // - kernel_kobj (parent kobject) => "/sys/kernel"
     // - mapping_kobj_name => "/mapping"
@@ -220,17 +225,18 @@ static int mapping_init(void)
 
         do
         {
-            if ((element_data_1 = create_map_element("First", -5)) == NULL)
+            if ((map_elements[0] = create_map_element("First", -5)) == NULL)
             {
                 kset_unregister(map_elements_kset);
                 result = -EINVAL;
                 break;
             }
 
-            if ((element_data_2 = create_map_element("Second", 3)) == NULL)
+            if ((map_elements[1] = create_map_element("Second", 3)) == NULL)
             {
-                kobject_put(&element_data_1->map_element_kobj);
-                kfree(element_data_1);
+                kobject_put(&map_elements[0]->map_element_kobj);
+                kfree(map_elements[0]);
+                map_elements[0] = NULL;
                 kset_unregister(map_elements_kset);
                 result = -EINVAL;
             }
@@ -250,8 +256,10 @@ static void mapping_exit(void)
 
     // this calls the release function (mapping_release()) for the data object containing the kobject
     kobject_put(&data->mapping_kobj);
-    kobject_put(&element_data_1->map_element_kobj);
-    kobject_put(&element_data_2->map_element_kobj);
+    kobject_put(&map_elements[0]->map_element_kobj);
+    map_elements[0] = NULL;
+    kobject_put(&map_elements[1]->map_element_kobj);
+    map_elements[1] = NULL;
     kset_unregister(map_elements_kset);
 
     pr_info("%s: the module exited!\n", THIS_MODULE->name);
