@@ -175,6 +175,14 @@ static struct map_element_data* create_map_element(const char* key, int value)
     return data;
 }
 
+static void destroy_map_element(struct map_element_data* element_data)
+{
+    if (element_data)
+    {
+        kobject_put(&element_data->map_element_kobj);
+    }
+}
+
 /* INIT/EXIT */
 
 static int mapping_init(void)
@@ -234,8 +242,7 @@ static int mapping_init(void)
 
             if ((map_elements[1] = create_map_element("Second", 3)) == NULL)
             {
-                kobject_put(&map_elements[0]->map_element_kobj);
-                kfree(map_elements[0]);
+                destroy_map_element(map_elements[0]);
                 map_elements[0] = NULL;
                 kset_unregister(map_elements_kset);
                 result = -EINVAL;
@@ -256,9 +263,9 @@ static void mapping_exit(void)
 
     // this calls the release function (mapping_release()) for the data object containing the kobject
     kobject_put(&data->mapping_kobj);
-    kobject_put(&map_elements[0]->map_element_kobj);
+    destroy_map_element(map_elements[0]);
     map_elements[0] = NULL;
-    kobject_put(&map_elements[1]->map_element_kobj);
+    destroy_map_element(map_elements[1]);
     map_elements[1] = NULL;
     kset_unregister(map_elements_kset);
 
