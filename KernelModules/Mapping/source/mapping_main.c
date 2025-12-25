@@ -38,6 +38,7 @@ struct mapping_data* data = NULL;
 
 static struct kset* map_elements_kset = NULL;
 static struct map_element_data* map_elements[MAX_ELEMENTS_COUNT];
+static size_t current_elements_count = 0;
 
 /* SYSFS access methods for attributes */
 
@@ -240,13 +241,18 @@ static int mapping_init(void)
                 break;
             }
 
+            ++current_elements_count;
+
             if ((map_elements[1] = create_map_element("Second", 3)) == NULL)
             {
                 destroy_map_element(map_elements[0]);
                 map_elements[0] = NULL;
                 kset_unregister(map_elements_kset);
                 result = -EINVAL;
+                break;
             }
+
+            ++current_elements_count;
         } while (false);
     }
     else if (result == -ENOMEM)
@@ -263,10 +269,13 @@ static void mapping_exit(void)
 
     // this calls the release function (mapping_release()) for the data object containing the kobject
     kobject_put(&data->mapping_kobj);
-    destroy_map_element(map_elements[0]);
-    map_elements[0] = NULL;
-    destroy_map_element(map_elements[1]);
-    map_elements[1] = NULL;
+
+    for (size_t index = 0; index < current_elements_count; ++index)
+    {
+        destroy_map_element(map_elements[index]);
+        map_elements[index] = NULL;
+    }
+
     kset_unregister(map_elements_kset);
 
     pr_info("%s: the module exited!\n", THIS_MODULE->name);
