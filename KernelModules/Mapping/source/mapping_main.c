@@ -41,6 +41,56 @@ static struct kset* map_elements_kset = NULL;
 static struct map_element_data* map_elements[MAX_ELEMENTS_COUNT];
 static size_t current_elements_count = 0;
 
+static void trim_and_copy_str(char* dest, const char* src, size_t max_str_length)
+{
+    do
+    {
+        if (!dest)
+        {
+            pr_warn("%s: NULL dest string!\n", THIS_MODULE->name);
+            break;
+        }
+
+        if (!src)
+        {
+            pr_warn("%s: NULL src string!\n", THIS_MODULE->name);
+            break;
+        }
+
+        memset(dest, '\0', max_str_length);
+
+        char temp[max_str_length];
+
+        memset(temp, '\0', max_str_length);
+        strncpy(temp, src, max_str_length - 1);
+
+        const size_t temp_length = strlen(temp);
+
+        if (temp_length == 0)
+        {
+            break;
+        }
+
+        size_t left_index = 0;
+        size_t right_index = temp_length - 1;
+
+        while (left_index <= right_index && isspace(temp[left_index]))
+        {
+            ++left_index;
+        }
+
+        while (left_index < right_index && isspace(temp[right_index]))
+        {
+            --right_index;
+        }
+
+        const size_t length = right_index >= left_index ? right_index - left_index + 1 : 0;
+        const char* start = temp + left_index;
+
+        strncpy(dest, start, length);
+    } while (false);
+}
+
 /* SYSFS access methods for attributes */
 
 static ssize_t key_show(struct kobject* kobj, struct kobj_attribute* attr, char* buf)
@@ -52,8 +102,7 @@ static ssize_t key_show(struct kobject* kobj, struct kobj_attribute* attr, char*
 static ssize_t key_store(struct kobject* kobj, struct kobj_attribute* attr, const char* buf, size_t count)
 {
     struct mapping_data* data = container_of(kobj, struct mapping_data, mapping_kobj);
-    memset(data->key, '\0', MAX_KEY_STR_LENGTH);
-    strncpy(data->key, buf, MAX_KEY_STR_LENGTH - 1);
+    trim_and_copy_str(data->key, buf, MAX_KEY_STR_LENGTH);
     memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
     strncpy(data->status, dirty_status_str, strlen(dirty_status_str));
     pr_info("%s: new key entered: %s\n", THIS_MODULE->name, data->key);
@@ -82,54 +131,42 @@ static ssize_t value_store(struct kobject* kobj, struct kobj_attribute* attr, co
     return result < 0 ? 0 : count;
 }
 
-static void trim_and_copy_command_str(struct mapping_data* data, const char* command_str)
+static struct map_element_data* create_map_element(const char* key, int value);
+
+static void update_key_and_value(void)
 {
-    do
+    int should_add_element = 1;
+
+    for (size_t index = 0; index < current_elements_count; ++index)
     {
-        if (!data)
+        if (strncmp(map_elements[index]->map_element_kobj.name, data->key, strlen(data->key)) == 0)
         {
-            pr_warn("%s: NULL data object!\n", THIS_MODULE->name);
+            map_elements[index]->value = data->value;
+            should_add_element = 0;
             break;
         }
+    }
 
-        if (!command_str)
+    if (should_add_element)
+    {
+        if (current_elements_count < MAX_ELEMENTS_COUNT)
         {
-            pr_warn("%s: NULL command string!\n", THIS_MODULE->name);
-            break;
+            struct map_element_data* element_data = create_map_element(data->key, data->value);
+
+            if (element_data)
+            {
+                map_elements[current_elements_count] = element_data;
+                ++current_elements_count;
+            }
         }
-
-        memset(data->command, '\0', MAX_COMMAND_STR_LENGTH);
-
-        char temp[MAX_COMMAND_STR_LENGTH];
-
-        memset(temp, '\0', MAX_COMMAND_STR_LENGTH);
-        strncpy(temp, command_str, MAX_COMMAND_STR_LENGTH - 1);
-
-        const size_t temp_length = strlen(temp);
-
-        if (temp_length == 0)
+        else
         {
-            break;
+            pr_err("%s: cannot add element, maximum count has been reached: %s\n", THIS_MODULE->name);
         }
+    }
 
-        size_t left_index = 0;
-        size_t right_index = temp_length - 1;
-
-        while (left_index <= right_index && isspace(temp[left_index]))
-        {
-            ++left_index;
-        }
-
-        while (left_index < right_index && isspace(temp[right_index]))
-        {
-            --right_index;
-        }
-
-        const size_t command_length = right_index >= left_index ? right_index - left_index + 1 : 0;
-        const char* command_start = temp + left_index;
-
-        strncpy(data->command, command_start, command_length);
-    } while (false);
+    memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
+    strncpy(data->status, synced_status_str, strlen(synced_status_str));
 }
 
 // no show to be defined here as the command is write-only (TODO: update the command checking mechanism - see Division)
@@ -137,7 +174,7 @@ static ssize_t command_store(struct kobject* kobj, struct kobj_attribute* attr, 
 {
     struct mapping_data* data = container_of(kobj, struct mapping_data, mapping_kobj);
 
-    trim_and_copy_command_str(data, buf);
+    trim_and_copy_str(data->command, buf, MAX_COMMAND_STR_LENGTH);
     const size_t command_length = strlen(data->command);
 
     pr_info("%s: issued command: %s\n", THIS_MODULE->name, data->command);
@@ -145,6 +182,7 @@ static ssize_t command_store(struct kobject* kobj, struct kobj_attribute* attr, 
     if (command_length == 6 && strncmp(data->command, "update", 6) == 0)
     {
         pr_info("%s: updating key/value\n", THIS_MODULE->name);
+        update_key_and_value();
     }
     else if (command_length == 6 && strncmp(data->command, "remove", 6) == 0)
     {
