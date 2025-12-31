@@ -223,6 +223,30 @@ static void reset_keys_and_values(void)
     strncpy(data->status, synced_status_str, strlen(synced_status_str));
 }
 
+static void get_value(void)
+{
+    int element_found = 0;
+
+    for (size_t index = 0; index < current_elements_count; ++index)
+    {
+        if (strncmp(map_elements[index]->map_element_kobj.name, data->key, strlen(data->key)) == 0)
+        {
+            element_found = 1;
+            data->value = map_elements[index]->value;
+            break;
+        }
+    }
+
+    if (!element_found)
+    {
+        pr_warn("%s: key %s has not been found, setting default value\n", THIS_MODULE->name, data->key);
+        data->value = 0;
+    }
+
+    memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
+    strncpy(data->status, synced_status_str, strlen(synced_status_str));
+}
+
 // no show to be defined here as the command is write-only (TODO: update the command checking mechanism - see Division)
 static ssize_t command_store(struct kobject* kobj, struct kobj_attribute* attr, const char* buf, size_t count)
 {
@@ -246,6 +270,7 @@ static ssize_t command_store(struct kobject* kobj, struct kobj_attribute* attr, 
     else if (command_length == 3 && strncmp(data->command, "get", 3) == 0)
     {
         pr_info("%s: getting value from key\n", THIS_MODULE->name);
+        get_value();
     }
     else if (command_length == 5 && strncmp(data->command, "reset", 5) == 0)
     {
