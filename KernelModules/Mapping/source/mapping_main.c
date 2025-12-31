@@ -210,6 +210,19 @@ static void remove_key_and_value(void)
     }
 }
 
+static void reset_keys_and_values(void)
+{
+    for (size_t index = 0; index < current_elements_count; ++index)
+    {
+        destroy_map_element(map_elements[index]);
+        map_elements[index] = NULL;
+    }
+
+    current_elements_count = 0;
+    memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
+    strncpy(data->status, synced_status_str, strlen(synced_status_str));
+}
+
 // no show to be defined here as the command is write-only (TODO: update the command checking mechanism - see Division)
 static ssize_t command_store(struct kobject* kobj, struct kobj_attribute* attr, const char* buf, size_t count)
 {
@@ -237,6 +250,7 @@ static ssize_t command_store(struct kobject* kobj, struct kobj_attribute* attr, 
     else if (command_length == 5 && strncmp(data->command, "reset", 5) == 0)
     {
         pr_info("%s: resetting all map elements\n", THIS_MODULE->name);
+        reset_keys_and_values();
     }
     else
     {
