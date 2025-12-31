@@ -201,6 +201,8 @@ static void remove_key_and_value(void)
 
     if (element_found)
     {
+        memset(data->key, '\0', MAX_KEY_STR_LENGTH);
+        data->value = 0;
         memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
         strncpy(data->status, synced_status_str, strlen(synced_status_str));
     }
@@ -219,6 +221,8 @@ static void reset_keys_and_values(void)
     }
 
     current_elements_count = 0;
+    memset(data->key, '\0', MAX_KEY_STR_LENGTH);
+    data->value = 0;
     memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
     strncpy(data->status, synced_status_str, strlen(synced_status_str));
 }
