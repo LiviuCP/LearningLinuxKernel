@@ -161,12 +161,53 @@ static void update_key_and_value(void)
         }
         else
         {
-            pr_err("%s: cannot add element, maximum count has been reached: %s\n", THIS_MODULE->name);
+            pr_err("%s: cannot add element, maximum count has been reached\n", THIS_MODULE->name);
         }
     }
 
     memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
     strncpy(data->status, synced_status_str, strlen(synced_status_str));
+}
+
+static void destroy_map_element(struct map_element_data* element_data)
+{
+    if (element_data)
+    {
+        kobject_put(&element_data->map_element_kobj);
+    }
+}
+
+static void remove_key_and_value(void)
+{
+    int element_found = 0;
+
+    for (size_t index = 0; index < current_elements_count; ++index)
+    {
+        if (strncmp(map_elements[index]->map_element_kobj.name, data->key, strlen(data->key)) == 0)
+        {
+            element_found = 1;
+            destroy_map_element(map_elements[index]);
+
+            if (current_elements_count > 1 && index < current_elements_count - 1)
+            {
+                map_elements[index] = map_elements[current_elements_count - 1];
+            }
+
+            map_elements[current_elements_count - 1] = NULL;
+            --current_elements_count;
+            break;
+        }
+    }
+
+    if (element_found)
+    {
+        memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
+        strncpy(data->status, synced_status_str, strlen(synced_status_str));
+    }
+    else
+    {
+        pr_err("%s: cannot remove element, key %s has not been found\n", THIS_MODULE->name, data->key);
+    }
 }
 
 // no show to be defined here as the command is write-only (TODO: update the command checking mechanism - see Division)
@@ -187,6 +228,7 @@ static ssize_t command_store(struct kobject* kobj, struct kobj_attribute* attr, 
     else if (command_length == 6 && strncmp(data->command, "remove", 6) == 0)
     {
         pr_info("%s: removing key/value\n", THIS_MODULE->name);
+        remove_key_and_value();
     }
     else if (command_length == 3 && strncmp(data->command, "get", 3) == 0)
     {
@@ -288,14 +330,6 @@ static struct map_element_data* create_map_element(const char* key, int value)
     }
 
     return data;
-}
-
-static void destroy_map_element(struct map_element_data* element_data)
-{
-    if (element_data)
-    {
-        kobject_put(&element_data->map_element_kobj);
-    }
 }
 
 /* INIT/EXIT */
