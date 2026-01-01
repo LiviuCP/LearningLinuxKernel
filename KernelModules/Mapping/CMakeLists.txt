@@ -9,7 +9,9 @@ include(${KERNEL_MODULES_SOURCE_DIR}/CMakeUtils/customcleantarget.cmake)
 
 target_sources(${PROJECT_NAME} PRIVATE
     include/mapping_impl.h
+    include/mapping_utils.h
     source/mapping_main.c
+    source/mapping_utils.c
     Makefile)
 
 copy_file_to_consolidated_output(mapping.ko)
