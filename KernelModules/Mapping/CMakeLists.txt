@@ -8,6 +8,7 @@ include(${KERNEL_MODULES_SOURCE_DIR}/CMakeUtils/customtarget.cmake)
 include(${KERNEL_MODULES_SOURCE_DIR}/CMakeUtils/customcleantarget.cmake)
 
 target_sources(${PROJECT_NAME} PRIVATE
+    include/mapping_impl.h
     source/mapping_main.c
     Makefile)
 

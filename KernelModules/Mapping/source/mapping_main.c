@@ -1,15 +1,10 @@
 #include <linux/ctype.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 
-#define SUCCESS 0
-#define MAX_COMMAND_STR_LENGTH 32
-#define MAX_STATUS_STR_LENGTH 16
-#define MAX_KEY_STR_LENGTH 64
-#define MAX_ELEMENTS_COUNT 256
+#include "mapping_impl.h"
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("This module illustrates a dictionary.");
@@ -19,21 +14,6 @@ static const char* dirty_status_str = "dirty";
 static const char* synced_status_str = "synced";
 
 /* VARIABLES AND PARAMETERS */
-
-struct mapping_data
-{
-    struct kobject mapping_kobj;
-    char key[MAX_KEY_STR_LENGTH];
-    int value;
-    char command[MAX_COMMAND_STR_LENGTH];
-    char status[MAX_STATUS_STR_LENGTH];
-};
-
-struct map_element_data
-{
-    struct kobject map_element_kobj;
-    int value;
-};
 
 struct mapping_data* data = NULL;
 

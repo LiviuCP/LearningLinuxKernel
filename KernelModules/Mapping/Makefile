@@ -22,4 +22,4 @@ $(BUILD_DIR_MAKEFILE): $(BUILD_DIR)
 clean:
 	make -C /lib/modules/$(shell uname -r)/build M=$(BUILD_DIR) src=$(PWD) clean
 
-EXTRA_CFLAGS := -I$(src)/source
+EXTRA_CFLAGS := -I$(src)/include -I$(src)/source
