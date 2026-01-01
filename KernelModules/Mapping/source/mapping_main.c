@@ -400,31 +400,7 @@ static int mapping_init(void)
     if (result == SUCCESS)
     {
         kobject_uevent(&data->mapping_kobj, KOBJ_ADD);
-
         map_elements_kset = kset_create_and_add("Map", NULL, &data->mapping_kobj);
-
-        do
-        {
-            if ((map_elements[0] = create_map_element("First", -5)) == NULL)
-            {
-                kset_unregister(map_elements_kset);
-                result = -EINVAL;
-                break;
-            }
-
-            ++current_elements_count;
-
-            if ((map_elements[1] = create_map_element("Second", 3)) == NULL)
-            {
-                destroy_map_element(map_elements[0]);
-                map_elements[0] = NULL;
-                kset_unregister(map_elements_kset);
-                result = -EINVAL;
-                break;
-            }
-
-            ++current_elements_count;
-        } while (false);
     }
     else if (result == -ENOMEM)
     {
