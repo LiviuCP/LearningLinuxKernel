@@ -4,7 +4,6 @@
 #include <linux/sysfs.h>
 
 #include "mapping_impl.h"
-#include "mapping_utils.h"
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("This module illustrates a dictionary.");
