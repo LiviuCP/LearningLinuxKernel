@@ -68,25 +68,26 @@ static ssize_t command_store(struct kobject* kobj, struct kobj_attribute* attr, 
 
     pr_info("%s: issued command: %s\n", THIS_MODULE->name, data->command);
 
-    if (command_length == 6 && strncmp(data->command, "update", 6) == 0)
+    if (command_length == update_command_length && strncmp(data->command, update_command, update_command_length) == 0)
     {
-        pr_info("%s: updating key/value\n", THIS_MODULE->name);
-        update_key_and_value(data, map_elements, &current_elements_count, create_map_element);
+        pr_info("%s: updating map element\n", THIS_MODULE->name);
+        update_element(data, map_elements, &current_elements_count, create_map_element);
     }
-    else if (command_length == 6 && strncmp(data->command, "remove", 6) == 0)
+    else if (command_length == remove_command_length &&
+             strncmp(data->command, remove_command, remove_command_length) == 0)
     {
-        pr_info("%s: removing key/value\n", THIS_MODULE->name);
-        remove_key_and_value(data, map_elements, &current_elements_count, destroy_map_element);
+        pr_info("%s: removing map element\n", THIS_MODULE->name);
+        remove_element(data, map_elements, &current_elements_count, destroy_map_element);
     }
-    else if (command_length == 3 && strncmp(data->command, "get", 3) == 0)
+    else if (command_length == get_command_length && strncmp(data->command, get_command, get_command_length) == 0)
     {
-        pr_info("%s: getting value from key\n", THIS_MODULE->name);
-        get_value(data, map_elements, current_elements_count);
+        pr_info("%s: getting value of map element\n", THIS_MODULE->name);
+        get_element_value(data, map_elements, current_elements_count);
     }
-    else if (command_length == 5 && strncmp(data->command, "reset", 5) == 0)
+    else if (command_length == reset_command_length && strncmp(data->command, reset_command, reset_command_length) == 0)
     {
-        pr_info("%s: resetting all map elements\n", THIS_MODULE->name);
-        reset_keys_and_values(data, map_elements, &current_elements_count, destroy_map_element);
+        pr_info("%s: erasing all map elements\n", THIS_MODULE->name);
+        reset_elements(data, map_elements, &current_elements_count, destroy_map_element);
     }
     else
     {

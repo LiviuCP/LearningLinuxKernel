@@ -51,8 +51,8 @@ int store_value(struct mapping_data* data, const char* value_str)
     return result;
 }
 
-void update_key_and_value(struct mapping_data* data, struct map_element_data** map_elements,
-                          size_t* current_elements_count, struct map_element_data* (*create_element)(const char*, int))
+void update_element(struct mapping_data* data, struct map_element_data** map_elements, size_t* current_elements_count,
+                    struct map_element_data* (*create_element)(const char*, int))
 {
     if (strlen(data->key) > 0)
     {
@@ -95,9 +95,8 @@ void update_key_and_value(struct mapping_data* data, struct map_element_data** m
     }
 }
 
-void remove_key_and_value(struct mapping_data* data, struct map_element_data** map_elements,
-                          size_t* current_elements_count,
-                          void (*destroy_element)(struct map_element_data* element_data))
+void remove_element(struct mapping_data* data, struct map_element_data** map_elements, size_t* current_elements_count,
+                    void (*destroy_element)(struct map_element_data* element_data))
 {
     int element_found = 0;
 
@@ -132,24 +131,7 @@ void remove_key_and_value(struct mapping_data* data, struct map_element_data** m
     }
 }
 
-void reset_keys_and_values(struct mapping_data* data, struct map_element_data** map_elements,
-                           size_t* current_elements_count,
-                           void (*destroy_element)(struct map_element_data* element_data))
-{
-    for (size_t index = 0; index < *current_elements_count; ++index)
-    {
-        destroy_element(map_elements[index]);
-        map_elements[index] = NULL;
-    }
-
-    *current_elements_count = 0;
-    memset(data->key, '\0', MAX_KEY_STR_LENGTH);
-    data->value = 0;
-    memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
-    strncpy(data->status, synced_status_str, strlen(synced_status_str));
-}
-
-void get_value(struct mapping_data* data, struct map_element_data** map_elements, size_t current_elements_count)
+void get_element_value(struct mapping_data* data, struct map_element_data** map_elements, size_t current_elements_count)
 {
     int element_found = 0;
 
@@ -169,6 +151,22 @@ void get_value(struct mapping_data* data, struct map_element_data** map_elements
         data->value = 0;
     }
 
+    memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
+    strncpy(data->status, synced_status_str, strlen(synced_status_str));
+}
+
+void reset_elements(struct mapping_data* data, struct map_element_data** map_elements, size_t* current_elements_count,
+                    void (*destroy_element)(struct map_element_data* element_data))
+{
+    for (size_t index = 0; index < *current_elements_count; ++index)
+    {
+        destroy_element(map_elements[index]);
+        map_elements[index] = NULL;
+    }
+
+    *current_elements_count = 0;
+    memset(data->key, '\0', MAX_KEY_STR_LENGTH);
+    data->value = 0;
     memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
     strncpy(data->status, synced_status_str, strlen(synced_status_str));
 }
