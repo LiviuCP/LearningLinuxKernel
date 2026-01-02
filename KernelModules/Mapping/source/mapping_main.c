@@ -10,9 +10,6 @@ MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("This module illustrates a dictionary.");
 MODULE_AUTHOR("Liviu Popa");
 
-static const char* dirty_status_str = "dirty";
-static const char* synced_status_str = "synced";
-
 /* VARIABLES AND PARAMETERS */
 
 struct mapping_data* data = NULL;
@@ -59,51 +56,6 @@ static ssize_t value_store(struct kobject* kobj, struct kobj_attribute* attr, co
     }
 
     return result < 0 ? 0 : count;
-}
-
-static struct map_element_data* create_map_element(const char* key, int value);
-
-static void update_key_and_value(void)
-{
-    if (strlen(data->key) > 0)
-    {
-        int should_add_element = 1;
-
-        for (size_t index = 0; index < current_elements_count; ++index)
-        {
-            if (strncmp(map_elements[index]->map_element_kobj.name, data->key, strlen(data->key)) == 0)
-            {
-                map_elements[index]->value = data->value;
-                should_add_element = 0;
-                break;
-            }
-        }
-
-        if (should_add_element)
-        {
-            if (current_elements_count < MAX_ELEMENTS_COUNT)
-            {
-                struct map_element_data* element_data = create_map_element(data->key, data->value);
-
-                if (element_data)
-                {
-                    map_elements[current_elements_count] = element_data;
-                    ++current_elements_count;
-                }
-            }
-            else
-            {
-                pr_err("%s: cannot add element, maximum count has been reached\n", THIS_MODULE->name);
-            }
-        }
-
-        memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
-        strncpy(data->status, synced_status_str, strlen(synced_status_str));
-    }
-    else
-    {
-        pr_warn("%s: cannot add element, key is empty\n", THIS_MODULE->name);
-    }
 }
 
 static void destroy_map_element(struct map_element_data* element_data)
@@ -188,6 +140,8 @@ static void get_value(void)
     strncpy(data->status, synced_status_str, strlen(synced_status_str));
 }
 
+static struct map_element_data* create_map_element(const char* key, int value);
+
 // no show to be defined here as the command is write-only (TODO: update the command checking mechanism - see Division)
 static ssize_t command_store(struct kobject* kobj, struct kobj_attribute* attr, const char* buf, size_t count)
 {
@@ -201,7 +155,7 @@ static ssize_t command_store(struct kobject* kobj, struct kobj_attribute* attr, 
     if (command_length == 6 && strncmp(data->command, "update", 6) == 0)
     {
         pr_info("%s: updating key/value\n", THIS_MODULE->name);
-        update_key_and_value();
+        update_key_and_value(data, map_elements, &current_elements_count, create_map_element);
     }
     else if (command_length == 6 && strncmp(data->command, "remove", 6) == 0)
     {

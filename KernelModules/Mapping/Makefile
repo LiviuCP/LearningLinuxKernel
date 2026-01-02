@@ -1,4 +1,4 @@
-SRC := source/mapping_main.c source/mapping_utils.c
+SRC := source/mapping_impl.c source/mapping_main.c source/mapping_utils.c
 
 obj-m += mapping.o
 
