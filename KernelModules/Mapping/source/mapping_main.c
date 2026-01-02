@@ -66,41 +66,6 @@ static void destroy_map_element(struct map_element_data* element_data)
     }
 }
 
-static void remove_key_and_value(void)
-{
-    int element_found = 0;
-
-    for (size_t index = 0; index < current_elements_count; ++index)
-    {
-        if (strncmp(map_elements[index]->map_element_kobj.name, data->key, strlen(data->key)) == 0)
-        {
-            element_found = 1;
-            destroy_map_element(map_elements[index]);
-
-            if (current_elements_count > 1 && index < current_elements_count - 1)
-            {
-                map_elements[index] = map_elements[current_elements_count - 1];
-            }
-
-            map_elements[current_elements_count - 1] = NULL;
-            --current_elements_count;
-            break;
-        }
-    }
-
-    if (element_found)
-    {
-        memset(data->key, '\0', MAX_KEY_STR_LENGTH);
-        data->value = 0;
-        memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
-        strncpy(data->status, synced_status_str, strlen(synced_status_str));
-    }
-    else
-    {
-        pr_err("%s: cannot remove element, key %s has not been found\n", THIS_MODULE->name, data->key);
-    }
-}
-
 static void reset_keys_and_values(void)
 {
     for (size_t index = 0; index < current_elements_count; ++index)
@@ -160,7 +125,7 @@ static ssize_t command_store(struct kobject* kobj, struct kobj_attribute* attr, 
     else if (command_length == 6 && strncmp(data->command, "remove", 6) == 0)
     {
         pr_info("%s: removing key/value\n", THIS_MODULE->name);
-        remove_key_and_value();
+        remove_key_and_value(data, map_elements, &current_elements_count, destroy_map_element);
     }
     else if (command_length == 3 && strncmp(data->command, "get", 3) == 0)
     {

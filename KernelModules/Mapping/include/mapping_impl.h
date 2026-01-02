@@ -28,3 +28,7 @@ struct map_element_data
 
 void update_key_and_value(struct mapping_data* data, struct map_element_data** map_elements,
                           size_t* current_elements_count, struct map_element_data* (*create_element)(const char*, int));
+
+void remove_key_and_value(struct mapping_data* data, struct map_element_data** map_elements,
+                          size_t* current_elements_count,
+                          void (*destroy_element)(struct map_element_data* element_data));
