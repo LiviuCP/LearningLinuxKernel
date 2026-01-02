@@ -99,3 +99,27 @@ void reset_keys_and_values(struct mapping_data* data, struct map_element_data** 
     memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
     strncpy(data->status, synced_status_str, strlen(synced_status_str));
 }
+
+void get_value(struct mapping_data* data, struct map_element_data** map_elements, size_t current_elements_count)
+{
+    int element_found = 0;
+
+    for (size_t index = 0; index < current_elements_count; ++index)
+    {
+        if (strncmp(map_elements[index]->map_element_kobj.name, data->key, strlen(data->key)) == 0)
+        {
+            element_found = 1;
+            data->value = map_elements[index]->value;
+            break;
+        }
+    }
+
+    if (!element_found)
+    {
+        pr_warn("%s: key %s has not been found, setting default value\n", THIS_MODULE->name, data->key);
+        data->value = 0;
+    }
+
+    memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
+    strncpy(data->status, synced_status_str, strlen(synced_status_str));
+}
