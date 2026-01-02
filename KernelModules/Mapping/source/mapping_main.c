@@ -62,37 +62,7 @@ static struct map_element_data* create_map_element(const char* key, int value);
 static ssize_t command_store(struct kobject* kobj, struct kobj_attribute* attr, const char* buf, size_t count)
 {
     struct mapping_data* data = container_of(kobj, struct mapping_data, mapping_kobj);
-
-    trim_and_copy_str(data->command, buf, MAX_COMMAND_STR_LENGTH);
-    const size_t command_length = strlen(data->command);
-
-    pr_info("%s: issued command: %s\n", THIS_MODULE->name, data->command);
-
-    if (command_length == update_command_length && strncmp(data->command, update_command, update_command_length) == 0)
-    {
-        pr_info("%s: updating map element\n", THIS_MODULE->name);
-        update_element(data, map_elements, &current_elements_count, create_map_element);
-    }
-    else if (command_length == remove_command_length &&
-             strncmp(data->command, remove_command, remove_command_length) == 0)
-    {
-        pr_info("%s: removing map element\n", THIS_MODULE->name);
-        remove_element(data, map_elements, &current_elements_count, destroy_map_element);
-    }
-    else if (command_length == get_command_length && strncmp(data->command, get_command, get_command_length) == 0)
-    {
-        pr_info("%s: getting value of map element\n", THIS_MODULE->name);
-        get_element_value(data, map_elements, current_elements_count);
-    }
-    else if (command_length == reset_command_length && strncmp(data->command, reset_command, reset_command_length) == 0)
-    {
-        pr_info("%s: erasing all map elements\n", THIS_MODULE->name);
-        reset_elements(data, map_elements, &current_elements_count, destroy_map_element);
-    }
-    else
-    {
-        pr_warn("%s: invalid command: %s\n", THIS_MODULE->name, data->command);
-    }
+    store_command(data, buf, map_elements, &current_elements_count);
 
     return count;
 }
@@ -206,7 +176,7 @@ static int mapping_init(void)
     if (data)
     {
         result = kobject_init_and_add(&data->mapping_kobj, &mapping_ktype, kernel_kobj, "%s", mapping_kobj_name);
-        result = result == SUCCESS ? init_data(data) : -ENOMEM;
+        result = result == SUCCESS ? init_data(data, create_map_element, destroy_map_element) : -ENOMEM;
     }
     else
     {

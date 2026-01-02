@@ -8,17 +8,23 @@
 static const char* dirty_status_str = "dirty";
 static const char* synced_status_str = "synced";
 
-int init_data(struct mapping_data* data)
+static struct map_element_data* (*create_map_element)(const char*, int) = NULL;
+static void (*destroy_map_element)(struct map_element_data* element_data) = NULL;
+
+int init_data(struct mapping_data* data, struct map_element_data* (*create_element)(const char*, int),
+              void (*destroy_element)(struct map_element_data* element_data))
 {
     int result = 0;
 
-    if (data)
+    if (data && create_element && destroy_element)
     {
         memset(data->key, '\0', MAX_KEY_STR_LENGTH);
         data->value = 0;
         memset(data->command, '\0', MAX_COMMAND_STR_LENGTH);
         memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
         strncpy(data->status, synced_status_str, strlen(synced_status_str));
+        create_map_element = create_element;
+        destroy_map_element = destroy_element;
     }
     else
     {
@@ -49,6 +55,41 @@ int store_value(struct mapping_data* data, const char* value_str)
     }
 
     return result;
+}
+
+void store_command(struct mapping_data* data, const char* command_str, struct map_element_data** map_elements,
+                   size_t* current_elements_count)
+{
+    trim_and_copy_str(data->command, command_str, MAX_COMMAND_STR_LENGTH);
+    const size_t command_length = strlen(data->command);
+
+    pr_info("%s: issued command: %s\n", THIS_MODULE->name, data->command);
+
+    if (command_length == update_command_length && strncmp(data->command, update_command, update_command_length) == 0)
+    {
+        pr_info("%s: updating map element\n", THIS_MODULE->name);
+        update_element(data, map_elements, current_elements_count, create_map_element);
+    }
+    else if (command_length == remove_command_length &&
+             strncmp(data->command, remove_command, remove_command_length) == 0)
+    {
+        pr_info("%s: removing map element\n", THIS_MODULE->name);
+        remove_element(data, map_elements, current_elements_count, destroy_map_element);
+    }
+    else if (command_length == get_command_length && strncmp(data->command, get_command, get_command_length) == 0)
+    {
+        pr_info("%s: getting value of map element\n", THIS_MODULE->name);
+        get_element_value(data, map_elements, *current_elements_count);
+    }
+    else if (command_length == reset_command_length && strncmp(data->command, reset_command, reset_command_length) == 0)
+    {
+        pr_info("%s: erasing all map elements\n", THIS_MODULE->name);
+        reset_elements(data, map_elements, current_elements_count, destroy_map_element);
+    }
+    else
+    {
+        pr_warn("%s: invalid command: %s\n", THIS_MODULE->name, data->command);
+    }
 }
 
 void update_element(struct mapping_data* data, struct map_element_data** map_elements, size_t* current_elements_count,
