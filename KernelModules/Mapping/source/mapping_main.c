@@ -29,10 +29,7 @@ static ssize_t key_show(struct kobject* kobj, struct kobj_attribute* attr, char*
 static ssize_t key_store(struct kobject* kobj, struct kobj_attribute* attr, const char* buf, size_t count)
 {
     struct mapping_data* data = container_of(kobj, struct mapping_data, mapping_kobj);
-    trim_and_copy_str(data->key, buf, MAX_KEY_STR_LENGTH);
-    memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
-    strncpy(data->status, dirty_status_str, strlen(dirty_status_str));
-    pr_info("%s: new key entered: %s\n", THIS_MODULE->name, data->key);
+    store_key(data, buf);
 
     return count;
 }
@@ -46,14 +43,7 @@ static ssize_t value_show(struct kobject* kobj, struct kobj_attribute* attr, cha
 static ssize_t value_store(struct kobject* kobj, struct kobj_attribute* attr, const char* buf, size_t count)
 {
     struct mapping_data* data = container_of(kobj, struct mapping_data, mapping_kobj);
-    const int result = kstrtoint(buf, 10, &data->value);
-
-    if (result >= 0)
-    {
-        memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
-        strncpy(data->status, dirty_status_str, strlen(dirty_status_str));
-        pr_info("%s: new value entered: %d\n", THIS_MODULE->name, data->value);
-    }
+    const int result = store_value(data, buf);
 
     return result < 0 ? 0 : count;
 }
