@@ -57,7 +57,7 @@ static void destroy_map_element(struct map_element_data* element_data)
 
 static struct map_element_data* create_map_element(const char* key, int value);
 
-// no show to be defined here as the command is write-only (TODO: update the command checking mechanism - see Division)
+// no show to be defined here as the command is write-only
 static ssize_t command_store(struct kobject* kobj, struct kobj_attribute* attr, const char* buf, size_t count)
 {
     struct mapping_data* data = container_of(kobj, struct mapping_data, mapping_kobj);
