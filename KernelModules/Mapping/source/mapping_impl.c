@@ -82,3 +82,20 @@ void remove_key_and_value(struct mapping_data* data, struct map_element_data** m
         pr_err("%s: cannot remove element, key %s has not been found\n", THIS_MODULE->name, data->key);
     }
 }
+
+void reset_keys_and_values(struct mapping_data* data, struct map_element_data** map_elements,
+                           size_t* current_elements_count,
+                           void (*destroy_element)(struct map_element_data* element_data))
+{
+    for (size_t index = 0; index < *current_elements_count; ++index)
+    {
+        destroy_element(map_elements[index]);
+        map_elements[index] = NULL;
+    }
+
+    *current_elements_count = 0;
+    memset(data->key, '\0', MAX_KEY_STR_LENGTH);
+    data->value = 0;
+    memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
+    strncpy(data->status, synced_status_str, strlen(synced_status_str));
+}

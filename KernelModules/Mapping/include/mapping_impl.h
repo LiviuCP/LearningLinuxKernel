@@ -32,3 +32,7 @@ void update_key_and_value(struct mapping_data* data, struct map_element_data** m
 void remove_key_and_value(struct mapping_data* data, struct map_element_data** map_elements,
                           size_t* current_elements_count,
                           void (*destroy_element)(struct map_element_data* element_data));
+
+void reset_keys_and_values(struct mapping_data* data, struct map_element_data** map_elements,
+                           size_t* current_elements_count,
+                           void (*destroy_element)(struct map_element_data* element_data));

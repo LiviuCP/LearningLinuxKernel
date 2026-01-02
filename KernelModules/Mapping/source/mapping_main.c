@@ -66,21 +66,6 @@ static void destroy_map_element(struct map_element_data* element_data)
     }
 }
 
-static void reset_keys_and_values(void)
-{
-    for (size_t index = 0; index < current_elements_count; ++index)
-    {
-        destroy_map_element(map_elements[index]);
-        map_elements[index] = NULL;
-    }
-
-    current_elements_count = 0;
-    memset(data->key, '\0', MAX_KEY_STR_LENGTH);
-    data->value = 0;
-    memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
-    strncpy(data->status, synced_status_str, strlen(synced_status_str));
-}
-
 static void get_value(void)
 {
     int element_found = 0;
@@ -135,7 +120,7 @@ static ssize_t command_store(struct kobject* kobj, struct kobj_attribute* attr, 
     else if (command_length == 5 && strncmp(data->command, "reset", 5) == 0)
     {
         pr_info("%s: resetting all map elements\n", THIS_MODULE->name);
-        reset_keys_and_values();
+        reset_keys_and_values(data, map_elements, &current_elements_count, destroy_map_element);
     }
     else
     {
