@@ -8,9 +8,6 @@
 #define MAX_KEY_STR_LENGTH 64
 #define MAX_ELEMENTS_COUNT 256
 
-static const char* dirty_status_str = "dirty";
-static const char* synced_status_str = "synced";
-
 struct mapping_data
 {
     struct kobject mapping_kobj;
@@ -25,6 +22,8 @@ struct map_element_data
     struct kobject map_element_kobj;
     int value;
 };
+
+int init_data(struct mapping_data* data);
 
 void store_key(struct mapping_data* data, const char* key_str);
 int store_value(struct mapping_data* data, const char* value_str);

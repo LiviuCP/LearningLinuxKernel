@@ -3,6 +3,32 @@
 #include "mapping_impl.h"
 #include "mapping_utils.h"
 
+#define ENULLDATAOBJECT 2
+
+static const char* dirty_status_str = "dirty";
+static const char* synced_status_str = "synced";
+
+int init_data(struct mapping_data* data)
+{
+    int result = 0;
+
+    if (data)
+    {
+        memset(data->key, '\0', MAX_KEY_STR_LENGTH);
+        data->value = 0;
+        memset(data->command, '\0', MAX_COMMAND_STR_LENGTH);
+        memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
+        strncpy(data->status, synced_status_str, strlen(synced_status_str));
+    }
+    else
+    {
+        result = -ENULLDATAOBJECT;
+        pr_warn("%s: NULL data object!\n", THIS_MODULE->name);
+    }
+
+    return result;
+}
+
 void store_key(struct mapping_data* data, const char* key_str)
 {
     trim_and_copy_str(data->key, key_str, MAX_KEY_STR_LENGTH);

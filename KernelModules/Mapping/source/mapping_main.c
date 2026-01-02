@@ -205,19 +205,7 @@ static int mapping_init(void)
     if (data)
     {
         result = kobject_init_and_add(&data->mapping_kobj, &mapping_ktype, kernel_kobj, "%s", mapping_kobj_name);
-
-        if (result == SUCCESS)
-        {
-            memset(data->key, '\0', MAX_KEY_STR_LENGTH);
-            data->value = 0;
-            memset(data->command, '\0', MAX_COMMAND_STR_LENGTH);
-            memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
-            strncpy(data->status, synced_status_str, strlen(synced_status_str));
-        }
-        else
-        {
-            result = -ENOMEM;
-        }
+        result = result == SUCCESS ? init_data(data) : -ENOMEM;
     }
     else
     {
