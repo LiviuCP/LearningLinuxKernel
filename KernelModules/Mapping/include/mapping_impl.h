@@ -28,6 +28,8 @@ struct map_element_data
 int init_data(struct mapping_data* map_data, struct map_element_data* (*create_element)(const char*, int),
               void (*destroy_element)(struct map_element_data* element_data));
 
+void clear_map_elements(void);
+
 void store_key(const char* key_str);
 int store_value(const char* value_str);
 void store_command(const char* command_str);

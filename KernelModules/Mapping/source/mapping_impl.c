@@ -172,6 +172,15 @@ int init_data(struct mapping_data* map_data, struct map_element_data* (*create_e
     return result;
 }
 
+void clear_map_elements(void)
+{
+    for (size_t index = 0; index < data->current_elements_count; ++index)
+    {
+        destroy_map_element(data->map_elements[index]);
+        data->map_elements[index] = NULL;
+    }
+}
+
 void store_key(const char* key_str)
 {
     trim_and_copy_str(data->key, key_str, MAX_KEY_STR_LENGTH);

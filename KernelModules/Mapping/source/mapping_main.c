@@ -171,6 +171,8 @@ static void destroy_map_element(struct map_element_data* element_data)
 {
     if (element_data)
     {
+        pr_info("%s: putting the kobject for map element: %s\n", THIS_MODULE->name,
+                element_data->map_element_kobj.name);
         kobject_put(&element_data->map_element_kobj);
     }
 }
@@ -215,19 +217,14 @@ static int mapping_init(void)
 
 static void mapping_exit(void)
 {
+    clear_map_elements();
+
     pr_info("%s: putting the kobject: %s\n", THIS_MODULE->name, data->mapping_kobj.name);
 
     // this calls the release function (mapping_release()) for the data object containing the kobject
     kobject_put(&data->mapping_kobj);
 
-    for (size_t index = 0; index < data->current_elements_count; ++index)
-    {
-        destroy_map_element(data->map_elements[index]);
-        data->map_elements[index] = NULL;
-    }
-
     kset_unregister(map_elements_kset);
-
     pr_info("%s: the module exited!\n", THIS_MODULE->name);
 }
 
