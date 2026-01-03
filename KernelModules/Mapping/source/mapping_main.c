@@ -13,8 +13,6 @@ MODULE_AUTHOR("Liviu Popa");
 
 static struct mapping_data* data = NULL;
 static struct kset* map_elements_kset = NULL;
-static struct map_element_data* map_elements[MAX_ELEMENTS_COUNT];
-static size_t current_elements_count = 0;
 
 /* SYSFS access functions for attributes */
 
@@ -26,8 +24,14 @@ static ssize_t key_show(struct kobject* kobj, struct kobj_attribute* attr, char*
 
 static ssize_t key_store(struct kobject* kobj, struct kobj_attribute* attr, const char* buf, size_t count)
 {
-    struct mapping_data* data = container_of(kobj, struct mapping_data, mapping_kobj);
-    store_key(buf);
+    if (container_of(kobj, struct mapping_data, mapping_kobj) == data)
+    {
+        store_key(buf);
+    }
+    else
+    {
+        pr_err("%s: invalid mapping data object!\n", THIS_MODULE->name);
+    }
 
     return count;
 }
@@ -40,8 +44,16 @@ static ssize_t value_show(struct kobject* kobj, struct kobj_attribute* attr, cha
 
 static ssize_t value_store(struct kobject* kobj, struct kobj_attribute* attr, const char* buf, size_t count)
 {
-    struct mapping_data* data = container_of(kobj, struct mapping_data, mapping_kobj);
-    const int result = store_value(buf);
+    int result = -1;
+
+    if (container_of(kobj, struct mapping_data, mapping_kobj) == data)
+    {
+        result = store_value(buf);
+    }
+    else
+    {
+        pr_err("%s: invalid mapping data object!\n", THIS_MODULE->name);
+    }
 
     return result < 0 ? 0 : count;
 }
@@ -50,14 +62,20 @@ static ssize_t value_store(struct kobject* kobj, struct kobj_attribute* attr, co
 static ssize_t count_show(struct kobject* kobj, struct kobj_attribute* attr, char* buf)
 {
     struct mapping_data* data = container_of(kobj, struct mapping_data, mapping_kobj);
-    return sysfs_emit(buf, "%ld\n", data ? (ssize_t)current_elements_count : 0);
+    return sysfs_emit(buf, "%ld\n", data ? (ssize_t)data->current_elements_count : 0);
 }
 
 // no show to be defined here as the command is write-only
 static ssize_t command_store(struct kobject* kobj, struct kobj_attribute* attr, const char* buf, size_t count)
 {
-    struct mapping_data* data = container_of(kobj, struct mapping_data, mapping_kobj);
-    store_command(buf);
+    if (container_of(kobj, struct mapping_data, mapping_kobj) == data)
+    {
+        store_command(buf);
+    }
+    else
+    {
+        pr_err("%s: invalid mapping data object!\n", THIS_MODULE->name);
+    }
 
     return count;
 }
@@ -161,11 +179,6 @@ static void destroy_map_element(struct map_element_data* element_data)
 
 static int mapping_init(void)
 {
-    for (size_t index = 0; index < MAX_ELEMENTS_COUNT; ++index)
-    {
-        map_elements[index] = NULL;
-    }
-
     // resulting directory structure: "/sys/kernel/mapping"
     // - kernel_kobj (parent kobject) => "/sys/kernel"
     // - mapping_kobj_name => "/mapping"
@@ -180,9 +193,7 @@ static int mapping_init(void)
     if (data)
     {
         result = kobject_init_and_add(&data->mapping_kobj, &mapping_ktype, kernel_kobj, "%s", mapping_kobj_name);
-        result = result == SUCCESS
-                     ? init_data(data, map_elements, &current_elements_count, create_map_element, destroy_map_element)
-                     : -ENOMEM;
+        result = result == SUCCESS ? init_data(data, create_map_element, destroy_map_element) : -ENOMEM;
     }
     else
     {
@@ -209,10 +220,10 @@ static void mapping_exit(void)
     // this calls the release function (mapping_release()) for the data object containing the kobject
     kobject_put(&data->mapping_kobj);
 
-    for (size_t index = 0; index < current_elements_count; ++index)
+    for (size_t index = 0; index < data->current_elements_count; ++index)
     {
-        destroy_map_element(map_elements[index]);
-        map_elements[index] = NULL;
+        destroy_map_element(data->map_elements[index]);
+        data->map_elements[index] = NULL;
     }
 
     kset_unregister(map_elements_kset);

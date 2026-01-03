@@ -140,13 +140,12 @@ static void reset_elements(void)
     strncpy(data->status, synced_status_str, strlen(synced_status_str));
 }
 
-int init_data(struct mapping_data* map_data, struct map_element_data** elements, size_t* current_count,
-              struct map_element_data* (*create_element)(const char*, int),
+int init_data(struct mapping_data* map_data, struct map_element_data* (*create_element)(const char*, int),
               void (*destroy_element)(struct map_element_data* element_data))
 {
     int result = 0;
 
-    if (map_data && elements && current_count && create_element && destroy_element)
+    if (map_data && create_element && destroy_element)
     {
         data = map_data;
         memset(data->key, '\0', MAX_KEY_STR_LENGTH);
@@ -154,10 +153,15 @@ int init_data(struct mapping_data* map_data, struct map_element_data** elements,
         memset(data->command, '\0', MAX_COMMAND_STR_LENGTH);
         memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
         strncpy(data->status, synced_status_str, strlen(synced_status_str));
-        data->map_elements = elements;
-        data->current_elements_count = *current_count;
         create_map_element = create_element;
         destroy_map_element = destroy_element;
+
+        data->current_elements_count = 0;
+
+        for (size_t index = 0; index < MAX_ELEMENTS_COUNT; ++index)
+        {
+            data->map_elements[index] = NULL;
+        }
     }
     else
     {

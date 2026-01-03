@@ -15,7 +15,7 @@ struct mapping_data
     int value;
     char command[MAX_COMMAND_STR_LENGTH];
     char status[MAX_STATUS_STR_LENGTH];
-    struct map_element_data** map_elements;
+    struct map_element_data* map_elements[MAX_ELEMENTS_COUNT];
     size_t current_elements_count;
 };
 
@@ -25,8 +25,7 @@ struct map_element_data
     int value;
 };
 
-int init_data(struct mapping_data* map_data, struct map_element_data** elements, size_t* current_count,
-              struct map_element_data* (*create_element)(const char*, int),
+int init_data(struct mapping_data* map_data, struct map_element_data* (*create_element)(const char*, int),
               void (*destroy_element)(struct map_element_data* element_data));
 
 void store_key(const char* key_str);
