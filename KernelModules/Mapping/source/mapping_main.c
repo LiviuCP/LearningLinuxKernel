@@ -27,7 +27,7 @@ static ssize_t key_show(struct kobject* kobj, struct kobj_attribute* attr, char*
 static ssize_t key_store(struct kobject* kobj, struct kobj_attribute* attr, const char* buf, size_t count)
 {
     struct mapping_data* data = container_of(kobj, struct mapping_data, mapping_kobj);
-    store_key(data, buf);
+    store_key(buf);
 
     return count;
 }
@@ -41,7 +41,7 @@ static ssize_t value_show(struct kobject* kobj, struct kobj_attribute* attr, cha
 static ssize_t value_store(struct kobject* kobj, struct kobj_attribute* attr, const char* buf, size_t count)
 {
     struct mapping_data* data = container_of(kobj, struct mapping_data, mapping_kobj);
-    const int result = store_value(data, buf);
+    const int result = store_value(buf);
 
     return result < 0 ? 0 : count;
 }
@@ -57,7 +57,7 @@ static ssize_t count_show(struct kobject* kobj, struct kobj_attribute* attr, cha
 static ssize_t command_store(struct kobject* kobj, struct kobj_attribute* attr, const char* buf, size_t count)
 {
     struct mapping_data* data = container_of(kobj, struct mapping_data, mapping_kobj);
-    store_command(data, buf);
+    store_command(buf);
 
     return count;
 }
