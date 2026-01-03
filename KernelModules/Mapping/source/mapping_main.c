@@ -87,12 +87,8 @@ static struct kobj_attribute status_attribute = __ATTR(status, 0400, status_show
 static struct attribute* mapping_attrs[] = {&key_attribute.attr, &value_attribute.attr, &command_attribute.attr,
                                             &status_attribute.attr, NULL};
 
-// these statements can be replaced by: "ATTRIBUTE_GROUPS(mapping);" (see sysfs.h)
-// I preferred to keep the unwrapped for better readability
-static const struct attribute_group mapping_group = {.attrs = mapping_attrs};
-static const struct attribute_group* mapping_groups[] = {&mapping_group, NULL};
+ATTRIBUTE_GROUPS(mapping);
 
-// kobj_sysfs_ops is the default sysfs_ops (binds all access functions defined above into mapping_ktype)
 static struct kobj_type mapping_ktype = {
     .sysfs_ops = &kobj_sysfs_ops, .release = mapping_release, .default_groups = mapping_groups};
 
@@ -111,6 +107,8 @@ ATTRIBUTE_GROUPS(map_element);
 
 static const struct kobj_type map_element_ktype = {
     .sysfs_ops = &kobj_sysfs_ops, .release = map_element_release, .default_groups = map_element_groups};
+
+/* "CONSTRUCTOR"/"DESTRUCTOR" for map elements */
 
 static struct map_element_data* create_map_element(const char* key, int value)
 {
