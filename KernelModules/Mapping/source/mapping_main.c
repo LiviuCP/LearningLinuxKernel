@@ -179,12 +179,15 @@ static void destroy_map_element(struct map_element_data* element_data)
 
 /* INIT/EXIT */
 
+// resulting directory structure: "/sys/kernel/mapping"
+// - kernel_kobj (parent kobject) => "/sys/kernel"
+// - mapping_kobj_name => "/mapping"
+// - all attributes appearing as files in "/mapping": key, value, count, command, status
+// - map_elements_kset => "/mapping/Map"
+// - map element kobjects (connected to kset) => "/mapping/Map/[KEY1]", "/mapping/Map/[KEY2]", ...
+// - attribute of each map element kobject => "/mapping/Map/[KEY1]/value", "/mapping/Map/[KEY2]/value", ...
 static int mapping_init(void)
 {
-    // resulting directory structure: "/sys/kernel/mapping"
-    // - kernel_kobj (parent kobject) => "/sys/kernel"
-    // - mapping_kobj_name => "/mapping"
-    // - all attributes appearing as files in "/mapping"
     const char* mapping_kobj_name = "mapping";
 
     int result = SUCCESS;
@@ -221,10 +224,9 @@ static void mapping_exit(void)
 
     pr_info("%s: putting the kobject: %s\n", THIS_MODULE->name, data->mapping_kobj.name);
 
-    // this calls the release function (mapping_release()) for the data object containing the kobject
     kobject_put(&data->mapping_kobj);
-
     kset_unregister(map_elements_kset);
+
     pr_info("%s: the module exited!\n", THIS_MODULE->name);
 }
 
