@@ -61,7 +61,7 @@ static struct map_element_data* create_map_element(const char* key, int value);
 static ssize_t command_store(struct kobject* kobj, struct kobj_attribute* attr, const char* buf, size_t count)
 {
     struct mapping_data* data = container_of(kobj, struct mapping_data, mapping_kobj);
-    store_command(data, buf, map_elements, &current_elements_count);
+    store_command(data, buf);
 
     return count;
 }
@@ -175,7 +175,9 @@ static int mapping_init(void)
     if (data)
     {
         result = kobject_init_and_add(&data->mapping_kobj, &mapping_ktype, kernel_kobj, "%s", mapping_kobj_name);
-        result = result == SUCCESS ? init_data(data, create_map_element, destroy_map_element) : -ENOMEM;
+        result = result == SUCCESS
+                     ? init_data(data, map_elements, &current_elements_count, create_map_element, destroy_map_element)
+                     : -ENOMEM;
     }
     else
     {

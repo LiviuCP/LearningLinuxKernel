@@ -18,11 +18,13 @@ static const size_t remove_command_length = 6;
 static const size_t get_command_length = 3;
 static const size_t reset_command_length = 5;
 
+static struct map_element_data** map_elements = NULL;
+static size_t* current_elements_count = NULL;
+
 static struct map_element_data* (*create_map_element)(const char*, int) = NULL;
 static void (*destroy_map_element)(struct map_element_data* element_data) = NULL;
 
-static void update_element(struct mapping_data* data, struct map_element_data** map_elements,
-                           size_t* current_elements_count)
+static void update_element(struct mapping_data* data)
 {
     if (strlen(data->key) > 0)
     {
@@ -65,8 +67,7 @@ static void update_element(struct mapping_data* data, struct map_element_data** 
     }
 }
 
-static void remove_element(struct mapping_data* data, struct map_element_data** map_elements,
-                           size_t* current_elements_count)
+static void remove_element(struct mapping_data* data)
 {
     int element_found = 0;
 
@@ -101,12 +102,11 @@ static void remove_element(struct mapping_data* data, struct map_element_data** 
     }
 }
 
-static void get_element_value(struct mapping_data* data, struct map_element_data** map_elements,
-                              size_t current_elements_count)
+static void get_element_value(struct mapping_data* data)
 {
     int element_found = 0;
 
-    for (size_t index = 0; index < current_elements_count; ++index)
+    for (size_t index = 0; index < *current_elements_count; ++index)
     {
         if (strncmp(map_elements[index]->map_element_kobj.name, data->key, strlen(data->key)) == 0)
         {
@@ -126,8 +126,7 @@ static void get_element_value(struct mapping_data* data, struct map_element_data
     strncpy(data->status, synced_status_str, strlen(synced_status_str));
 }
 
-static void reset_elements(struct mapping_data* data, struct map_element_data** map_elements,
-                           size_t* current_elements_count)
+static void reset_elements(struct mapping_data* data)
 {
     for (size_t index = 0; index < *current_elements_count; ++index)
     {
@@ -142,18 +141,21 @@ static void reset_elements(struct mapping_data* data, struct map_element_data** 
     strncpy(data->status, synced_status_str, strlen(synced_status_str));
 }
 
-int init_data(struct mapping_data* data, struct map_element_data* (*create_element)(const char*, int),
+int init_data(struct mapping_data* data, struct map_element_data** elements, size_t* current_count,
+              struct map_element_data* (*create_element)(const char*, int),
               void (*destroy_element)(struct map_element_data* element_data))
 {
     int result = 0;
 
-    if (data && create_element && destroy_element)
+    if (data && elements && current_count && create_element && destroy_element)
     {
         memset(data->key, '\0', MAX_KEY_STR_LENGTH);
         data->value = 0;
         memset(data->command, '\0', MAX_COMMAND_STR_LENGTH);
         memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
         strncpy(data->status, synced_status_str, strlen(synced_status_str));
+        map_elements = elements;
+        current_elements_count = current_count;
         create_map_element = create_element;
         destroy_map_element = destroy_element;
     }
@@ -188,8 +190,7 @@ int store_value(struct mapping_data* data, const char* value_str)
     return result;
 }
 
-void store_command(struct mapping_data* data, const char* command_str, struct map_element_data** map_elements,
-                   size_t* current_elements_count)
+void store_command(struct mapping_data* data, const char* command_str)
 {
     trim_and_copy_str(data->command, command_str, MAX_COMMAND_STR_LENGTH);
     const size_t command_length = strlen(data->command);
@@ -199,23 +200,23 @@ void store_command(struct mapping_data* data, const char* command_str, struct ma
     if (command_length == update_command_length && strncmp(data->command, update_command, update_command_length) == 0)
     {
         pr_info("%s: updating map element\n", THIS_MODULE->name);
-        update_element(data, map_elements, current_elements_count);
+        update_element(data);
     }
     else if (command_length == remove_command_length &&
              strncmp(data->command, remove_command, remove_command_length) == 0)
     {
         pr_info("%s: removing map element\n", THIS_MODULE->name);
-        remove_element(data, map_elements, current_elements_count);
+        remove_element(data);
     }
     else if (command_length == get_command_length && strncmp(data->command, get_command, get_command_length) == 0)
     {
         pr_info("%s: getting value of map element\n", THIS_MODULE->name);
-        get_element_value(data, map_elements, *current_elements_count);
+        get_element_value(data);
     }
     else if (command_length == reset_command_length && strncmp(data->command, reset_command, reset_command_length) == 0)
     {
         pr_info("%s: erasing all map elements\n", THIS_MODULE->name);
-        reset_elements(data, map_elements, current_elements_count);
+        reset_elements(data);
     }
     else
     {

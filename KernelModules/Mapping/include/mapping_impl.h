@@ -23,10 +23,10 @@ struct map_element_data
     int value;
 };
 
-int init_data(struct mapping_data* data, struct map_element_data* (*create_element)(const char*, int),
+int init_data(struct mapping_data* data, struct map_element_data** elements, size_t* current_count,
+              struct map_element_data* (*create_element)(const char*, int),
               void (*destroy_element)(struct map_element_data* element_data));
 
 void store_key(struct mapping_data* data, const char* key_str);
 int store_value(struct mapping_data* data, const char* value_str);
-void store_command(struct mapping_data* data, const char* command_str, struct map_element_data** map_elements,
-                   size_t* current_elements_count);
+void store_command(struct mapping_data* data, const char* command_str);
