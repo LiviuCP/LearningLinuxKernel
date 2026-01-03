@@ -11,13 +11,12 @@ MODULE_AUTHOR("Liviu Popa");
 
 /* VARIABLES AND PARAMETERS */
 
-struct mapping_data* data = NULL;
-
+static struct mapping_data* data = NULL;
 static struct kset* map_elements_kset = NULL;
 static struct map_element_data* map_elements[MAX_ELEMENTS_COUNT];
 static size_t current_elements_count = 0;
 
-/* SYSFS access methods for attributes */
+/* SYSFS access functions for attributes */
 
 static ssize_t key_show(struct kobject* kobj, struct kobj_attribute* attr, char* buf)
 {
@@ -63,6 +62,8 @@ static ssize_t status_show(struct kobject* kobj, struct kobj_attribute* attr, ch
     return sysfs_emit(buf, "%s\n", data->status);
 }
 
+/* SYSFS release functions */
+
 static void mapping_release(struct kobject* kobj)
 {
     struct mapping_data* data = container_of(kobj, struct mapping_data, mapping_kobj);
@@ -92,7 +93,7 @@ ATTRIBUTE_GROUPS(mapping);
 static struct kobj_type mapping_ktype = {
     .sysfs_ops = &kobj_sysfs_ops, .release = mapping_release, .default_groups = mapping_groups};
 
-/* SYSFS attributes for MapElement */
+/* SYSFS attributes for map element */
 
 static ssize_t element_value_show(struct kobject* kobj, struct kobj_attribute* attr, char* buf)
 {
