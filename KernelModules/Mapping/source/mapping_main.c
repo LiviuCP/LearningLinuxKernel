@@ -106,7 +106,7 @@ static struct attribute* map_element_attrs[] = {&element_value_attribute.attr, N
 
 ATTRIBUTE_GROUPS(map_element);
 
-static const struct kobj_type map_element_ktype = {
+static struct kobj_type map_element_ktype = {
     .sysfs_ops = &kobj_sysfs_ops, .release = map_element_release, .default_groups = map_element_groups};
 
 /* "CONSTRUCTOR"/"DESTRUCTOR" for map elements */
