@@ -46,6 +46,13 @@ static ssize_t value_store(struct kobject* kobj, struct kobj_attribute* attr, co
     return result < 0 ? 0 : count;
 }
 
+// no store to be defined here as the elements count is read-only
+static ssize_t count_show(struct kobject* kobj, struct kobj_attribute* attr, char* buf)
+{
+    struct mapping_data* data = container_of(kobj, struct mapping_data, mapping_kobj);
+    return sysfs_emit(buf, "%ld\n", data ? (ssize_t)current_elements_count : 0);
+}
+
 // no show to be defined here as the command is write-only
 static ssize_t command_store(struct kobject* kobj, struct kobj_attribute* attr, const char* buf, size_t count)
 {
@@ -82,11 +89,12 @@ static void map_element_release(struct kobject* kobj)
 
 static struct kobj_attribute key_attribute = __ATTR(key, 0600, key_show, key_store);
 static struct kobj_attribute value_attribute = __ATTR(value, 0600, value_show, value_store);
+static struct kobj_attribute count_attribute = __ATTR(count, 0400, count_show, NULL);
 static struct kobj_attribute command_attribute = __ATTR(command, 0200, NULL, command_store);
 static struct kobj_attribute status_attribute = __ATTR(status, 0400, status_show, NULL);
 
-static struct attribute* mapping_attrs[] = {&key_attribute.attr, &value_attribute.attr, &command_attribute.attr,
-                                            &status_attribute.attr, NULL};
+static struct attribute* mapping_attrs[] = {&key_attribute.attr,     &value_attribute.attr,  &count_attribute.attr,
+                                            &command_attribute.attr, &status_attribute.attr, NULL};
 
 ATTRIBUTE_GROUPS(mapping);
 
