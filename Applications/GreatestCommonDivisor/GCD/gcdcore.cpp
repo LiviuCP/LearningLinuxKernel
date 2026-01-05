@@ -23,12 +23,12 @@ namespace
 {
 bool areDivisionSysfsFilesValid()
 {
-    return std::filesystem::exists(dividedFilePath) || std::filesystem::is_regular_file(dividedFilePath) ||
-           std::filesystem::exists(dividerFilePath) || std::filesystem::is_regular_file(dividerFilePath) ||
-           std::filesystem::exists(quotientFilePath) || std::filesystem::is_regular_file(quotientFilePath) ||
-           std::filesystem::exists(remainderFilePath) || std::filesystem::is_regular_file(remainderFilePath) ||
-           std::filesystem::exists(commandFilePath) || std::filesystem::is_regular_file(commandFilePath) ||
-           std::filesystem::exists(statusFilePath) || std::filesystem::is_regular_file(statusFilePath);
+    return std::filesystem::exists(dividedFilePath) && std::filesystem::is_regular_file(dividedFilePath) &&
+           std::filesystem::exists(dividerFilePath) && std::filesystem::is_regular_file(dividerFilePath) &&
+           std::filesystem::exists(quotientFilePath) && std::filesystem::is_regular_file(quotientFilePath) &&
+           std::filesystem::exists(remainderFilePath) && std::filesystem::is_regular_file(remainderFilePath) &&
+           std::filesystem::exists(commandFilePath) && std::filesystem::is_regular_file(commandFilePath) &&
+           std::filesystem::exists(statusFilePath) && std::filesystem::is_regular_file(statusFilePath);
 }
 
 void passDivisionOperandsToKernelModule(int divided, int divider)
