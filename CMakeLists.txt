@@ -12,3 +12,9 @@ add_subdirectory(Applications)
 if (NOT WIN32 AND NOT APPLE)
     add_subdirectory(KernelModules)
 endif()
+
+find_package(QT NAMES Qt5 Qt6 COMPONENTS Test QUIET)
+
+if(QT_FOUND)
+    add_subdirectory(Tests)
+endif()

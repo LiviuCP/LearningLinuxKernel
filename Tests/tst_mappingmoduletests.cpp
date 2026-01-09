@@ -1,0 +1,815 @@
+#include <QTest>
+
+#include <cassert>
+#include <climits>
+#include <filesystem>
+#include <fstream>
+#include <list>
+#include <map>
+#include <string_view>
+#include <unistd.h>
+
+#define READ_MODE false
+#define WRITE_MODE true
+
+static constexpr std::string_view keyFilePath{"/sys/kernel/mapping/key"};
+static constexpr std::string_view valueFilePath{"/sys/kernel/mapping/value"};
+static constexpr std::string_view commandFilePath{"/sys/kernel/mapping/command"};
+static constexpr std::string_view statusFilePath{"/sys/kernel/mapping/status"};
+static constexpr std::string_view countFilePath{"/sys/kernel/mapping/count"};
+static constexpr std::string_view mapDirPath{"/sys/kernel/mapping/Map"};
+
+static constexpr std::string_view updateCommandStr{"update"};
+static constexpr std::string_view removeCommandStr{"remove"};
+static constexpr std::string_view resetCommandStr{"reset"};
+static constexpr std::string_view getCommandStr{"get"};
+
+static constexpr std::string_view syncedStatusStr{"synced"};
+static constexpr std::string_view dirtyStatusStr{"dirty"};
+
+static constexpr std::string_view mappingModuleRelativePath{"KernelModules/ConsolidatedOutput/mapping.ko"};
+
+using ElementsMap = std::map<std::string, int>;
+using ElementsList = std::list<std::pair<std::string, int>>;
+
+/* These tests should be run from a terminal using sudo */
+
+class MappingModuleTests : public QObject
+{
+    Q_OBJECT
+
+private slots:
+    void initTestCase();
+    void cleanupTestCase();
+    void init();
+    void cleanup();
+
+    void testAddElement();
+    void testAddMultipleElements();
+    void testModifyElementValue();
+    void testRemoveElement();
+    void testGetElementValue();
+    void testAllCommands();
+
+private:
+    void loadKernelModule();
+    void unloadKernelModule();
+    bool isKernelModuleLoaded();
+    bool isKernelModuleReset();
+    bool areKernelModuleFilesAndDirsValid();
+
+    void writeKey(const std::string& key);
+    std::optional<std::string> readKey();
+    void writeValue(int value);
+    std::optional<int> readValue();
+    void writeCommand(const std::string& command);
+    std::optional<std::string> readStatus();
+    std::optional<size_t> readCount();
+    std::optional<int> readElementValue(const std::filesystem::path& elementValuePath);
+
+    void addOrModifyElements(const ElementsList& elements);
+    std::optional<ElementsMap> retrieveElements();
+
+    std::string executeCommand(const std::string& command, bool isWriteMode);
+    std::optional<std::filesystem::path> getMappingModulePath();
+};
+
+void MappingModuleTests::initTestCase()
+{
+    try
+    {
+        // ensure a fresh start by reloading the module in case already loaded
+        if (isKernelModuleLoaded())
+        {
+            unloadKernelModule();
+        }
+
+        loadKernelModule();
+
+        QVERIFY(isKernelModuleLoaded());
+        QVERIFY(areKernelModuleFilesAndDirsValid());
+
+        QVERIFY(readKey().has_value() && readValue().has_value() && readStatus().has_value() &&
+                readCount().has_value());
+    }
+    catch (const std::runtime_error& err)
+    {
+        QFAIL(err.what());
+    }
+}
+
+void MappingModuleTests::cleanupTestCase()
+{
+    try
+    {
+        unloadKernelModule();
+    }
+    catch (const std::runtime_error& err)
+    {
+        QFAIL(err.what());
+    }
+}
+
+void MappingModuleTests::init()
+{
+    QVERIFY(isKernelModuleReset());
+}
+
+void MappingModuleTests::cleanup()
+{
+    writeCommand(std::string{resetCommandStr});
+}
+
+void MappingModuleTests::testAddElement()
+{
+    // test valid key
+    const std::string validKey{"testKey"};
+    const int elementValue{55};
+
+    writeKey(validKey);
+
+    QVERIFY(validKey == readKey());
+    QVERIFY(dirtyStatusStr == readStatus());
+
+    writeValue(elementValue);
+
+    QVERIFY(elementValue == readValue());
+    QVERIFY(dirtyStatusStr == readStatus());
+
+    writeCommand(std::string{updateCommandStr});
+
+    QVERIFY(syncedStatusStr == readStatus());
+    QVERIFY(1 == readCount());
+
+    std::filesystem::path mapElementKeyPath{std::string{mapDirPath}};
+    mapElementKeyPath /= validKey;
+
+    QVERIFY(std::filesystem::is_directory(mapElementKeyPath));
+
+    std::filesystem::path mapElementValuePath{mapElementKeyPath};
+    mapElementValuePath /= "value";
+
+    QVERIFY(elementValue == readElementValue(mapElementValuePath));
+
+    const std::optional<ElementsMap> mapContent{retrieveElements()};
+    const ElementsMap expectedMapContent{{validKey, 55}};
+
+    QVERIFY(expectedMapContent == mapContent);
+
+    // test invalid (empty or whitespace-only) key
+    const std::string invalidKey{" "};
+
+    writeKey(invalidKey);
+
+    const std::string emptyKey;
+
+    QVERIFY(emptyKey == readKey());
+    QVERIFY(elementValue == readValue());
+
+    writeCommand(std::string{updateCommandStr});
+
+    QVERIFY(dirtyStatusStr == readStatus());
+    QVERIFY(1 == readCount());
+    QVERIFY(expectedMapContent == retrieveElements());
+}
+
+void MappingModuleTests::testAddMultipleElements()
+{
+    const ElementsList elements{{"myhome", -2}, {"home", 3},       {"barbeque", 4}, {"homealone", 5},
+                                {"Home", 0},    {"barbeque1", -5}, {"HOME2", 9}};
+
+    addOrModifyElements(elements);
+
+    QVERIFY(elements.size() == readCount());
+
+    const std::optional<ElementsMap> mapContent{retrieveElements()};
+    const ElementsMap expectedMapContent{{"HOME2", 9}, {"Home", 0},      {"barbeque", 4}, {"barbeque1", -5},
+                                         {"home", 3},  {"homealone", 5}, {"myhome", -2}};
+
+    QVERIFY(expectedMapContent == mapContent);
+}
+
+void MappingModuleTests::testModifyElementValue()
+{
+    const std::string key{"myKey"};
+    int value{-5};
+
+    writeKey(key);
+    writeValue(value);
+    writeCommand(std::string{updateCommandStr});
+
+    ElementsMap expectedContent{{"myKey", -5}};
+
+    QVERIFY(expectedContent == retrieveElements());
+    QVERIFY(syncedStatusStr == readStatus());
+
+    value = 3;
+    writeValue(value);
+
+    QVERIFY(key == readKey());
+    QVERIFY(value == readValue());
+    QVERIFY(dirtyStatusStr == readStatus());
+
+    writeCommand(std::string{updateCommandStr});
+    expectedContent = {{"myKey", 3}};
+
+    QVERIFY(expectedContent == retrieveElements());
+    QVERIFY(syncedStatusStr == readStatus());
+    QVERIFY(1 == readCount());
+}
+
+void MappingModuleTests::testRemoveElement()
+{
+    const ElementsList elements{{"household", 2}, {"homebank", -5}, {"banking", 10}};
+    addOrModifyElements(elements);
+
+    std::string keyToRemove{"banking"};
+
+    QVERIFY(keyToRemove == readKey());
+    QVERIFY(10 == readValue());
+    QVERIFY(syncedStatusStr == readStatus());
+
+    writeCommand(std::string{removeCommandStr});
+
+    ElementsMap expectedMapContent{{"homebank", -5}, {"household", 2}};
+
+    QVERIFY(expectedMapContent == retrieveElements());
+    QVERIFY(syncedStatusStr == readStatus());
+    QVERIFY(2 == readCount());
+
+    const std::string emptyKey;
+
+    QVERIFY(emptyKey == readKey());
+    QVERIFY(0 == readValue());
+
+    writeCommand(std::string{removeCommandStr});
+
+    QVERIFY(expectedMapContent == retrieveElements());
+    QVERIFY(syncedStatusStr == readStatus());
+    QVERIFY(2 == readCount());
+    QVERIFY(emptyKey == readKey());
+    QVERIFY(0 == readValue());
+
+    writeKey(keyToRemove);
+
+    QVERIFY(keyToRemove == readKey());
+    QVERIFY(dirtyStatusStr == readStatus());
+
+    writeCommand(std::string{removeCommandStr});
+
+    QVERIFY(expectedMapContent == retrieveElements());
+    QVERIFY(dirtyStatusStr == readStatus());
+    QVERIFY(2 == readCount());
+    QVERIFY(keyToRemove == readKey());
+
+    keyToRemove = "homeban";
+    writeKey(keyToRemove);
+
+    QVERIFY(keyToRemove == readKey());
+    QVERIFY(dirtyStatusStr == readStatus());
+
+    writeCommand(std::string{removeCommandStr});
+
+    QVERIFY(expectedMapContent == retrieveElements());
+    QVERIFY(dirtyStatusStr == readStatus());
+    QVERIFY(2 == readCount());
+    QVERIFY(keyToRemove == readKey());
+
+    keyToRemove = "homebank1";
+    writeKey(keyToRemove);
+
+    QVERIFY(keyToRemove == readKey());
+    QVERIFY(dirtyStatusStr == readStatus());
+
+    writeCommand(std::string{removeCommandStr});
+
+    QVERIFY(expectedMapContent == retrieveElements());
+    QVERIFY(dirtyStatusStr == readStatus());
+    QVERIFY(2 == readCount());
+    QVERIFY(keyToRemove == readKey());
+
+    keyToRemove = "homebank";
+    writeKey(keyToRemove);
+
+    QVERIFY(keyToRemove == readKey());
+    QVERIFY(dirtyStatusStr == readStatus());
+
+    writeCommand(std::string{removeCommandStr});
+    expectedMapContent = {{"household", 2}};
+
+    QVERIFY(expectedMapContent == retrieveElements());
+    QVERIFY(syncedStatusStr == readStatus());
+    QVERIFY(1 == readCount());
+    QVERIFY(emptyKey == readKey());
+
+    keyToRemove = "Household";
+    writeKey(keyToRemove);
+
+    QVERIFY(keyToRemove == readKey());
+    QVERIFY(dirtyStatusStr == readStatus());
+
+    writeCommand(std::string{removeCommandStr});
+
+    QVERIFY(expectedMapContent == retrieveElements());
+    QVERIFY(dirtyStatusStr == readStatus());
+    QVERIFY(1 == readCount());
+    QVERIFY(keyToRemove == readKey());
+
+    keyToRemove = "household";
+    writeKey(keyToRemove);
+
+    QVERIFY(keyToRemove == readKey());
+    QVERIFY(dirtyStatusStr == readStatus());
+
+    writeCommand(std::string{removeCommandStr});
+
+    QVERIFY(isKernelModuleReset());
+}
+
+void MappingModuleTests::testGetElementValue()
+{
+    writeKey("laundromat");
+    writeValue(10);
+
+    QVERIFY("laundromat" == readKey());
+    QVERIFY(10 == readValue());
+    QVERIFY(dirtyStatusStr == readStatus());
+
+    writeCommand(std::string{getCommandStr});
+
+    QVERIFY("laundromat" == readKey());
+    QVERIFY(0 == readValue());
+    QVERIFY(syncedStatusStr == readStatus());
+    QVERIFY(0 == readCount());
+
+    const ElementsList elements{{"laundromat", 2}, {"banking", -5}};
+    addOrModifyElements(elements);
+
+    QVERIFY("banking" == readKey());
+    QVERIFY(-5 == readValue());
+    QVERIFY(syncedStatusStr == readStatus());
+    QVERIFY(2 == readCount());
+
+    writeKey("laundromat");
+
+    QVERIFY("laundromat" == readKey());
+    QVERIFY(-5 == readValue());
+    QVERIFY(dirtyStatusStr == readStatus());
+
+    writeCommand(std::string{getCommandStr});
+
+    QVERIFY("laundromat" == readKey());
+    QVERIFY(2 == readValue());
+    QVERIFY(syncedStatusStr == readStatus());
+
+    writeValue(10);
+    writeCommand(std::string{updateCommandStr});
+
+    QVERIFY("laundromat" == readKey());
+    QVERIFY(10 == readValue());
+    QVERIFY(syncedStatusStr == readStatus());
+    QVERIFY(2 == readCount());
+
+    writeValue(0);
+
+    QVERIFY("laundromat" == readKey());
+    QVERIFY(0 == readValue());
+    QVERIFY(dirtyStatusStr == readStatus());
+
+    writeCommand(std::string{getCommandStr});
+
+    QVERIFY("laundromat" == readKey());
+    QVERIFY(10 == readValue());
+    QVERIFY(syncedStatusStr == readStatus());
+
+    writeCommand(std::string{removeCommandStr});
+
+    QVERIFY(syncedStatusStr == readStatus());
+    QVERIFY(1 == readCount());
+
+    writeKey("laundromat");
+    writeValue(10);
+
+    QVERIFY("laundromat" == readKey());
+    QVERIFY(10 == readValue());
+    QVERIFY(dirtyStatusStr == readStatus());
+
+    writeCommand(std::string{getCommandStr});
+
+    QVERIFY("laundromat" == readKey());
+    QVERIFY(0 == readValue());
+    QVERIFY(syncedStatusStr == readStatus());
+
+    writeKey("bankin");
+    writeValue(-5);
+
+    QVERIFY("bankin" == readKey());
+    QVERIFY(-5 == readValue());
+    QVERIFY(dirtyStatusStr == readStatus());
+
+    writeCommand(std::string{getCommandStr});
+
+    QVERIFY("bankin" == readKey());
+    QVERIFY(0 == readValue());
+    QVERIFY(syncedStatusStr == readStatus());
+
+    writeKey("Banking");
+    writeValue(-5);
+
+    QVERIFY("Banking" == readKey());
+    QVERIFY(-5 == readValue());
+    QVERIFY(dirtyStatusStr == readStatus());
+
+    writeCommand(std::string{getCommandStr});
+
+    QVERIFY("Banking" == readKey());
+    QVERIFY(0 == readValue());
+    QVERIFY(syncedStatusStr == readStatus());
+
+    writeKey("banking1");
+    writeValue(-5);
+
+    QVERIFY("banking1" == readKey());
+    QVERIFY(-5 == readValue());
+    QVERIFY(dirtyStatusStr == readStatus());
+
+    writeCommand(std::string{getCommandStr});
+
+    QVERIFY("banking1" == readKey());
+    QVERIFY(0 == readValue());
+    QVERIFY(syncedStatusStr == readStatus());
+
+    writeKey("banking");
+
+    QVERIFY("banking" == readKey());
+    QVERIFY(0 == readValue());
+    QVERIFY(dirtyStatusStr == readStatus());
+
+    writeCommand(std::string{getCommandStr});
+
+    QVERIFY("banking" == readKey());
+    QVERIFY(-5 == readValue());
+    QVERIFY(syncedStatusStr == readStatus());
+
+    const ElementsMap expectedMapContent{{"banking", -5}};
+    QVERIFY(expectedMapContent == retrieveElements());
+}
+
+void MappingModuleTests::testAllCommands()
+{
+    ElementsList elements{{"laundromat", 2}, {"banking", -5}, {"Laundromat", 4},
+                          {"banking", -2},   {"banking", 10}, {"laundro", 8}};
+
+    addOrModifyElements(elements);
+
+    ElementsMap expectedMapContent{{"Laundromat", 4}, {"banking", 10}, {"laundro", 8}, {"laundromat", 2}};
+
+    QVERIFY(expectedMapContent == retrieveElements());
+    QVERIFY(syncedStatusStr == readStatus());
+    QVERIFY(4 == readCount());
+
+    writeKey("banking");
+
+    QVERIFY("banking" == readKey());
+    QVERIFY(dirtyStatusStr == readStatus());
+
+    writeCommand(std::string{removeCommandStr});
+    expectedMapContent = {{"Laundromat", 4}, {"laundro", 8}, {"laundromat", 2}};
+
+    QVERIFY(expectedMapContent == retrieveElements());
+    QVERIFY(syncedStatusStr == readStatus());
+    QVERIFY(3 == readCount());
+
+    writeKey("Laundromat");
+
+    QVERIFY("Laundromat" == readKey());
+    QVERIFY(dirtyStatusStr == readStatus());
+
+    writeCommand(std::string{getCommandStr});
+
+    QVERIFY("Laundromat" == readKey());
+    QVERIFY(4 == readValue());
+    QVERIFY(syncedStatusStr == readStatus());
+
+    writeKey("banking");
+
+    QVERIFY("banking" == readKey());
+    QVERIFY(4 == readValue());
+    QVERIFY(dirtyStatusStr == readStatus());
+
+    writeCommand(std::string{updateCommandStr});
+    expectedMapContent = {{"Laundromat", 4}, {"banking", 4}, {"laundro", 8}, {"laundromat", 2}};
+
+    QVERIFY(expectedMapContent == retrieveElements());
+    QVERIFY(syncedStatusStr == readStatus());
+    QVERIFY(4 == readCount());
+
+    writeCommand(std::string{resetCommandStr});
+    QVERIFY(isKernelModuleReset());
+
+    elements = {{"laundro", 8},    {"banking", 10}, {"banking", -2},
+                {"Laundromat", 4}, {"banking", -5}, {"laundromat", 2}};
+
+    addOrModifyElements(elements);
+    expectedMapContent = {{"Laundromat", 4}, {"banking", -5}, {"laundro", 8}, {"laundromat", 2}};
+
+    QVERIFY(expectedMapContent == retrieveElements());
+    QVERIFY(syncedStatusStr == readStatus());
+    QVERIFY(4 == readCount());
+
+    writeCommand(std::string{resetCommandStr});
+    QVERIFY(isKernelModuleReset());
+
+    elements = {{"laundro", 8}, {" ", 5}, {"Laundromat", 4}, {"", -5}, {"laundromat", 2}};
+
+    addOrModifyElements(elements);
+    expectedMapContent = {{"Laundromat", 4}, {"laundro", 8}, {"laundromat", 2}};
+
+    QVERIFY(expectedMapContent == retrieveElements());
+    QVERIFY(syncedStatusStr == readStatus());
+    QVERIFY(3 == readCount());
+}
+
+void MappingModuleTests::loadKernelModule()
+{
+    const auto mappingModulePath{getMappingModulePath()};
+
+    if (mappingModulePath.has_value())
+    {
+        // no need to include sudo in the command string -> the user needs to run the app with sudo anyway and if so the
+        // command will be executed in sudo mode
+        const std::string loadCommand{"insmod " + mappingModulePath->string() + " 2> /dev/null"};
+        executeCommand(loadCommand, READ_MODE);
+    }
+}
+
+void MappingModuleTests::unloadKernelModule()
+{
+    const auto mappingModulePath{getMappingModulePath()};
+
+    if (mappingModulePath.has_value())
+    {
+        // no need to include sudo in the command string -> the user needs to run the app with sudo anyway and if so the
+        // command will be executed in sudo mode
+        const std::string unloadCommand{"rmmod " + mappingModulePath->filename().stem().string()};
+        executeCommand(unloadCommand, READ_MODE);
+    }
+}
+
+bool MappingModuleTests::isKernelModuleLoaded()
+{
+    const std::string commandOutput{executeCommand("lsmod | grep -w mapping", READ_MODE)};
+    return commandOutput.starts_with("mapping");
+}
+
+bool MappingModuleTests::isKernelModuleReset()
+{
+    const auto key{readKey()};
+    const auto value{readValue()};
+    const auto status{readStatus()};
+    const auto count{readCount()};
+    const std::string emptyKey;
+
+    assert(key.has_value() && value.has_value() && status.has_value() && count.has_value());
+
+    return emptyKey == key && 0 == value && syncedStatusStr == status && 0 == count;
+}
+
+bool MappingModuleTests::areKernelModuleFilesAndDirsValid()
+{
+    return std::filesystem::exists(keyFilePath) && std::filesystem::is_regular_file(keyFilePath) &&
+           std::filesystem::exists(valueFilePath) && std::filesystem::is_regular_file(valueFilePath) &&
+           std::filesystem::exists(commandFilePath) && std::filesystem::is_regular_file(commandFilePath) &&
+           std::filesystem::exists(statusFilePath) && std::filesystem::is_regular_file(statusFilePath) &&
+           std::filesystem::exists(countFilePath) && std::filesystem::is_regular_file(countFilePath) &&
+           std::filesystem::exists(mapDirPath) && std::filesystem::is_directory(mapDirPath);
+}
+
+void MappingModuleTests::writeKey(const std::string& key)
+{
+    // temporary fix, it seems the kernel module attributes cannot get set via fstream when the string is empty
+    // TODO: maybe another way could be found for setting attributes, e.g. issue a shell command (e.g. echo "" | sudo
+    // tee [filePath])
+    const std::string keyStr{key.empty() ? " " : key};
+
+    std::ofstream toKeyFile{std::string{keyFilePath}};
+
+    if (toKeyFile.is_open())
+    {
+        toKeyFile << keyStr;
+    }
+}
+
+std::optional<std::string> MappingModuleTests::readKey()
+{
+    std::optional<std::string> key;
+    std::ifstream fromKeyFile{std::string{keyFilePath}};
+
+    if (fromKeyFile.is_open())
+    {
+        std::string k;
+        fromKeyFile >> k;
+        key = k;
+    }
+
+    return key;
+}
+
+void MappingModuleTests::writeValue(int value)
+{
+    std::ofstream toValueFile{std::string{valueFilePath}};
+
+    if (toValueFile.is_open())
+    {
+        toValueFile << value;
+    }
+}
+
+std::optional<int> MappingModuleTests::readValue()
+{
+    std::optional<int> value;
+    std::ifstream fromValueFile{std::string{valueFilePath}};
+
+    if (fromValueFile.is_open())
+    {
+        int val;
+        fromValueFile >> val;
+
+        if (!fromValueFile.fail())
+        {
+            value = val;
+        }
+    }
+
+    return value;
+}
+
+void MappingModuleTests::writeCommand(const std::string& command)
+{
+    std::ofstream toCommandFile{std::string{commandFilePath}};
+
+    if (toCommandFile.is_open())
+    {
+        toCommandFile << command;
+    }
+}
+
+std::optional<std::string> MappingModuleTests::readStatus()
+{
+    std::optional<std::string> status;
+    std::ifstream fromStatusFile{std::string{statusFilePath}};
+
+    if (fromStatusFile.is_open())
+    {
+        std::string stat;
+        fromStatusFile >> stat;
+        status = stat;
+    }
+
+    return status;
+}
+
+std::optional<size_t> MappingModuleTests::readCount()
+{
+    std::optional<size_t> count;
+    std::ifstream fromCountFile{std::string{countFilePath}};
+
+    if (fromCountFile.is_open())
+    {
+        size_t elementsCount;
+        fromCountFile >> elementsCount;
+
+        if (!fromCountFile.fail())
+        {
+            count = elementsCount;
+        }
+    }
+
+    return count;
+}
+
+std::optional<int> MappingModuleTests::readElementValue(const std::filesystem::path& elementValuePath)
+{
+    std::optional<int> value;
+    std::ifstream fromElementValueFile{elementValuePath};
+
+    if (fromElementValueFile.is_open())
+    {
+        int elementValue;
+        fromElementValueFile >> elementValue;
+
+        if (!fromElementValueFile.fail())
+        {
+            value = elementValue;
+        }
+    }
+
+    return value;
+}
+
+void MappingModuleTests::addOrModifyElements(const ElementsList& elements)
+{
+    for (const auto& [elementKey, elementValue] : elements)
+    {
+        writeKey(elementKey);
+        writeValue(elementValue);
+        writeCommand(std::string{updateCommandStr});
+    }
+}
+
+std::optional<ElementsMap> MappingModuleTests::retrieveElements()
+{
+    std::optional<ElementsMap> mapContent;
+
+    if (std::filesystem::is_directory(mapDirPath))
+    {
+        ElementsMap mapElements;
+        bool invalidElementDetected{false};
+
+        for (const auto& mapElement : std::filesystem::directory_iterator(mapDirPath))
+        {
+            const std::filesystem::path keyDirPath{mapElement.path()};
+
+            if (!std::filesystem::is_directory(keyDirPath))
+            {
+                invalidElementDetected = true;
+                break;
+            }
+
+            std::filesystem::path valueFilePath{keyDirPath};
+            valueFilePath /= "value";
+
+            if (!std::filesystem::is_regular_file(valueFilePath))
+            {
+                invalidElementDetected = true;
+                break;
+            }
+
+            std::optional<int> value{readElementValue(valueFilePath)};
+
+            if (!value.has_value())
+            {
+                invalidElementDetected = true;
+                break;
+            }
+
+            mapElements.insert({keyDirPath.filename().string(), *value});
+        }
+
+        if (!invalidElementDetected)
+        {
+            mapContent = std::move(mapElements);
+        }
+    }
+
+    return mapContent;
+}
+
+// TODO: move this to a centralized Utilities directory (used by other applications as well)
+std::string MappingModuleTests::executeCommand(const std::string& command, bool isWriteMode)
+{
+    std::string commandOutput;
+    char buffer[128];
+    const char* mode{isWriteMode ? "w" : "r"};
+
+    FILE* pipe{popen(command.c_str(), mode)};
+
+    if (!pipe)
+    {
+        throw std::runtime_error{"Failed to open pipe!"};
+    }
+
+    try
+    {
+        while (fgets(buffer, sizeof buffer, pipe) != NULL)
+        {
+            commandOutput += buffer;
+        }
+    }
+    catch (...)
+    {
+        pclose(pipe);
+        throw std::runtime_error{"Error in reading from pipe!"};
+    }
+
+    pclose(pipe);
+
+    return commandOutput;
+}
+
+std::optional<std::filesystem::path> MappingModuleTests::getMappingModulePath()
+{
+    char applicationPath[PATH_MAX + 1];
+    ssize_t pathSize = readlink("/proc/self/exe", applicationPath, PATH_MAX);
+    applicationPath[pathSize] = '\0';
+
+    std::filesystem::path mappingModulePath{applicationPath};
+    mappingModulePath = mappingModulePath.parent_path().parent_path();
+    mappingModulePath /= mappingModuleRelativePath;
+
+    return std::filesystem::is_regular_file(mappingModulePath) ? std::optional{mappingModulePath} : std::nullopt;
+}
+
+QTEST_APPLESS_MAIN(MappingModuleTests)
+
+#include "tst_mappingmoduletests.moc"
