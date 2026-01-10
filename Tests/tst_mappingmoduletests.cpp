@@ -9,6 +9,8 @@
 #include <string_view>
 #include <unistd.h>
 
+#include "utils.h"
+
 #define READ_MODE false
 #define WRITE_MODE true
 
@@ -70,7 +72,6 @@ private:
     void addOrModifyElements(const ElementsList& elements);
     std::optional<ElementsMap> retrieveElements();
 
-    std::string executeCommand(const std::string& command, bool isWriteMode);
     std::optional<std::filesystem::path> getMappingModulePath();
 };
 
@@ -539,7 +540,7 @@ void MappingModuleTests::loadKernelModule()
         // no need to include sudo in the command string -> the user needs to run the app with sudo anyway and if so the
         // command will be executed in sudo mode
         const std::string loadCommand{"insmod " + mappingModulePath->string() + " 2> /dev/null"};
-        executeCommand(loadCommand, READ_MODE);
+        Utilities::executeCommand(loadCommand, READ_MODE);
     }
 }
 
@@ -552,13 +553,13 @@ void MappingModuleTests::unloadKernelModule()
         // no need to include sudo in the command string -> the user needs to run the app with sudo anyway and if so the
         // command will be executed in sudo mode
         const std::string unloadCommand{"rmmod " + mappingModulePath->filename().stem().string()};
-        executeCommand(unloadCommand, READ_MODE);
+        Utilities::executeCommand(unloadCommand, READ_MODE);
     }
 }
 
 bool MappingModuleTests::isKernelModuleLoaded()
 {
-    const std::string commandOutput{executeCommand("lsmod | grep -w mapping", READ_MODE)};
+    const std::string commandOutput{Utilities::executeCommand("lsmod | grep -w mapping", READ_MODE)};
     return commandOutput.starts_with("mapping");
 }
 
@@ -763,38 +764,6 @@ std::optional<ElementsMap> MappingModuleTests::retrieveElements()
     }
 
     return mapContent;
-}
-
-// TODO: move this to a centralized Utilities directory (used by other applications as well)
-std::string MappingModuleTests::executeCommand(const std::string& command, bool isWriteMode)
-{
-    std::string commandOutput;
-    char buffer[128];
-    const char* mode{isWriteMode ? "w" : "r"};
-
-    FILE* pipe{popen(command.c_str(), mode)};
-
-    if (!pipe)
-    {
-        throw std::runtime_error{"Failed to open pipe!"};
-    }
-
-    try
-    {
-        while (fgets(buffer, sizeof buffer, pipe) != NULL)
-        {
-            commandOutput += buffer;
-        }
-    }
-    catch (...)
-    {
-        pclose(pipe);
-        throw std::runtime_error{"Error in reading from pipe!"};
-    }
-
-    pclose(pipe);
-
-    return commandOutput;
 }
 
 std::optional<std::filesystem::path> MappingModuleTests::getMappingModulePath()
