@@ -3,7 +3,6 @@
 #include <string_view>
 
 #include "gcdloader.h"
-#include "gcdutils.h"
 #include "utils.h"
 
 static constexpr std::string_view divisionModuleRelativePath{"KernelModules/ConsolidatedOutput/division.ko"};
@@ -14,7 +13,7 @@ namespace
 {
 std::optional<std::filesystem::path> getDivisionModulePath()
 {
-    const std::filesystem::path applicationPath{GCD::Utils::getApplicationPath()};
+    const std::filesystem::path applicationPath{Utilities::getApplicationPath()};
 
     std::filesystem::path divisionModulePath{applicationPath.parent_path().parent_path().parent_path()};
     divisionModulePath /= divisionModuleRelativePath;

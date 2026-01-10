@@ -1,4 +1,6 @@
+#include <climits>
 #include <stdexcept>
+#include <unistd.h>
 
 #include "utils.h"
 
@@ -31,4 +33,13 @@ std::string Utilities::executeCommand(const std::string& command, bool isWriteMo
     pclose(pipe);
 
     return commandOutput;
+}
+
+std::filesystem::path Utilities::getApplicationPath()
+{
+    char applicationPath[PATH_MAX + 1];
+    ssize_t pathSize = readlink("/proc/self/exe", applicationPath, PATH_MAX);
+    applicationPath[pathSize] = '\0';
+
+    return {applicationPath};
 }

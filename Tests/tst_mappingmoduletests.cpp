@@ -1,18 +1,13 @@
 #include <QTest>
 
 #include <cassert>
-#include <climits>
 #include <filesystem>
 #include <fstream>
 #include <list>
 #include <map>
 #include <string_view>
-#include <unistd.h>
 
 #include "utils.h"
-
-#define READ_MODE false
-#define WRITE_MODE true
 
 static constexpr std::string_view keyFilePath{"/sys/kernel/mapping/key"};
 static constexpr std::string_view valueFilePath{"/sys/kernel/mapping/value"};
@@ -768,11 +763,7 @@ std::optional<ElementsMap> MappingModuleTests::retrieveElements()
 
 std::optional<std::filesystem::path> MappingModuleTests::getMappingModulePath()
 {
-    char applicationPath[PATH_MAX + 1];
-    ssize_t pathSize = readlink("/proc/self/exe", applicationPath, PATH_MAX);
-    applicationPath[pathSize] = '\0';
-
-    std::filesystem::path mappingModulePath{applicationPath};
+    std::filesystem::path mappingModulePath{Utilities::getApplicationPath()};
     mappingModulePath = mappingModulePath.parent_path().parent_path();
     mappingModulePath /= mappingModuleRelativePath;
 

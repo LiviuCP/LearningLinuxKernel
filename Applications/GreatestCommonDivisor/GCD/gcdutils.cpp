@@ -1,10 +1,8 @@
 #include <algorithm>
 #include <cassert>
 #include <cctype>
-#include <climits>
 #include <cstdio>
 #include <string>
-#include <unistd.h>
 
 #include "gcdutils.h"
 #include "utils.h"
@@ -12,15 +10,6 @@
 void GCD::Utils::clearScreen()
 {
     Utilities::executeCommand("clear", WRITE_MODE);
-}
-
-std::filesystem::path GCD::Utils::getApplicationPath()
-{
-    char applicationPath[PATH_MAX + 1];
-    ssize_t pathSize = readlink("/proc/self/exe", applicationPath, PATH_MAX);
-    applicationPath[pathSize] = '\0';
-
-    return {applicationPath};
 }
 
 bool GCD::Utils::isValidInteger(const char* str)
