@@ -10,4 +10,6 @@ namespace Utilities
 {
 std::string executeCommand(const std::string& command, bool isWriteMode);
 std::filesystem::path getApplicationPath();
+void clearScreen();
+bool isValidInteger(const char* str);
 } // namespace Utilities

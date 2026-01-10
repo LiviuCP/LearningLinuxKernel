@@ -4,7 +4,7 @@
 #include "gcdcore.h"
 #include "gcdloader.h"
 #include "gcdparser.h"
-#include "gcdutils.h"
+#include "utils.h"
 
 #define SUCCESS 0
 #define ERROR 1
@@ -27,7 +27,7 @@ int main(int argc, char** argv)
     {
         try
         {
-            GCD::Utils::clearScreen();
+            Utilities::clearScreen();
 
             const bool isDivisionModuleInitiallyLoaded{GCD::Loader::isKernelModuleDivisionLoaded()};
 

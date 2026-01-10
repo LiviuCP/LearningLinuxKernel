@@ -16,7 +16,6 @@ add_executable(${PROJECT_NAME}
     GCD/gcdcore.cpp
     GCD/gcdloader.cpp
     GCD/gcdparser.cpp
-    GCD/gcdutils.cpp
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE Utilities)

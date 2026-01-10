@@ -1,3 +1,6 @@
+#include <algorithm>
+#include <cassert>
+#include <cctype>
 #include <climits>
 #include <stdexcept>
 #include <unistd.h>
@@ -42,4 +45,30 @@ std::filesystem::path Utilities::getApplicationPath()
     applicationPath[pathSize] = '\0';
 
     return {applicationPath};
+}
+
+void Utilities::clearScreen()
+{
+    Utilities::executeCommand("clear", WRITE_MODE);
+}
+
+bool Utilities::isValidInteger(const char* str)
+{
+    bool isValidArg{false};
+
+    assert(str);
+    const std::string strObj{str ? str : ""};
+
+    if (!strObj.empty())
+    {
+        const bool isFirstCharDigit{static_cast<bool>(std::isdigit(strObj[0]))};
+        const bool isFirstCharMinus{strObj[0] == '-'};
+        const bool areRemainingCharsDigits{
+            std::all_of(strObj.cbegin() + 1, strObj.cend(), [](char ch) { return std::isdigit(ch); })};
+
+        isValidArg =
+            strObj.size() > 1 ? (isFirstCharDigit || isFirstCharMinus) && areRemainingCharsDigits : isFirstCharDigit;
+    }
+
+    return isValidArg;
 }
