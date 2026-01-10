@@ -6,7 +6,10 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-include_directories(GCD)
+include_directories(
+    GCD
+    ../../Utilities
+)
 
 add_executable(${PROJECT_NAME}
     gcdmain.cpp
@@ -15,3 +18,5 @@ add_executable(${PROJECT_NAME}
     GCD/gcdparser.cpp
     GCD/gcdutils.cpp
 )
+
+target_link_libraries(${PROJECT_NAME} PRIVATE Utilities)

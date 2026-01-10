@@ -4,6 +4,7 @@
 
 #include "gcdloader.h"
 #include "gcdutils.h"
+#include "utils.h"
 
 static constexpr std::string_view divisionModuleRelativePath{"KernelModules/ConsolidatedOutput/division.ko"};
 
@@ -32,7 +33,7 @@ void GCD::Loader::loadKernelModuleDivision()
         // no need to include sudo in the command string -> the user needs to run the app with sudo anyway and if so the
         // command will be executed in sudo mode
         const std::string loadCommand{"insmod " + divisionModulePath->string() + " 2> /dev/null"};
-        GCD::Utils::executeCommand(loadCommand, READ_MODE);
+        Utilities::executeCommand(loadCommand, READ_MODE);
     }
 
     if (!isKernelModuleDivisionLoaded())
@@ -51,12 +52,12 @@ void GCD::Loader::unloadKernelModuleDivision()
         // no need to include sudo in the command string -> the user needs to run the app with sudo anyway and if so the
         // command will be executed in sudo mode
         const std::string unloadCommand{"rmmod " + divisionModulePath->filename().stem().string()};
-        GCD::Utils::executeCommand(unloadCommand, READ_MODE);
+        Utilities::executeCommand(unloadCommand, READ_MODE);
     }
 }
 
 bool GCD::Loader::isKernelModuleDivisionLoaded()
 {
-    const std::string commandOutput{GCD::Utils::executeCommand("lsmod | grep -w division", READ_MODE)};
+    const std::string commandOutput{Utilities::executeCommand("lsmod | grep -w division", READ_MODE)};
     return commandOutput.starts_with("division");
 }
