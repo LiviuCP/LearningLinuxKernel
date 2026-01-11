@@ -29,34 +29,23 @@ void GCD::Loader::loadKernelModuleDivision()
 
     if (divisionModulePath.has_value())
     {
-        // no need to include sudo in the command string -> the user needs to run the app with sudo anyway and if so the
-        // command will be executed in sudo mode
-        const std::string loadCommand{"insmod " + divisionModulePath->string() + " 2> /dev/null"};
-        Utilities::executeCommand(loadCommand, READ_MODE);
-    }
+        Utilities::loadKernelModule(*divisionModulePath);
 
-    if (!isKernelModuleDivisionLoaded())
+        if (!Utilities::isKernelModuleLoaded(divisionModulePath->filename().stem().string()))
+        {
+            throw std::runtime_error{
+                "Could not load kernel module Division!\nPlease check that the module file exists in "
+                "consolidated output and try again by running the app with sudo."};
+        }
+    }
+    else
     {
-        throw std::runtime_error{"Could not load kernel module Division!\nPlease check that the module file exists in "
-                                 "consolidated output and try again by running the app with sudo."};
+        throw std::runtime_error{"Invalid kernel module file path!"};
     }
 }
 
-void GCD::Loader::unloadKernelModuleDivision()
+std::string GCD::Loader::getDivisionModuleName()
 {
     const std::optional<std::filesystem::path> divisionModulePath{getDivisionModulePath()};
-
-    if (divisionModulePath.has_value())
-    {
-        // no need to include sudo in the command string -> the user needs to run the app with sudo anyway and if so the
-        // command will be executed in sudo mode
-        const std::string unloadCommand{"rmmod " + divisionModulePath->filename().stem().string()};
-        Utilities::executeCommand(unloadCommand, READ_MODE);
-    }
-}
-
-bool GCD::Loader::isKernelModuleDivisionLoaded()
-{
-    const std::string commandOutput{Utilities::executeCommand("lsmod | grep -w division", READ_MODE)};
-    return commandOutput.starts_with("division");
+    return divisionModulePath.has_value() ? divisionModulePath->filename().stem().string() : "division.ko";
 }

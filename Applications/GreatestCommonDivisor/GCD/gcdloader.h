@@ -3,6 +3,5 @@
 namespace GCD::Loader
 {
 void loadKernelModuleDivision();
-void unloadKernelModuleDivision();
-bool isKernelModuleDivisionLoaded();
+std::string getDivisionModuleName();
 } // namespace GCD::Loader

@@ -29,7 +29,8 @@ int main(int argc, char** argv)
         {
             Utilities::clearScreen();
 
-            const bool isDivisionModuleInitiallyLoaded{GCD::Loader::isKernelModuleDivisionLoaded()};
+            const std::string divisionModuleName{GCD::Loader::getDivisionModuleName()};
+            const bool isDivisionModuleInitiallyLoaded{Utilities::isKernelModuleLoaded(divisionModuleName)};
 
             if (!isDivisionModuleInitiallyLoaded)
             {
@@ -64,7 +65,7 @@ int main(int argc, char** argv)
 
             if (!isDivisionModuleInitiallyLoaded)
             {
-                GCD::Loader::unloadKernelModuleDivision();
+                Utilities::unloadKernelModule(divisionModuleName);
             }
         }
         catch (const std::runtime_error& err)
