@@ -49,9 +49,6 @@ private slots:
     void testAllCommands();
 
 private:
-    void loadKernelModule();
-    void unloadKernelModule();
-    bool isKernelModuleLoaded();
     bool isKernelModuleReset();
     bool areKernelModuleFilesAndDirsValid();
 
@@ -74,15 +71,21 @@ void MappingModuleTests::initTestCase()
 {
     try
     {
+        const auto mappingModulePath{getMappingModulePath()};
+        QVERIFY(mappingModulePath.has_value());
+
+        const std::string mappingModuleName{mappingModulePath->filename().stem().string()};
+        QVERIFY(!mappingModuleName.empty());
+
         // ensure a fresh start by reloading the module in case already loaded
-        if (isKernelModuleLoaded())
+        if (Utilities::isKernelModuleLoaded(mappingModuleName))
         {
-            unloadKernelModule();
+            Utilities::unloadKernelModule(mappingModuleName);
         }
 
-        loadKernelModule();
+        Utilities::loadKernelModule(*mappingModulePath);
 
-        QVERIFY(isKernelModuleLoaded());
+        QVERIFY(Utilities::isKernelModuleLoaded(mappingModuleName));
         QVERIFY(areKernelModuleFilesAndDirsValid());
 
         QVERIFY(readKey().has_value() && readValue().has_value() && readStatus().has_value() &&
@@ -98,7 +101,16 @@ void MappingModuleTests::cleanupTestCase()
 {
     try
     {
-        unloadKernelModule();
+        const auto mappingModulePath{getMappingModulePath()};
+        QVERIFY(mappingModulePath.has_value());
+
+        const std::string mappingModuleName{mappingModulePath->filename().stem().string()};
+        QVERIFY(!mappingModuleName.empty());
+
+        if (Utilities::isKernelModuleLoaded(mappingModuleName))
+        {
+            Utilities::unloadKernelModule(mappingModuleName);
+        }
     }
     catch (const std::runtime_error& err)
     {
@@ -524,38 +536,6 @@ void MappingModuleTests::testAllCommands()
     QVERIFY(expectedMapContent == retrieveElements());
     QVERIFY(syncedStatusStr == readStatus());
     QVERIFY(3 == readCount());
-}
-
-void MappingModuleTests::loadKernelModule()
-{
-    const auto mappingModulePath{getMappingModulePath()};
-
-    if (mappingModulePath.has_value())
-    {
-        // no need to include sudo in the command string -> the user needs to run the app with sudo anyway and if so the
-        // command will be executed in sudo mode
-        const std::string loadCommand{"insmod " + mappingModulePath->string() + " 2> /dev/null"};
-        Utilities::executeCommand(loadCommand, READ_MODE);
-    }
-}
-
-void MappingModuleTests::unloadKernelModule()
-{
-    const auto mappingModulePath{getMappingModulePath()};
-
-    if (mappingModulePath.has_value())
-    {
-        // no need to include sudo in the command string -> the user needs to run the app with sudo anyway and if so the
-        // command will be executed in sudo mode
-        const std::string unloadCommand{"rmmod " + mappingModulePath->filename().stem().string()};
-        Utilities::executeCommand(unloadCommand, READ_MODE);
-    }
-}
-
-bool MappingModuleTests::isKernelModuleLoaded()
-{
-    const std::string commandOutput{Utilities::executeCommand("lsmod | grep -w mapping", READ_MODE)};
-    return commandOutput.starts_with("mapping");
 }
 
 bool MappingModuleTests::isKernelModuleReset()

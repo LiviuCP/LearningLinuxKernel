@@ -52,6 +52,43 @@ void Utilities::clearScreen()
     Utilities::executeCommand("clear", WRITE_MODE);
 }
 
+void Utilities::loadKernelModule(const std::filesystem::path& kernelModulePath)
+{
+    if (std::filesystem::exists(kernelModulePath) && std::filesystem::is_regular_file(kernelModulePath))
+    {
+        // no need to include sudo in the command string -> the user needs to run the app with sudo anyway and if so the
+        // command will be executed in sudo mode
+        const std::string loadCommand{"insmod " + kernelModulePath.string() + " 2> /dev/null"};
+        Utilities::executeCommand(loadCommand, READ_MODE);
+    }
+}
+
+void Utilities::unloadKernelModule(const std::string& kernelModuleName)
+{
+    if (!kernelModuleName.empty())
+    {
+        // no need to include sudo in the command string -> the user needs to run the app with sudo anyway and if so the
+        // command will be executed in sudo mode
+        const std::string unloadCommand{"rmmod " + kernelModuleName};
+        Utilities::executeCommand(unloadCommand, READ_MODE);
+    }
+}
+
+bool Utilities::isKernelModuleLoaded(const std::string& kernelModuleName)
+{
+    bool isLoaded{false};
+
+    if (!kernelModuleName.empty())
+    {
+        const std::string command{"lsmod | grep -w " + kernelModuleName};
+        const std::string commandOutput{Utilities::executeCommand(command, READ_MODE)};
+
+        isLoaded = commandOutput.starts_with(kernelModuleName);
+    }
+
+    return isLoaded;
+}
+
 bool Utilities::isValidInteger(const char* str)
 {
     bool isValidArg{false};
