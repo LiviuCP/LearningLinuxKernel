@@ -1,16 +1,13 @@
 #include <QTest>
 
 #include <cassert>
-#include <climits>
 #include <filesystem>
 #include <fstream>
 #include <list>
 #include <map>
 #include <string_view>
-#include <unistd.h>
 
-#define READ_MODE false
-#define WRITE_MODE true
+#include "utils.h"
 
 static constexpr std::string_view keyFilePath{"/sys/kernel/mapping/key"};
 static constexpr std::string_view valueFilePath{"/sys/kernel/mapping/value"};
@@ -27,7 +24,7 @@ static constexpr std::string_view getCommandStr{"get"};
 static constexpr std::string_view syncedStatusStr{"synced"};
 static constexpr std::string_view dirtyStatusStr{"dirty"};
 
-static constexpr std::string_view mappingModuleRelativePath{"KernelModules/ConsolidatedOutput/mapping.ko"};
+static constexpr std::string_view mappingModuleName{"mapping"};
 
 using ElementsMap = std::map<std::string, int>;
 using ElementsList = std::list<std::pair<std::string, int>>;
@@ -52,9 +49,6 @@ private slots:
     void testAllCommands();
 
 private:
-    void loadKernelModule();
-    void unloadKernelModule();
-    bool isKernelModuleLoaded();
     bool isKernelModuleReset();
     bool areKernelModuleFilesAndDirsValid();
 
@@ -70,7 +64,6 @@ private:
     void addOrModifyElements(const ElementsList& elements);
     std::optional<ElementsMap> retrieveElements();
 
-    std::string executeCommand(const std::string& command, bool isWriteMode);
     std::optional<std::filesystem::path> getMappingModulePath();
 };
 
@@ -78,15 +71,18 @@ void MappingModuleTests::initTestCase()
 {
     try
     {
+        const auto mappingModulePath{getMappingModulePath()};
+        QVERIFY(mappingModulePath.has_value());
+
         // ensure a fresh start by reloading the module in case already loaded
-        if (isKernelModuleLoaded())
+        if (Utilities::isKernelModuleLoaded(mappingModuleName))
         {
-            unloadKernelModule();
+            Utilities::unloadKernelModule(mappingModuleName);
         }
 
-        loadKernelModule();
+        Utilities::loadKernelModule(*mappingModulePath);
 
-        QVERIFY(isKernelModuleLoaded());
+        QVERIFY(Utilities::isKernelModuleLoaded(mappingModuleName));
         QVERIFY(areKernelModuleFilesAndDirsValid());
 
         QVERIFY(readKey().has_value() && readValue().has_value() && readStatus().has_value() &&
@@ -102,7 +98,10 @@ void MappingModuleTests::cleanupTestCase()
 {
     try
     {
-        unloadKernelModule();
+        if (Utilities::isKernelModuleLoaded(mappingModuleName))
+        {
+            Utilities::unloadKernelModule(mappingModuleName);
+        }
     }
     catch (const std::runtime_error& err)
     {
@@ -530,38 +529,6 @@ void MappingModuleTests::testAllCommands()
     QVERIFY(3 == readCount());
 }
 
-void MappingModuleTests::loadKernelModule()
-{
-    const auto mappingModulePath{getMappingModulePath()};
-
-    if (mappingModulePath.has_value())
-    {
-        // no need to include sudo in the command string -> the user needs to run the app with sudo anyway and if so the
-        // command will be executed in sudo mode
-        const std::string loadCommand{"insmod " + mappingModulePath->string() + " 2> /dev/null"};
-        executeCommand(loadCommand, READ_MODE);
-    }
-}
-
-void MappingModuleTests::unloadKernelModule()
-{
-    const auto mappingModulePath{getMappingModulePath()};
-
-    if (mappingModulePath.has_value())
-    {
-        // no need to include sudo in the command string -> the user needs to run the app with sudo anyway and if so the
-        // command will be executed in sudo mode
-        const std::string unloadCommand{"rmmod " + mappingModulePath->filename().stem().string()};
-        executeCommand(unloadCommand, READ_MODE);
-    }
-}
-
-bool MappingModuleTests::isKernelModuleLoaded()
-{
-    const std::string commandOutput{executeCommand("lsmod | grep -w mapping", READ_MODE)};
-    return commandOutput.starts_with("mapping");
-}
-
 bool MappingModuleTests::isKernelModuleReset()
 {
     const auto key{readKey()};
@@ -765,47 +732,13 @@ std::optional<ElementsMap> MappingModuleTests::retrieveElements()
     return mapContent;
 }
 
-// TODO: move this to a centralized Utilities directory (used by other applications as well)
-std::string MappingModuleTests::executeCommand(const std::string& command, bool isWriteMode)
-{
-    std::string commandOutput;
-    char buffer[128];
-    const char* mode{isWriteMode ? "w" : "r"};
-
-    FILE* pipe{popen(command.c_str(), mode)};
-
-    if (!pipe)
-    {
-        throw std::runtime_error{"Failed to open pipe!"};
-    }
-
-    try
-    {
-        while (fgets(buffer, sizeof buffer, pipe) != NULL)
-        {
-            commandOutput += buffer;
-        }
-    }
-    catch (...)
-    {
-        pclose(pipe);
-        throw std::runtime_error{"Error in reading from pipe!"};
-    }
-
-    pclose(pipe);
-
-    return commandOutput;
-}
-
 std::optional<std::filesystem::path> MappingModuleTests::getMappingModulePath()
 {
-    char applicationPath[PATH_MAX + 1];
-    ssize_t pathSize = readlink("/proc/self/exe", applicationPath, PATH_MAX);
-    applicationPath[pathSize] = '\0';
-
-    std::filesystem::path mappingModulePath{applicationPath};
+    std::filesystem::path mappingModulePath{Utilities::getApplicationPath()};
     mappingModulePath = mappingModulePath.parent_path().parent_path();
-    mappingModulePath /= mappingModuleRelativePath;
+    mappingModulePath /= Utilities::getModulesDirRelativePath();
+    mappingModulePath /= mappingModuleName;
+    mappingModulePath += Utilities::getModuleFileExtension();
 
     return std::filesystem::is_regular_file(mappingModulePath) ? std::optional{mappingModulePath} : std::nullopt;
 }

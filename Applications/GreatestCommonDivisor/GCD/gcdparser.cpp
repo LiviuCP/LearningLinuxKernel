@@ -2,7 +2,7 @@
 #include <cstdlib>
 
 #include "gcdparser.h"
-#include "gcdutils.h"
+#include "utils.h"
 
 ParsedArguments GCD::Parser::parseArguments(int argc, char** argv)
 {
@@ -16,7 +16,7 @@ ParsedArguments GCD::Parser::parseArguments(int argc, char** argv)
 
     if (areValidArguments && argc > 1)
     {
-        areValidArguments = GCD::Utils::isValidInteger(argv[1]);
+        areValidArguments = Utilities::isValidInteger(argv[1]);
 
         if (areValidArguments)
         {
@@ -26,7 +26,7 @@ ParsedArguments GCD::Parser::parseArguments(int argc, char** argv)
 
     if (areValidArguments && argc > 2)
     {
-        areValidArguments = GCD::Utils::isValidInteger(argv[2]);
+        areValidArguments = Utilities::isValidInteger(argv[2]);
 
         if (areValidArguments)
         {

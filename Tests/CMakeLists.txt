@@ -9,6 +9,8 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
+include_directories(../Utilities)
+
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
@@ -19,3 +21,4 @@ add_executable(MappingModuleTests tst_mappingmoduletests.cpp)
 add_test(NAME MappingModuleTests COMMAND MappingModuleTests)
 
 target_link_libraries(MappingModuleTests PRIVATE Qt${QT_VERSION_MAJOR}::Test)
+target_link_libraries(MappingModuleTests PRIVATE Utilities)

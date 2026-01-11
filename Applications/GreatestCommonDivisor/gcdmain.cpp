@@ -4,7 +4,7 @@
 #include "gcdcore.h"
 #include "gcdloader.h"
 #include "gcdparser.h"
-#include "gcdutils.h"
+#include "utils.h"
 
 #define SUCCESS 0
 #define ERROR 1
@@ -27,9 +27,10 @@ int main(int argc, char** argv)
     {
         try
         {
-            GCD::Utils::clearScreen();
+            Utilities::clearScreen();
 
-            const bool isDivisionModuleInitiallyLoaded{GCD::Loader::isKernelModuleDivisionLoaded()};
+            const bool isDivisionModuleInitiallyLoaded{
+                Utilities::isKernelModuleLoaded(GCD::Loader::getDivisionModuleName())};
 
             if (!isDivisionModuleInitiallyLoaded)
             {
@@ -64,7 +65,7 @@ int main(int argc, char** argv)
 
             if (!isDivisionModuleInitiallyLoaded)
             {
-                GCD::Loader::unloadKernelModuleDivision();
+                Utilities::unloadKernelModule(GCD::Loader::getDivisionModuleName());
             }
         }
         catch (const std::runtime_error& err)
