@@ -6,6 +6,7 @@
 #include <string_view>
 
 #include "gcdcore.h"
+#include "utils.h"
 
 static constexpr std::string_view dividedFilePath{"/sys/kernel/division/divided"};
 static constexpr std::string_view dividerFilePath{"/sys/kernel/division/divider"};
@@ -39,48 +40,32 @@ void passDivisionOperandsToKernelModule(int divided, int divider)
                                  "invalid!\nPlease check that the module is loaded and generates correct files.");
     }
 
-    std::ofstream toDividedFile{std::string{dividedFilePath}};
-
-    if (!toDividedFile.is_open())
+    if (const bool success{Utilities::writeStringToFile(std::to_string(divided), dividedFilePath)}; !success)
     {
         throw std::runtime_error("File " + std::string{dividedFilePath} +
                                  " could not be opened for writing!\nPlease try again by running the app with sudo.");
     }
 
-    std::ofstream toDividerFile{std::string{dividerFilePath}};
-
-    if (!toDividerFile.is_open())
+    if (const bool success{Utilities::writeStringToFile(std::to_string(divider), dividerFilePath)}; !success)
     {
         throw std::runtime_error("File " + std::string{dividerFilePath} + " could not be opened for writing!");
     }
 
-    std::ofstream toCommandFile{std::string{commandFilePath}};
-
-    if (!toCommandFile.is_open())
+    if (const bool success{Utilities::writeStringToFile(std::string{divideCommandStr}, commandFilePath)}; !success)
     {
         throw std::runtime_error("File " + std::string{commandFilePath} + " could not be opened for writing!");
     }
-
-    toDividedFile << divided;
-    toDividedFile.close();
-    toDividerFile << divider;
-    toDividerFile.close();
-    toCommandFile << divideCommandStr;
-    toCommandFile.close();
 }
 
 int retrieveResultFromKernelModule(const std::string_view resultFilePath)
 {
-    std::ifstream fromStatusFile{std::string{statusFilePath}};
+    const std::optional<std::string> status{Utilities::readStringFromFile(statusFilePath)};
 
-    if (!fromStatusFile.is_open())
+    if (!status.has_value())
     {
         throw std::runtime_error("File " + std::string{resultFilePath} +
                                  " could not be opened for reading!\nPlease try again by running the app with sudo.");
     }
-
-    std::string status;
-    fromStatusFile >> status;
 
     if (status != syncedStatusStr)
     {
@@ -88,23 +73,16 @@ int retrieveResultFromKernelModule(const std::string_view resultFilePath)
             "Cannot read a valid result!\nEither the data is not synced or another error occurred.");
     }
 
-    std::ifstream fromResultFile{std::string{resultFilePath}};
+    const std::optional<int> result{Utilities::readIntValueFromFile(resultFilePath)};
 
-    if (!fromResultFile.is_open())
+    if (!result.has_value())
     {
-        throw std::runtime_error("File " + std::string{resultFilePath} + " could not be opened for reading!");
+        throw std::runtime_error(
+            "Reading the file " + std::string{resultFilePath} +
+            " failed!\nIt could not be opened for reading or contains an invalid (non-integer) value.");
     }
 
-    int result;
-    fromResultFile >> result;
-
-    if (fromResultFile.fail())
-    {
-        throw std::runtime_error("Reading the file " + std::string{resultFilePath} +
-                                 " failed!\nPossibly it contains an invalid (non-integer) value.");
-    }
-
-    return result;
+    return *result;
 }
 } // namespace
 } // namespace GCD::Core

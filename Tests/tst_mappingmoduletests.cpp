@@ -2,7 +2,6 @@
 
 #include <cassert>
 #include <filesystem>
-#include <fstream>
 #include <list>
 #include <map>
 #include <string_view>
@@ -59,7 +58,6 @@ private:
     void writeCommand(const std::string& command);
     std::optional<std::string> readStatus();
     std::optional<size_t> readCount();
-    std::optional<int> readElementValue(const std::filesystem::path& elementValuePath);
 
     void addOrModifyElements(const ElementsList& elements);
     std::optional<ElementsMap> retrieveElements();
@@ -148,7 +146,7 @@ void MappingModuleTests::testAddElement()
     std::filesystem::path mapElementValuePath{mapElementKeyPath};
     mapElementValuePath /= "value";
 
-    QVERIFY(elementValue == readElementValue(mapElementValuePath));
+    QVERIFY(elementValue == Utilities::readIntValueFromFile(mapElementValuePath));
 
     const std::optional<ElementsMap> mapContent{retrieveElements()};
     const ElementsMap expectedMapContent{{validKey, 55}};
@@ -554,124 +552,59 @@ bool MappingModuleTests::areKernelModuleFilesAndDirsValid()
 
 void MappingModuleTests::writeKey(const std::string& key)
 {
-    // temporary fix, it seems the kernel module attributes cannot get set via fstream when the string is empty
-    // TODO: maybe another way could be found for setting attributes, e.g. issue a shell command (e.g. echo "" | sudo
-    // tee [filePath])
-    const std::string keyStr{key.empty() ? " " : key};
-
-    std::ofstream toKeyFile{std::string{keyFilePath}};
-
-    if (toKeyFile.is_open())
+    if (!key.empty())
     {
-        toKeyFile << keyStr;
+        Utilities::writeStringToFile(key, keyFilePath);
+    }
+    else
+    {
+        try
+        {
+            Utilities::clearFileContent(keyFilePath);
+        }
+        catch (std::runtime_error& err)
+        {
+            QFAIL(err.what());
+        }
     }
 }
 
 std::optional<std::string> MappingModuleTests::readKey()
 {
-    std::optional<std::string> key;
-    std::ifstream fromKeyFile{std::string{keyFilePath}};
-
-    if (fromKeyFile.is_open())
-    {
-        std::string k;
-        fromKeyFile >> k;
-        key = k;
-    }
-
-    return key;
+    return Utilities::readStringFromFile(keyFilePath);
 }
 
 void MappingModuleTests::writeValue(int value)
 {
-    std::ofstream toValueFile{std::string{valueFilePath}};
-
-    if (toValueFile.is_open())
-    {
-        toValueFile << value;
-    }
+    Utilities::writeStringToFile(std::to_string(value), valueFilePath);
 }
 
 std::optional<int> MappingModuleTests::readValue()
 {
-    std::optional<int> value;
-    std::ifstream fromValueFile{std::string{valueFilePath}};
-
-    if (fromValueFile.is_open())
-    {
-        int val;
-        fromValueFile >> val;
-
-        if (!fromValueFile.fail())
-        {
-            value = val;
-        }
-    }
-
-    return value;
+    return Utilities::readIntValueFromFile(valueFilePath);
 }
 
 void MappingModuleTests::writeCommand(const std::string& command)
 {
-    std::ofstream toCommandFile{std::string{commandFilePath}};
-
-    if (toCommandFile.is_open())
-    {
-        toCommandFile << command;
-    }
+    Utilities::writeStringToFile(command, commandFilePath);
 }
 
 std::optional<std::string> MappingModuleTests::readStatus()
 {
-    std::optional<std::string> status;
-    std::ifstream fromStatusFile{std::string{statusFilePath}};
-
-    if (fromStatusFile.is_open())
-    {
-        std::string stat;
-        fromStatusFile >> stat;
-        status = stat;
-    }
-
-    return status;
+    return Utilities::readStringFromFile(statusFilePath);
 }
 
 std::optional<size_t> MappingModuleTests::readCount()
 {
     std::optional<size_t> count;
-    std::ifstream fromCountFile{std::string{countFilePath}};
+    const std::optional<int> countValue{Utilities::readIntValueFromFile(countFilePath)};
 
-    if (fromCountFile.is_open())
+    if (countValue.has_value() && countValue >= 0)
     {
-        size_t elementsCount;
-        fromCountFile >> elementsCount;
-
-        if (!fromCountFile.fail())
-        {
-            count = elementsCount;
-        }
+        count = static_cast<size_t>(*countValue);
     }
 
     return count;
-}
-
-std::optional<int> MappingModuleTests::readElementValue(const std::filesystem::path& elementValuePath)
-{
-    std::optional<int> value;
-    std::ifstream fromElementValueFile{elementValuePath};
-
-    if (fromElementValueFile.is_open())
-    {
-        int elementValue;
-        fromElementValueFile >> elementValue;
-
-        if (!fromElementValueFile.fail())
-        {
-            value = elementValue;
-        }
-    }
-
-    return value;
 }
 
 void MappingModuleTests::addOrModifyElements(const ElementsList& elements)
@@ -712,7 +645,7 @@ std::optional<ElementsMap> MappingModuleTests::retrieveElements()
                 break;
             }
 
-            std::optional<int> value{readElementValue(valueFilePath)};
+            const std::optional<int> value{Utilities::readIntValueFromFile(valueFilePath)};
 
             if (!value.has_value())
             {

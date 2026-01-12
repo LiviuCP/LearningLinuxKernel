@@ -1,6 +1,8 @@
 #pragma once
 
 #include <filesystem>
+#include <optional>
+#include <string>
 #include <string_view>
 
 #define READ_MODE false
@@ -11,6 +13,11 @@ namespace Utilities
 void loadKernelModule(const std::filesystem::path& kernelModulePath);
 void unloadKernelModule(const std::string_view kernelModuleName);
 bool isKernelModuleLoaded(const std::string_view kernelModuleName);
+
+std::optional<int> readIntValueFromFile(const std::filesystem::path& filePath);
+std::optional<std::string> readStringFromFile(const std::filesystem::path& filePath);
+bool writeStringToFile(const std::string& str, const std::filesystem::path& filePath);
+void clearFileContent(const std::filesystem::path& filePath);
 
 void clearScreen();
 std::filesystem::path getApplicationPath();

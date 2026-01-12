@@ -2,6 +2,7 @@
 #include <cassert>
 #include <cctype>
 #include <climits>
+#include <fstream>
 #include <stdexcept>
 #include <unistd.h>
 
@@ -81,9 +82,75 @@ bool Utilities::isKernelModuleLoaded(const std::string_view kernelModuleName)
     return isLoaded;
 }
 
+std::optional<int> Utilities::readIntValueFromFile(const std::filesystem::path& filePath)
+{
+    std::optional<int> result;
+    std::ifstream in{filePath};
+
+    if (in.is_open())
+    {
+        int elementValue;
+        in >> elementValue;
+
+        if (!in.fail())
+        {
+            result = elementValue;
+        }
+    }
+
+    return result;
+}
+
+std::optional<std::string> Utilities::readStringFromFile(const std::filesystem::path& filePath)
+{
+    std::optional<std::string> result;
+    std::ifstream in{std::string{filePath}};
+
+    if (in.is_open())
+    {
+        std::string str;
+        in >> str;
+        result = std::move(str);
+    }
+
+    return result;
+}
+
+bool Utilities::writeStringToFile(const std::string& str, const std::filesystem::path& filePath)
+{
+    bool success{false};
+    std::ofstream out{std::string{filePath}};
+
+    if (out.is_open())
+    {
+        out << str;
+        success = true;
+    }
+
+    return success;
+}
+
+void Utilities::clearFileContent(const std::filesystem::path& filePath)
+{
+    if (!std::filesystem::exists(filePath) || !std::filesystem::is_regular_file(filePath))
+    {
+        throw std::runtime_error("File " + std::string{filePath} + " does not exist or is invalid!");
+    }
+
+    // this hack is needed to ensure the module attributes are updated even when the string is empty
+    const std::string command{"echo | tee " + filePath.string() + " > /dev/null 2> /dev/null"};
+    executeCommand(command, WRITE_MODE);
+}
+
 void Utilities::clearScreen()
 {
-    executeCommand("clear", WRITE_MODE);
+    try
+    {
+        executeCommand("clear", WRITE_MODE);
+    }
+    catch (...)
+    {
+    }
 }
 
 std::filesystem::path Utilities::getApplicationPath()
