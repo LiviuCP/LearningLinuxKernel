@@ -119,12 +119,18 @@ std::optional<std::string> Utilities::readStringFromFile(const std::filesystem::
 bool Utilities::writeStringToFile(const std::string& str, const std::filesystem::path& filePath)
 {
     bool success{false};
-    std::ofstream out{std::string{filePath}};
 
-    if (out.is_open())
+    // empty strings should not be used as this would cause issues when updating attributes in kernel modules
+    // use the clearFileContent() function instead
+    if (!str.empty())
     {
-        out << str;
-        success = true;
+        std::ofstream out{std::string{filePath}};
+
+        if (out.is_open())
+        {
+            out << str;
+            success = true;
+        }
     }
 
     return success;
