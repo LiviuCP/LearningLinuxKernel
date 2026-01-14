@@ -2,6 +2,7 @@
 #include <linux/module.h>
 
 #include "division_impl.h"
+#include "trim_and_copy_string.h"
 
 MODULE_LICENSE("GPL");
 
@@ -49,56 +50,6 @@ static int compute_quotient_and_remainder(struct division_data* data)
     } while (false);
 
     return result;
-}
-
-static void trim_and_copy_command_str(struct division_data* data, const char* command_str)
-{
-    do
-    {
-        if (!data)
-        {
-            pr_warn("%s: NULL data object!\n", THIS_MODULE->name);
-            break;
-        }
-
-        if (!command_str)
-        {
-            pr_warn("%s: NULL command string!\n", THIS_MODULE->name);
-            break;
-        }
-
-        memset(data->command, '\0', MAX_COMMAND_STR_LENGTH);
-
-        char temp[MAX_COMMAND_STR_LENGTH];
-
-        memset(temp, '\0', MAX_COMMAND_STR_LENGTH);
-        strncpy(temp, command_str, MAX_COMMAND_STR_LENGTH - 1);
-
-        const size_t temp_length = strlen(temp);
-
-        if (temp_length == 0)
-        {
-            break;
-        }
-
-        size_t left_index = 0;
-        size_t right_index = temp_length - 1;
-
-        while (left_index <= right_index && isspace(temp[left_index]))
-        {
-            ++left_index;
-        }
-
-        while (left_index < right_index && isspace(temp[right_index]))
-        {
-            --right_index;
-        }
-
-        const size_t command_length = right_index >= left_index ? right_index - left_index + 1 : 0;
-        const char* command_start = temp + left_index;
-
-        strncpy(data->command, command_start, command_length);
-    } while (false);
 }
 
 int init_data(struct division_data* data, int divided, int divider)
@@ -220,7 +171,7 @@ void store_command(struct division_data* data, const char* command_str)
             break;
         }
 
-        trim_and_copy_command_str(data, command_str);
+        trim_and_copy_string(data->command, command_str, MAX_COMMAND_STR_LENGTH);
         const size_t command_length = strlen(data->command);
 
         pr_info("%s: issued command: %s\n", THIS_MODULE->name, data->command);

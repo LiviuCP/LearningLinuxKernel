@@ -1,7 +1,7 @@
 #include <linux/module.h>
 
 #include "mapping_impl.h"
-#include "mapping_utils.h"
+#include "trim_and_copy_string.h"
 
 #define ENULLDATAOBJECT 2
 #define EOTHERNULLOBJECT 3
@@ -250,7 +250,7 @@ void store_key(const char* key_str)
 {
     if (data)
     {
-        trim_and_copy_str(data->key, key_str, MAX_KEY_STR_LENGTH);
+        trim_and_copy_string(data->key, key_str, MAX_KEY_STR_LENGTH);
         memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
         strncpy(data->status, dirty_status_str, strlen(dirty_status_str));
         pr_info("%s: key entered: %s\n", THIS_MODULE->name, data->key);
@@ -283,7 +283,7 @@ void store_command(const char* command_str)
 {
     if (data && create_map_element && destroy_map_element)
     {
-        trim_and_copy_str(data->command, command_str, MAX_COMMAND_STR_LENGTH);
+        trim_and_copy_string(data->command, command_str, MAX_COMMAND_STR_LENGTH);
         const size_t command_length = strlen(data->command);
 
         pr_info("%s: issued command: %s\n", THIS_MODULE->name, data->command);

@@ -1,19 +1,26 @@
+#pragma once
+
 #include <linux/ctype.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 
-#include "mapping_utils.h"
-
-MODULE_LICENSE("GPL");
-
-void trim_and_copy_str(char* dest, const char* src, size_t max_str_length)
+static void trim_and_copy_string(char* dest, const char* src, size_t max_str_length)
 {
     do
     {
+        if (max_str_length == 0)
+        {
+            pr_warn("%s: invalid maximum string length!\n", THIS_MODULE->name);
+            break;
+        }
+
         if (!dest)
         {
             pr_warn("%s: NULL dest string!\n", THIS_MODULE->name);
             break;
         }
+
+        memset(dest, '\0', max_str_length);
 
         if (!src)
         {
@@ -21,9 +28,13 @@ void trim_and_copy_str(char* dest, const char* src, size_t max_str_length)
             break;
         }
 
-        memset(dest, '\0', max_str_length);
+        char* temp = kzalloc(max_str_length, GFP_KERNEL);
 
-        char temp[max_str_length];
+        if (temp == NULL)
+        {
+            pr_err("%s: memory could not be allocated!\n", THIS_MODULE->name);
+            break;
+        }
 
         memset(temp, '\0', max_str_length);
         strncpy(temp, src, max_str_length - 1);
@@ -52,5 +63,6 @@ void trim_and_copy_str(char* dest, const char* src, size_t max_str_length)
         const char* start = temp + left_index;
 
         strncpy(dest, start, length);
+        kfree(temp);
     } while (false);
 }

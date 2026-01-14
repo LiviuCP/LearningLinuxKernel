@@ -1,4 +1,5 @@
 SRC := source/division_impl.c source/division_main.c
+KERNEL_UTILITIES_DIR := $(shell cd $(PWD) && cd ../KernelUtilities && echo `pwd`)
 
 obj-m += division.o
 
@@ -22,4 +23,4 @@ $(BUILD_DIR_MAKEFILE): $(BUILD_DIR)
 clean:
 	make -C /lib/modules/$(shell uname -r)/build M=$(BUILD_DIR) src=$(PWD) clean
 
-EXTRA_CFLAGS := -I$(src)/include -I$(src)/source
+EXTRA_CFLAGS := -I$(src)/include -I$(src)/source -I$(KERNEL_UTILITIES_DIR)
