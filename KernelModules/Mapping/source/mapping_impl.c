@@ -1,7 +1,6 @@
 #include <linux/module.h>
 
 #include "mapping_impl.h"
-#include "trim_and_copy_string.h"
 
 #define ENULLDATAOBJECT 2
 #define EOTHERNULLOBJECT 3
@@ -25,6 +24,8 @@ static struct map_element_data* (*create_map_element)(const char*, int) = NULL;
 static void (*destroy_map_element)(struct map_element_data* element_data) = NULL;
 
 static struct mapping_data* data = NULL;
+
+extern void trim_and_copy_string(char* dest, const char* src, size_t max_str_length);
 
 static void update_map_element(void)
 {

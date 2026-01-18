@@ -2,7 +2,6 @@
 #include <linux/module.h>
 
 #include "division_impl.h"
-#include "trim_and_copy_string.h"
 
 MODULE_LICENSE("GPL");
 
@@ -17,6 +16,8 @@ static const char* synced_status_str = "synced";
 
 static const size_t divide_cmd_str_length = 6;
 static const size_t reset_cmd_str_length = 5;
+
+extern void trim_and_copy_string(char* dest, const char* src, size_t max_str_length);
 
 static int compute_quotient_and_remainder(struct division_data* data)
 {

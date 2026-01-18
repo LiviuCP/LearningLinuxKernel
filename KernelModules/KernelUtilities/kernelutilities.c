@@ -1,10 +1,14 @@
-#pragma once
-
 #include <linux/ctype.h>
+#include <linux/init.h>
 #include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/slab.h>
 
-static void trim_and_copy_string(char* dest, const char* src, size_t max_str_length)
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("This module is a utitilies appliance used by other kernel modules.\n");
+MODULE_AUTHOR("Liviu Popa");
+
+void trim_and_copy_string(char* dest, const char* src, size_t max_str_length)
 {
     do
     {
@@ -66,3 +70,19 @@ static void trim_and_copy_string(char* dest, const char* src, size_t max_str_len
         kfree(temp);
     } while (false);
 }
+
+EXPORT_SYMBOL(trim_and_copy_string);
+
+static int utilities_init(void)
+{
+    pr_info("%s: initializing module\n", THIS_MODULE->name);
+    return 0;
+}
+
+static void utilities_exit(void)
+{
+    pr_info("%s: the module exited!\n", THIS_MODULE->name);
+}
+
+module_init(utilities_init);
+module_exit(utilities_exit);

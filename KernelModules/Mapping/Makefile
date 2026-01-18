@@ -1,14 +1,12 @@
 SRC := source/mapping_impl.c source/mapping_main.c
-KERNEL_UTILITIES_DIR := $(shell cd $(PWD) && cd ../KernelUtilities && echo `pwd`)
 
 obj-m += mapping.o
 
 mapping-objs := $(SRC:.c=.o)
 
-ifndef BUILD_DIR
-	BUILD_DIR := $(PWD)/build
-endif
+KERNEL_UTILITIES_BUILD_DIR := $(shell cd $(BUILD_DIR) && cd ../KernelUtilities && echo `pwd`)
 
+# the BUILD_DIR variable should be provided from project (CMake), not set manually by user
 BUILD_DIR_MAKEFILE := $(BUILD_DIR)/Makefile
 
 all: $(BUILD_DIR_MAKEFILE)
@@ -17,10 +15,13 @@ all: $(BUILD_DIR_MAKEFILE)
 $(BUILD_DIR):
 	mkdir -p "$@"
 
+ADD_EXTRA_SYMBOLS := "KBUILD_EXTRA_SYMBOLS +="
+ADD_EXTRA_SYMBOLS += $(KERNEL_UTILITIES_BUILD_DIR)/Module.symvers
+
 $(BUILD_DIR_MAKEFILE): $(BUILD_DIR)
-	touch "$@"
+	echo $(ADD_EXTRA_SYMBOLS) > "$@"
 
 clean:
 	make -C /lib/modules/$(shell uname -r)/build M=$(BUILD_DIR) src=$(PWD) clean
 
-EXTRA_CFLAGS := -I$(src)/include -I$(src)/source -I$(KERNEL_UTILITIES_DIR)
+EXTRA_CFLAGS := -I$(src)/include -I$(src)/source

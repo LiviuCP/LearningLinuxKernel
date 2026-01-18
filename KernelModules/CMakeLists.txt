@@ -14,3 +14,6 @@ add_subdirectory(Division)
 add_subdirectory(Mapping)
 add_subdirectory(MinMax)
 add_subdirectory(KernelUtilities)
+
+add_dependencies(Division KernelUtilities)
+add_dependencies(Mapping KernelUtilities)

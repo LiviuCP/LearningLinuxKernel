@@ -1,6 +1,12 @@
 cmake_minimum_required(VERSION 3.5)
 
-add_custom_target(KernelUtils)
+project(KernelUtilities LANGUAGES C)
 
-# one .h file to be created per function in order to avoid loading unnecessary functions into the kernel module
-target_sources(KernelUtils PRIVATE trim_and_copy_string.h)
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+
+include(${KERNEL_MODULES_SOURCE_DIR}/CMakeUtils/customtarget.cmake)
+include(${KERNEL_MODULES_SOURCE_DIR}/CMakeUtils/customcleantarget.cmake)
+
+target_sources(${PROJECT_NAME} PRIVATE kernelutilities.c Makefile)
+
+copy_file_to_consolidated_output(kernelutilities.ko)

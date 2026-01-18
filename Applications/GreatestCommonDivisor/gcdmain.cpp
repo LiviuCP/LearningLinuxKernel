@@ -14,8 +14,13 @@
     - run this application: sudo ./GreatestCommonDivisor [integer1] [integer2] # g.c.d. is retrieved
      (e.g. sudo ./GreatestCommonDivisor 6 10 # g.c.d. is 2)
 
-    Note: the application requests loading of the Division kernel module so no action is required from user side other
-   that running the app with "sudo" and the required arguments (divided and divider).
+    Notes:
+    - the application requests loading of the Division and KernelUtilities kernel modules so no action is required from
+   user side other that running the app with "sudo" and providing the required arguments (divided and divider).
+    - the kernel modules will be left in the same state that they had when the application got opened: if a module is
+   open it will be left open, same for the closed state
+    - the KernelUtilities module is used by Division so it should be loaded beforehand; the two modules should be
+   unloaded in reverse order
  */
 
 int main(int argc, char** argv)
@@ -29,8 +34,14 @@ int main(int argc, char** argv)
         {
             Utilities::clearScreen();
 
-            const bool isDivisionModuleInitiallyLoaded{
-                Utilities::isKernelModuleLoaded(GCD::Loader::getDivisionModuleName())};
+            const bool isUtilitiesModuleInitiallyLoaded{GCD::Loader::isKernelModuleUtilitiesLoaded()};
+
+            if (!isUtilitiesModuleInitiallyLoaded)
+            {
+                GCD::Loader::loadKernelModuleUtilities();
+            }
+
+            const bool isDivisionModuleInitiallyLoaded{GCD::Loader::isKernelModuleDivisionLoaded()};
 
             if (!isDivisionModuleInitiallyLoaded)
             {
@@ -66,6 +77,11 @@ int main(int argc, char** argv)
             if (!isDivisionModuleInitiallyLoaded)
             {
                 Utilities::unloadKernelModule(GCD::Loader::getDivisionModuleName());
+            }
+
+            if (!isUtilitiesModuleInitiallyLoaded)
+            {
+                Utilities::unloadKernelModule(GCD::Loader::getUtilitiesModuleName());
             }
         }
         catch (const std::runtime_error& err)

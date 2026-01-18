@@ -24,6 +24,7 @@ static constexpr std::string_view syncedStatusStr{"synced"};
 static constexpr std::string_view dirtyStatusStr{"dirty"};
 
 static constexpr std::string_view mappingModuleName{"mapping"};
+static constexpr std::string_view utilitiesModuleName{"kernelutilities"};
 
 using ElementsMap = std::map<std::string, int>;
 using ElementsList = std::list<std::pair<std::string, int>>;
@@ -33,6 +34,9 @@ using ElementsList = std::list<std::pair<std::string, int>>;
 class MappingModuleTests : public QObject
 {
     Q_OBJECT
+
+public:
+    MappingModuleTests();
 
 private slots:
     void initTestCase();
@@ -62,15 +66,42 @@ private:
     void addOrModifyElements(const ElementsList& elements);
     std::optional<ElementsMap> retrieveElements();
 
-    std::optional<std::filesystem::path> getMappingModulePath();
+    std::optional<std::filesystem::path> getModulePath(const std::string_view moduleName);
+
+    const bool m_IsUtilitiesModuleInitiallyLoaded;
 };
+
+MappingModuleTests::MappingModuleTests()
+    : m_IsUtilitiesModuleInitiallyLoaded{Utilities::isKernelModuleLoaded(utilitiesModuleName)}
+{
+}
+
+/* The Mapping and KernelUtilities kernel modules are required for running the tests, so both should be open for a
+   successful run:
+    - if the Mapping module is open when running the test it will be closed and re-opened to ensure a clean "fresh"
+   state; once the tests finished it gets closed
+    - the KernelUtilities module will retain its state after running the tests; if initially open it remains open, same
+   for the closed state
+    - the KernelUtilities module is used by Mapping so it should be loaded beforehand; the two modules should be
+   unloaded in reverse order
+*/
 
 void MappingModuleTests::initTestCase()
 {
     try
     {
-        const auto mappingModulePath{getMappingModulePath()};
+        const auto utilitiesModulePath{getModulePath(utilitiesModuleName)};
+        QVERIFY(utilitiesModulePath.has_value());
+
+        const auto mappingModulePath{getModulePath(mappingModuleName)};
         QVERIFY(mappingModulePath.has_value());
+
+        if (!m_IsUtilitiesModuleInitiallyLoaded)
+        {
+            Utilities::loadKernelModule(*utilitiesModulePath);
+        }
+
+        QVERIFY(Utilities::isKernelModuleLoaded(utilitiesModuleName));
 
         // ensure a fresh start by reloading the module in case already loaded
         if (Utilities::isKernelModuleLoaded(mappingModuleName))
@@ -99,6 +130,11 @@ void MappingModuleTests::cleanupTestCase()
         if (Utilities::isKernelModuleLoaded(mappingModuleName))
         {
             Utilities::unloadKernelModule(mappingModuleName);
+        }
+
+        if (!m_IsUtilitiesModuleInitiallyLoaded && Utilities::isKernelModuleLoaded(utilitiesModuleName))
+        {
+            Utilities::unloadKernelModule(utilitiesModuleName);
         }
     }
     catch (const std::runtime_error& err)
@@ -665,15 +701,15 @@ std::optional<ElementsMap> MappingModuleTests::retrieveElements()
     return mapContent;
 }
 
-std::optional<std::filesystem::path> MappingModuleTests::getMappingModulePath()
+std::optional<std::filesystem::path> MappingModuleTests::getModulePath(const std::string_view moduleName)
 {
-    std::filesystem::path mappingModulePath{Utilities::getApplicationPath()};
-    mappingModulePath = mappingModulePath.parent_path().parent_path();
-    mappingModulePath /= Utilities::getModulesDirRelativePath();
-    mappingModulePath /= mappingModuleName;
-    mappingModulePath += Utilities::getModuleFileExtension();
+    std::filesystem::path modulePath{Utilities::getApplicationPath()};
+    modulePath = modulePath.parent_path().parent_path();
+    modulePath /= Utilities::getModulesDirRelativePath();
+    modulePath /= moduleName;
+    modulePath += Utilities::getModuleFileExtension();
 
-    return std::filesystem::is_regular_file(mappingModulePath) ? std::optional{mappingModulePath} : std::nullopt;
+    return std::filesystem::is_regular_file(modulePath) ? std::optional{modulePath} : std::nullopt;
 }
 
 QTEST_APPLESS_MAIN(MappingModuleTests)
