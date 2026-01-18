@@ -10,6 +10,8 @@ obj-m += average2.o
 average1-objs := $(SRC_COMMON:.c=.o) $(SRC_V1:.c=.o)
 average2-objs := $(SRC_COMMON:.c=.o) $(SRC_V2:.c=.o)
 
+KERNEL_UTILITIES_BUILD_DIR := $(shell cd $(BUILD_DIR) && cd ../KernelUtilities && echo `pwd`)
+
 # the BUILD_DIR variable should be provided from project (CMake), not set manually by user
 BUILD_DIR_MAKEFILE := $(BUILD_DIR)/Makefile
 
@@ -19,8 +21,11 @@ all: $(BUILD_DIR_MAKEFILE)
 $(BUILD_DIR):
 	mkdir -p "$@"
 
+ADD_EXTRA_SYMBOLS := "KBUILD_EXTRA_SYMBOLS +="
+ADD_EXTRA_SYMBOLS += $(KERNEL_UTILITIES_BUILD_DIR)/Module.symvers
+
 $(BUILD_DIR_MAKEFILE): $(BUILD_DIR)
-	touch "$@"
+	echo $(ADD_EXTRA_SYMBOLS) > "$@"
 
 clean:
 	make -C /lib/modules/$(shell uname -r)/build M=$(BUILD_DIR) src=$(PWD) clean

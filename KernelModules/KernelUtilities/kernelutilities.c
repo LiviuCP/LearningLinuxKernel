@@ -71,7 +71,22 @@ void trim_and_copy_string(char* dest, const char* src, size_t max_str_length)
     } while (false);
 }
 
+int get_average(const int* array, size_t array_size)
+{
+    int sum = 0;
+
+    for (size_t index = 0; index < array_size; ++index)
+    {
+        sum += array[index];
+    }
+
+    // it is assumed that array_size does not exceed the maximum int value and thus won't overflow when converting
+    // size_t to int
+    return array_size > 0 ? sum / (int)array_size : sum;
+}
+
 EXPORT_SYMBOL(trim_and_copy_string);
+EXPORT_SYMBOL(get_average);
 
 static int utilities_init(void)
 {
