@@ -14,13 +14,13 @@ void trim_and_copy_string(char* dest, const char* src, size_t max_str_length)
     {
         if (max_str_length == 0)
         {
-            pr_warn("%s: invalid maximum string length!\n", THIS_MODULE->name);
+            pr_warn("%s: trim_and_copy_string: invalid maximum string length!\n", THIS_MODULE->name);
             break;
         }
 
         if (!dest)
         {
-            pr_warn("%s: NULL dest string!\n", THIS_MODULE->name);
+            pr_warn("%s: trim_and_copy_string: NULL dest string!\n", THIS_MODULE->name);
             break;
         }
 
@@ -28,7 +28,7 @@ void trim_and_copy_string(char* dest, const char* src, size_t max_str_length)
 
         if (!src)
         {
-            pr_warn("%s: NULL src string!\n", THIS_MODULE->name);
+            pr_warn("%s: trim_and_copy_string: NULL src string!\n", THIS_MODULE->name);
             break;
         }
 
@@ -36,7 +36,7 @@ void trim_and_copy_string(char* dest, const char* src, size_t max_str_length)
 
         if (temp == NULL)
         {
-            pr_err("%s: memory could not be allocated!\n", THIS_MODULE->name);
+            pr_err("%s: trim_and_copy_string : memory could not be allocated!\n", THIS_MODULE->name);
             break;
         }
 
