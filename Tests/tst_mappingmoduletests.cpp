@@ -194,9 +194,7 @@ void MappingModuleTests::testAddElement()
 
     writeKey(invalidKey);
 
-    const std::string emptyKey;
-
-    QVERIFY(emptyKey == readKey());
+    QVERIFY("" == readKey());
     QVERIFY(elementValue == readValue());
 
     writeCommand(std::string{updateCommandStr});
@@ -378,6 +376,9 @@ void MappingModuleTests::testGetElementValue()
     const ElementsList elements{{"laundromat", 2}, {"banking", -5}};
     addOrModifyElements(elements);
 
+    ElementsMap expectedMapContent{{"banking", -5}, {"laundromat", 2}};
+
+    QVERIFY(expectedMapContent == retrieveElements());
     QVERIFY("banking" == readKey());
     QVERIFY(-5 == readValue());
     QVERIFY(syncedStatusStr == readStatus());
@@ -416,7 +417,9 @@ void MappingModuleTests::testGetElementValue()
     QVERIFY(syncedStatusStr == readStatus());
 
     writeCommand(std::string{removeCommandStr});
+    expectedMapContent = {{"banking", -5}};
 
+    QVERIFY(expectedMapContent == retrieveElements());
     QVERIFY(syncedStatusStr == readStatus());
     QVERIFY(1 == readCount());
 
@@ -484,7 +487,6 @@ void MappingModuleTests::testGetElementValue()
     QVERIFY(-5 == readValue());
     QVERIFY(syncedStatusStr == readStatus());
 
-    const ElementsMap expectedMapContent{{"banking", -5}};
     QVERIFY(expectedMapContent == retrieveElements());
 }
 
@@ -516,6 +518,7 @@ void MappingModuleTests::testAllCommands()
     writeKey("Laundromat");
 
     QVERIFY("Laundromat" == readKey());
+    QVERIFY(0 == readValue());
     QVERIFY(dirtyStatusStr == readStatus());
 
     writeCommand(std::string{getCommandStr});
