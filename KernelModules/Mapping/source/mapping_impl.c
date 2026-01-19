@@ -63,6 +63,8 @@ static void update_map_element(void)
 
         if (!should_add_element)
         {
+            memset(data->key, '\0', MAX_KEY_STR_LENGTH);
+            data->value = 0;
             memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
             strncpy(data->status, synced_status_str, strlen(synced_status_str));
             break;
@@ -86,6 +88,8 @@ static void update_map_element(void)
         data->map_elements[data->map_elements_count] = element_data;
         ++data->map_elements_count;
         pr_info("%s: added element: (key: %s, value: %d)\n", THIS_MODULE->name, data->key, data->value);
+        memset(data->key, '\0', MAX_KEY_STR_LENGTH);
+        data->value = 0;
         memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
         strncpy(data->status, synced_status_str, strlen(synced_status_str));
     } while (false);
