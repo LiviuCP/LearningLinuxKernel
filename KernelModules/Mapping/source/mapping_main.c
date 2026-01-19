@@ -7,9 +7,12 @@
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION(
-    "This module illustrates a dictionary (map). Each map element contains a key (directory) and a value (file). It is "
-    "possible to add new elements, modify values of "
-    "existing ones, retrieve element values based on keys, remove elements and erase the whole content.");
+    "This module illustrates a dictionary (map). Each map element contains a key (directory) and a value (file).\n"
+    "It is possible to add new elements, modify values of "
+    "existing ones, retrieve element values based on keys, remove elements and erase the whole content.\n"
+    "No specific optimizations are being used (e.g. the search time is linear, not logarithmic) as they are out of "
+    "project scope."
+    "The goal is to illustrate the kset concept and not to create an optimized dictionary.");
 MODULE_AUTHOR("Liviu Popa");
 
 /* VARIABLES AND PARAMETERS */
