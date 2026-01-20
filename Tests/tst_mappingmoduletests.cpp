@@ -20,6 +20,14 @@ static constexpr std::string_view removeCommandStr{"remove"};
 static constexpr std::string_view resetCommandStr{"reset"};
 static constexpr std::string_view getCommandStr{"get"};
 
+static constexpr std::string_view invalidUpdateCommandStr1{"Update"};
+static constexpr std::string_view invalidUpdateCommandStr2{"upd ate"};
+static constexpr std::string_view invalidRemoveCommandStr{"remov"};
+static constexpr std::string_view invalidResetCommandStr{"resett"};
+static constexpr std::string_view invalidGetCommandStr1{"get1"};
+static constexpr std::string_view invalidGetCommandStr2{"_get"};
+static constexpr std::string_view invalidSpaceCommand{" "};
+
 static constexpr std::string_view syncedStatusStr{"synced"};
 static constexpr std::string_view dirtyStatusStr{"dirty"};
 
@@ -50,6 +58,7 @@ private slots:
     void testRemoveElement();
     void testGetElementValue();
     void testAllCommands();
+    void testInvalidCommands();
 
 private:
     bool isKernelModuleReset();
@@ -205,8 +214,8 @@ void MappingModuleTests::testAddElement()
     QVERIFY("" == readKey());
     QVERIFY(elementValue == readValue());
     QVERIFY(dirtyStatusStr == readStatus());
-    QVERIFY(1 == readCount());
     QVERIFY(expectedMapContent == retrieveElements());
+    QVERIFY(1 == readCount());
 }
 
 void MappingModuleTests::testAddMultipleElements()
@@ -219,22 +228,19 @@ void MappingModuleTests::testAddMultipleElements()
     QVERIFY("" == readKey());
     QVERIFY(0 == readValue());
     QVERIFY(syncedStatusStr == readStatus());
-    QVERIFY(elements.size() == readCount());
 
     const std::optional<ElementsMap> mapContent{retrieveElements()};
     const ElementsMap expectedMapContent{{"HOME2", 9}, {"Home", 0},      {"barbeque", 4}, {"barbeque1", -5},
                                          {"home", 3},  {"homealone", 5}, {"myhome", -2}};
 
     QVERIFY(expectedMapContent == mapContent);
+    QVERIFY(expectedMapContent.size() == readCount());
 }
 
 void MappingModuleTests::testModifyElementValue()
 {
-    const std::string key{"myKey"};
-    int value{-5};
-
-    writeKey(key);
-    writeValue(value);
+    writeKey("myKey");
+    writeValue(-5);
     writeCommand(std::string{updateCommandStr});
 
     ElementsMap expectedContent{{"myKey", -5}};
@@ -242,23 +248,21 @@ void MappingModuleTests::testModifyElementValue()
     QVERIFY(expectedContent == retrieveElements());
     QVERIFY(syncedStatusStr == readStatus());
 
-    value = 3;
+    writeKey("myKey");
+    writeValue(3);
 
-    writeKey(key);
-    writeValue(value);
-
-    QVERIFY(key == readKey());
-    QVERIFY(value == readValue());
+    QVERIFY("myKey" == readKey());
+    QVERIFY(3 == readValue());
     QVERIFY(dirtyStatusStr == readStatus());
 
     writeCommand(std::string{updateCommandStr});
     expectedContent = {{"myKey", 3}};
 
     QVERIFY(expectedContent == retrieveElements());
+    QVERIFY(1 == readCount());
     QVERIFY("" == readKey());
     QVERIFY(0 == readValue());
     QVERIFY(syncedStatusStr == readStatus());
-    QVERIFY(1 == readCount());
 }
 
 void MappingModuleTests::testRemoveElement()
@@ -266,13 +270,11 @@ void MappingModuleTests::testRemoveElement()
     const ElementsList elements{{"household", 2}, {"homebank", -5}, {"banking", 10}};
     addOrModifyElements(elements);
 
-    std::string keyToRemove{"banking"};
-
-    writeKey(keyToRemove);
+    writeKey("banking");
     writeValue(10);
 
     QVERIFY(dirtyStatusStr == readStatus());
-    QVERIFY(keyToRemove == readKey());
+    QVERIFY("banking" == readKey());
     QVERIFY(10 == readValue());
 
     writeCommand(std::string{removeCommandStr});
@@ -280,93 +282,88 @@ void MappingModuleTests::testRemoveElement()
     ElementsMap expectedMapContent{{"homebank", -5}, {"household", 2}};
 
     QVERIFY(expectedMapContent == retrieveElements());
-    QVERIFY(syncedStatusStr == readStatus());
     QVERIFY(2 == readCount());
+    QVERIFY(syncedStatusStr == readStatus());
     QVERIFY("" == readKey());
     QVERIFY(0 == readValue());
 
     writeCommand(std::string{removeCommandStr});
 
     QVERIFY(expectedMapContent == retrieveElements());
-    QVERIFY(syncedStatusStr == readStatus());
     QVERIFY(2 == readCount());
+    QVERIFY(syncedStatusStr == readStatus());
     QVERIFY("" == readKey());
     QVERIFY(0 == readValue());
 
-    writeKey(keyToRemove);
+    writeKey("banking");
 
-    QVERIFY(keyToRemove == readKey());
+    QVERIFY("banking" == readKey());
     QVERIFY(dirtyStatusStr == readStatus());
 
     writeCommand(std::string{removeCommandStr});
 
     QVERIFY(expectedMapContent == retrieveElements());
-    QVERIFY(dirtyStatusStr == readStatus());
     QVERIFY(2 == readCount());
-    QVERIFY(keyToRemove == readKey());
+    QVERIFY(dirtyStatusStr == readStatus());
+    QVERIFY("banking" == readKey());
     QVERIFY(0 == readValue());
 
-    keyToRemove = "homeban";
-    writeKey(keyToRemove);
+    writeKey("homeban");
 
-    QVERIFY(keyToRemove == readKey());
+    QVERIFY("homeban" == readKey());
     QVERIFY(dirtyStatusStr == readStatus());
 
     writeCommand(std::string{removeCommandStr});
 
     QVERIFY(expectedMapContent == retrieveElements());
-    QVERIFY(dirtyStatusStr == readStatus());
     QVERIFY(2 == readCount());
-    QVERIFY(keyToRemove == readKey());
+    QVERIFY(dirtyStatusStr == readStatus());
+    QVERIFY("homeban" == readKey());
     QVERIFY(0 == readValue());
 
-    keyToRemove = "homebank1";
-    writeKey(keyToRemove);
+    writeKey("homebank1");
 
-    QVERIFY(keyToRemove == readKey());
+    QVERIFY("homebank1" == readKey());
     QVERIFY(dirtyStatusStr == readStatus());
 
     writeCommand(std::string{removeCommandStr});
 
     QVERIFY(expectedMapContent == retrieveElements());
-    QVERIFY(dirtyStatusStr == readStatus());
     QVERIFY(2 == readCount());
-    QVERIFY(keyToRemove == readKey());
+    QVERIFY(dirtyStatusStr == readStatus());
+    QVERIFY("homebank1" == readKey());
     QVERIFY(0 == readValue());
 
-    keyToRemove = "homebank";
-    writeKey(keyToRemove);
+    writeKey("homebank");
 
-    QVERIFY(keyToRemove == readKey());
+    QVERIFY("homebank" == readKey());
     QVERIFY(dirtyStatusStr == readStatus());
 
     writeCommand(std::string{removeCommandStr});
     expectedMapContent = {{"household", 2}};
 
     QVERIFY(expectedMapContent == retrieveElements());
-    QVERIFY(syncedStatusStr == readStatus());
     QVERIFY(1 == readCount());
+    QVERIFY(syncedStatusStr == readStatus());
     QVERIFY("" == readKey());
     QVERIFY(0 == readValue());
 
-    keyToRemove = "Household";
-    writeKey(keyToRemove);
+    writeKey("Household");
 
-    QVERIFY(keyToRemove == readKey());
+    QVERIFY("Household" == readKey());
     QVERIFY(dirtyStatusStr == readStatus());
 
     writeCommand(std::string{removeCommandStr});
 
     QVERIFY(expectedMapContent == retrieveElements());
-    QVERIFY(dirtyStatusStr == readStatus());
     QVERIFY(1 == readCount());
-    QVERIFY(keyToRemove == readKey());
+    QVERIFY(dirtyStatusStr == readStatus());
+    QVERIFY("Household" == readKey());
     QVERIFY(0 == readValue());
 
-    keyToRemove = "household";
-    writeKey(keyToRemove);
+    writeKey("household");
 
-    QVERIFY(keyToRemove == readKey());
+    QVERIFY("household" == readKey());
     QVERIFY(dirtyStatusStr == readStatus());
 
     writeCommand(std::string{removeCommandStr});
@@ -396,10 +393,10 @@ void MappingModuleTests::testGetElementValue()
     ElementsMap expectedMapContent{{"banking", -5}, {"laundromat", 2}};
 
     QVERIFY(expectedMapContent == retrieveElements());
+    QVERIFY(2 == readCount());
     QVERIFY("" == readKey());
     QVERIFY(0 == readValue());
     QVERIFY(syncedStatusStr == readStatus());
-    QVERIFY(2 == readCount());
 
     writeKey("laundromat");
 
@@ -437,8 +434,8 @@ void MappingModuleTests::testGetElementValue()
     expectedMapContent = {{"banking", -5}};
 
     QVERIFY(expectedMapContent == retrieveElements());
-    QVERIFY(syncedStatusStr == readStatus());
     QVERIFY(1 == readCount());
+    QVERIFY(syncedStatusStr == readStatus());
 
     writeKey("laundromat");
     writeValue(10);
@@ -517,8 +514,8 @@ void MappingModuleTests::testAllCommands()
     ElementsMap expectedMapContent{{"Laundromat", 4}, {"banking", 10}, {"laundro", 8}, {"laundromat", 2}};
 
     QVERIFY(expectedMapContent == retrieveElements());
-    QVERIFY(syncedStatusStr == readStatus());
     QVERIFY(4 == readCount());
+    QVERIFY(syncedStatusStr == readStatus());
 
     writeKey("banking");
 
@@ -529,8 +526,8 @@ void MappingModuleTests::testAllCommands()
     expectedMapContent = {{"Laundromat", 4}, {"laundro", 8}, {"laundromat", 2}};
 
     QVERIFY(expectedMapContent == retrieveElements());
-    QVERIFY(syncedStatusStr == readStatus());
     QVERIFY(3 == readCount());
+    QVERIFY(syncedStatusStr == readStatus());
 
     writeKey("Laundromat");
 
@@ -554,8 +551,8 @@ void MappingModuleTests::testAllCommands()
     expectedMapContent = {{"Laundromat", 4}, {"banking", 4}, {"laundro", 8}, {"laundromat", 2}};
 
     QVERIFY(expectedMapContent == retrieveElements());
-    QVERIFY(syncedStatusStr == readStatus());
     QVERIFY(4 == readCount());
+    QVERIFY(syncedStatusStr == readStatus());
 
     writeCommand(std::string{resetCommandStr});
     QVERIFY(isKernelModuleReset());
@@ -567,8 +564,8 @@ void MappingModuleTests::testAllCommands()
     expectedMapContent = {{"Laundromat", 4}, {"banking", -5}, {"laundro", 8}, {"laundromat", 2}};
 
     QVERIFY(expectedMapContent == retrieveElements());
-    QVERIFY(syncedStatusStr == readStatus());
     QVERIFY(4 == readCount());
+    QVERIFY(syncedStatusStr == readStatus());
 
     writeCommand(std::string{resetCommandStr});
     QVERIFY(isKernelModuleReset());
@@ -579,8 +576,124 @@ void MappingModuleTests::testAllCommands()
     expectedMapContent = {{"Laundromat", 4}, {"laundro", 8}, {"laundromat", 2}};
 
     QVERIFY(expectedMapContent == retrieveElements());
-    QVERIFY(syncedStatusStr == readStatus());
     QVERIFY(3 == readCount());
+    QVERIFY(syncedStatusStr == readStatus());
+}
+
+void MappingModuleTests::testInvalidCommands()
+{
+    ElementsList elements{{"laundromat", 2}, {"banking", -5}, {"Laundromat", 4},
+                          {"banking", -2},   {"banking", 10}, {"laundro", 8}};
+
+    addOrModifyElements(elements);
+
+    const ElementsMap expectedMapContent{{"Laundromat", 4}, {"banking", 10}, {"laundro", 8}, {"laundromat", 2}};
+
+    QVERIFY("" == readKey());
+    QVERIFY(0 == readValue());
+    QVERIFY(expectedMapContent == retrieveElements());
+    QVERIFY(4 == readCount());
+    QVERIFY(syncedStatusStr == readStatus());
+
+    writeCommand(std::string{invalidResetCommandStr});
+
+    QVERIFY("" == readKey());
+    QVERIFY(0 == readValue());
+    QVERIFY(expectedMapContent == retrieveElements());
+    QVERIFY(4 == readCount());
+    QVERIFY(syncedStatusStr == readStatus());
+
+    writeKey("banking");
+
+    QVERIFY("banking" == readKey());
+    QVERIFY(0 == readValue());
+    QVERIFY(dirtyStatusStr == readStatus());
+
+    writeCommand(std::string{invalidRemoveCommandStr});
+
+    QVERIFY("banking" == readKey());
+    QVERIFY(0 == readValue());
+    QVERIFY(expectedMapContent == retrieveElements());
+    QVERIFY(4 == readCount());
+    QVERIFY(dirtyStatusStr == readStatus());
+
+    writeValue(9);
+
+    QVERIFY("banking" == readKey());
+    QVERIFY(9 == readValue());
+    QVERIFY(dirtyStatusStr == readStatus());
+
+    writeCommand(std::string{invalidUpdateCommandStr1});
+
+    QVERIFY("banking" == readKey());
+    QVERIFY(9 == readValue());
+    QVERIFY(expectedMapContent == retrieveElements());
+    QVERIFY(4 == readCount());
+    QVERIFY(dirtyStatusStr == readStatus());
+
+    writeKey("myNewKey");
+
+    QVERIFY("myNewKey" == readKey());
+    QVERIFY(9 == readValue());
+    QVERIFY(dirtyStatusStr == readStatus());
+
+    writeCommand(std::string{invalidUpdateCommandStr2});
+
+    QVERIFY("myNewKey" == readKey());
+    QVERIFY(9 == readValue());
+    QVERIFY(expectedMapContent == retrieveElements());
+    QVERIFY(4 == readCount());
+    QVERIFY(dirtyStatusStr == readStatus());
+
+    writeKey("laundro");
+
+    QVERIFY("laundro" == readKey());
+    QVERIFY(9 == readValue());
+    QVERIFY(dirtyStatusStr == readStatus());
+
+    writeCommand(std::string{invalidGetCommandStr1});
+
+    QVERIFY("laundro" == readKey());
+    QVERIFY(9 == readValue());
+    QVERIFY(expectedMapContent == retrieveElements());
+    QVERIFY(4 == readCount());
+    QVERIFY(dirtyStatusStr == readStatus());
+
+    writeCommand(std::string{invalidSpaceCommand});
+
+    QVERIFY("laundro" == readKey());
+    QVERIFY(9 == readValue());
+    QVERIFY(expectedMapContent == retrieveElements());
+    QVERIFY(4 == readCount());
+    QVERIFY(dirtyStatusStr == readStatus());
+
+    writeCommand(std::string{invalidGetCommandStr2});
+
+    QVERIFY("laundro" == readKey());
+    QVERIFY(9 == readValue());
+    QVERIFY(expectedMapContent == retrieveElements());
+    QVERIFY(4 == readCount());
+    QVERIFY(dirtyStatusStr == readStatus());
+
+    // empty command
+    Utilities::clearFileContent(commandFilePath);
+
+    QVERIFY("laundro" == readKey());
+    QVERIFY(9 == readValue());
+    QVERIFY(expectedMapContent == retrieveElements());
+    QVERIFY(4 == readCount());
+    QVERIFY(dirtyStatusStr == readStatus());
+
+    // command to be trimmed (but valid nonetheless)
+    const std::string trimmableGetCommandStr{"  " + std::string{getCommandStr} + "   "};
+
+    writeCommand(trimmableGetCommandStr);
+
+    QVERIFY("laundro" == readKey());
+    QVERIFY(8 == readValue());
+    QVERIFY(expectedMapContent == retrieveElements());
+    QVERIFY(4 == readCount());
+    QVERIFY(syncedStatusStr == readStatus());
 }
 
 bool MappingModuleTests::isKernelModuleReset()
