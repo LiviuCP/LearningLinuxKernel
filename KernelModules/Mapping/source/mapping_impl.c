@@ -27,6 +27,17 @@ static struct mapping_data* data = NULL;
 
 extern void trim_and_copy_string(char* dest, const char* src, size_t max_str_length);
 
+static void reset_key_and_value(void)
+{
+    if (data)
+    {
+        memset(data->key, '\0', MAX_KEY_STR_LENGTH);
+        data->value = 0;
+        memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
+        strncpy(data->status, synced_status_str, strlen(synced_status_str));
+    }
+}
+
 static void update_map_element(void)
 {
     do
@@ -63,10 +74,7 @@ static void update_map_element(void)
 
         if (!should_add_element)
         {
-            memset(data->key, '\0', MAX_KEY_STR_LENGTH);
-            data->value = 0;
-            memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
-            strncpy(data->status, synced_status_str, strlen(synced_status_str));
+            reset_key_and_value();
             break;
         }
 
@@ -88,10 +96,7 @@ static void update_map_element(void)
         data->map_elements[data->map_elements_count] = element_data;
         ++data->map_elements_count;
         pr_info("%s: added element: (key: %s, value: %d)\n", THIS_MODULE->name, data->key, data->value);
-        memset(data->key, '\0', MAX_KEY_STR_LENGTH);
-        data->value = 0;
-        memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
-        strncpy(data->status, synced_status_str, strlen(synced_status_str));
+        reset_key_and_value();
     } while (false);
 }
 
@@ -136,10 +141,7 @@ static void remove_map_element(void)
             break;
         }
 
-        memset(data->key, '\0', MAX_KEY_STR_LENGTH);
-        data->value = 0;
-        memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
-        strncpy(data->status, synced_status_str, strlen(synced_status_str));
+        reset_key_and_value();
     } while (false);
 }
 
@@ -196,10 +198,7 @@ static void erase_map_elements(void)
         }
 
         data->map_elements_count = 0;
-        memset(data->key, '\0', MAX_KEY_STR_LENGTH);
-        data->value = 0;
-        memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
-        strncpy(data->status, synced_status_str, strlen(synced_status_str));
+        reset_key_and_value();
     }
 }
 
@@ -211,15 +210,13 @@ int init_data(struct mapping_data* map_data, struct map_element_data* (*create_e
     if (map_data && create_element && destroy_element)
     {
         data = map_data;
-        memset(data->key, '\0', MAX_KEY_STR_LENGTH);
-        data->value = 0;
+        data->map_elements_count = 0;
+
         memset(data->command, '\0', MAX_COMMAND_STR_LENGTH);
-        memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
-        strncpy(data->status, synced_status_str, strlen(synced_status_str));
+        reset_key_and_value();
+
         create_map_element = create_element;
         destroy_map_element = destroy_element;
-
-        data->map_elements_count = 0;
 
         for (size_t index = 0; index < MAX_ELEMENTS_COUNT; ++index)
         {
