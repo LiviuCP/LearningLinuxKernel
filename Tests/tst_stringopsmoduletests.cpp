@@ -60,6 +60,7 @@ void StringOpsModuleTests::initTestCase()
         Utilities::loadKernelModule(*stringOpsModulePath);
 
         QVERIFY(Utilities::isKernelModuleLoaded(stringOpsModuleName));
+        QVERIFY(Utilities::getMajorDriverNumber(stringOpsModuleName) > 0);
     }
     catch (const std::runtime_error& err)
     {
