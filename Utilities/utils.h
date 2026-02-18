@@ -14,6 +14,7 @@ void loadKernelModule(const std::filesystem::path& kernelModulePath);
 void unloadKernelModule(const std::string_view kernelModuleName);
 bool isKernelModuleLoaded(const std::string_view kernelModuleName);
 
+bool createCharacterDeviceFile(const std::filesystem::path& deviceFilePath, int majorNumber, int minorNumber);
 int getMajorDriverNumber(const std::string_view kernelModuleName);
 
 std::optional<int> readIntValueFromFile(const std::filesystem::path& filePath);
