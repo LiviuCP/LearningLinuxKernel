@@ -50,6 +50,11 @@ static int string_ops_init(void)
 
     if (major_number >= 0)
     {
+        memset(input_buffer, '\0', INPUT_BUFFER_SIZE);
+        memset(minor1_output_buffer, '\0', OUTPUT_BUFFER_SIZE);
+        memset(minor2_output_buffer, '\0', OUTPUT_BUFFER_SIZE);
+        memset(minor3_output_buffer, '\0', OUTPUT_BUFFER_SIZE);
+
         pr_info("%s: device registered, major number %d successfully assigned\n", THIS_MODULE->name, major_number);
     }
     else
