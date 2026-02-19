@@ -40,8 +40,11 @@ private slots:
 private:
     void createDeviceFiles();
     void removeDeviceFiles();
+
     bool writeToDeviceFile(const std::filesystem::path& deviceFile, const std::string& str);
     std::string readFromDeviceFile(const std::filesystem::path& deviceFile);
+
+    bool isKernelModuleReset();
 
     // TODO: this could be moved into a "testutils" directory as it is also used by the mapping module tests
     std::optional<std::filesystem::path> getModulePath(const std::string_view moduleName);
@@ -93,6 +96,7 @@ void StringOpsModuleTests::initTestCase()
         QVERIFY(m_MajorNumber > 0);
 
         createDeviceFiles();
+        QVERIFY(isKernelModuleReset());
     }
     catch (const std::runtime_error& err)
     {
@@ -238,6 +242,16 @@ std::string StringOpsModuleTests::readFromDeviceFile(const std::filesystem::path
     }
 
     return result;
+}
+
+bool StringOpsModuleTests::isKernelModuleReset()
+{
+    const std::string str0{readFromDeviceFile(m_DeviceFileMinor0)};
+    const std::string str1{readFromDeviceFile(m_DeviceFileMinor1)};
+    const std::string str2{readFromDeviceFile(m_DeviceFileMinor2)};
+    const std::string str3{readFromDeviceFile(m_DeviceFileMinor3)};
+
+    return str0.empty() && str1.empty() && str2.empty() && str3.empty();
 }
 
 std::optional<std::filesystem::path> StringOpsModuleTests::getModulePath(const std::string_view moduleName)
