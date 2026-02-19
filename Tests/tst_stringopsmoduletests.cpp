@@ -44,6 +44,7 @@ private:
     bool writeToDeviceFile(const std::filesystem::path& deviceFile, const std::string& str);
     std::string readFromDeviceFile(const std::filesystem::path& deviceFile);
 
+    void resetKernelModule();
     bool isKernelModuleReset();
 
     // TODO: this could be moved into a "testutils" directory as it is also used by the mapping module tests
@@ -96,7 +97,6 @@ void StringOpsModuleTests::initTestCase()
         QVERIFY(m_MajorNumber > 0);
 
         createDeviceFiles();
-        QVERIFY(isKernelModuleReset());
     }
     catch (const std::runtime_error& err)
     {
@@ -128,10 +128,12 @@ void StringOpsModuleTests::cleanupTestCase()
 
 void StringOpsModuleTests::init()
 {
+    QVERIFY(isKernelModuleReset());
 }
 
 void StringOpsModuleTests::cleanup()
 {
+    resetKernelModule();
 }
 
 void StringOpsModuleTests::testCanWriteToDeviceFiles()
@@ -242,6 +244,13 @@ std::string StringOpsModuleTests::readFromDeviceFile(const std::filesystem::path
     }
 
     return result;
+}
+
+void StringOpsModuleTests::resetKernelModule()
+{
+    writeToDeviceFile(m_DeviceFileMinor1, "");
+    writeToDeviceFile(m_DeviceFileMinor2, "");
+    writeToDeviceFile(m_DeviceFileMinor3, "");
 }
 
 bool StringOpsModuleTests::isKernelModuleReset()
