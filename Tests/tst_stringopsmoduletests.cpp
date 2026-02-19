@@ -138,10 +138,29 @@ void StringOpsModuleTests::cleanup()
 
 void StringOpsModuleTests::testCanWriteToDeviceFiles()
 {
+    const std::string emptyStr;
     const std::string str{"First user input!"};
 
-    bool success = writeToDeviceFile(m_DeviceFileMinor0, str);
-    QVERIFY(!success); // minor number 0 only supported for reading
+    /* empty string */
+    bool success{writeToDeviceFile(m_DeviceFileMinor0, emptyStr)};
+    QVERIFY(!success);
+
+    success = writeToDeviceFile(m_DeviceFileMinor1, emptyStr);
+    QVERIFY(success);
+
+    success = writeToDeviceFile(m_DeviceFileMinor2, emptyStr);
+    QVERIFY(success);
+
+    success = writeToDeviceFile(m_DeviceFileMinor3, emptyStr);
+    QVERIFY(success);
+
+    success = writeToDeviceFile(m_DeviceFileMinor4, emptyStr);
+    QVERIFY(!success);
+
+    /* non-empty string */
+
+    success = writeToDeviceFile(m_DeviceFileMinor0, str);
+    QVERIFY(!success);
 
     success = writeToDeviceFile(m_DeviceFileMinor1, str);
     QVERIFY(success);
@@ -153,7 +172,7 @@ void StringOpsModuleTests::testCanWriteToDeviceFiles()
     QVERIFY(success);
 
     success = writeToDeviceFile(m_DeviceFileMinor4, str);
-    QVERIFY(!success); // unsupported minor number
+    QVERIFY(!success);
 }
 
 void StringOpsModuleTests::createDeviceFiles()
