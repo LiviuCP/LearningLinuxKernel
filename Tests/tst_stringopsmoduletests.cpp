@@ -38,6 +38,7 @@ private slots:
     void testCanWriteToDeviceFiles();
     void testReadFromAfterWriteToMinorNumber1();
     void testReadFromAfterWriteToMinorNumber2();
+    void testReadFromAfterWriteToMinorNumber3();
 
 private:
     void createDeviceFiles();
@@ -221,6 +222,29 @@ void StringOpsModuleTests::testReadFromAfterWriteToMinorNumber2()
 
     QVERIFY("12A-bCd_EF+" == readFromDeviceFile(m_DeviceFileMinor2));
     QVERIFY("  +FE_dCb-A21 " == readFromDeviceFile(m_DeviceFileMinor0));
+}
+
+void StringOpsModuleTests::testReadFromAfterWriteToMinorNumber3()
+{
+    writeToDeviceFile(m_DeviceFileMinor3, "This Is just a TEST!");
+
+    QVERIFY("This Is just a TEST!; 20" == readFromDeviceFile(m_DeviceFileMinor3));
+    QVERIFY("This Is just a TEST!" == readFromDeviceFile(m_DeviceFileMinor0));
+
+    writeToDeviceFile(m_DeviceFileMinor3, " ");
+
+    QVERIFY("" == readFromDeviceFile(m_DeviceFileMinor3));
+    QVERIFY(" " == readFromDeviceFile(m_DeviceFileMinor0));
+
+    writeToDeviceFile(m_DeviceFileMinor3, "");
+
+    QVERIFY("" == readFromDeviceFile(m_DeviceFileMinor3));
+    QVERIFY("" == readFromDeviceFile(m_DeviceFileMinor0));
+
+    writeToDeviceFile(m_DeviceFileMinor3, "  12A-bCd_EF+ ");
+
+    QVERIFY("12A-bCd_EF+; 11" == readFromDeviceFile(m_DeviceFileMinor3));
+    QVERIFY("  12A-bCd_EF+ " == readFromDeviceFile(m_DeviceFileMinor0));
 }
 
 void StringOpsModuleTests::createDeviceFiles()
