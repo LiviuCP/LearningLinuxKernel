@@ -187,7 +187,7 @@ void StringOpsModuleTests::testReadFromAfterWriteToMinorNumber1()
 
     writeToDeviceFile(m_DeviceFileMinor1, " ");
 
-    QVERIFY(" " == readFromDeviceFile(m_DeviceFileMinor1));
+    QVERIFY("" == readFromDeviceFile(m_DeviceFileMinor1));
     QVERIFY(" " == readFromDeviceFile(m_DeviceFileMinor0));
 
     writeToDeviceFile(m_DeviceFileMinor1, "");
@@ -197,7 +197,7 @@ void StringOpsModuleTests::testReadFromAfterWriteToMinorNumber1()
 
     writeToDeviceFile(m_DeviceFileMinor1, "  12A-bCd_EF+ ");
 
-    QVERIFY("  12a-bcd_ef+ " == readFromDeviceFile(m_DeviceFileMinor1));
+    QVERIFY("12a-bcd_ef+" == readFromDeviceFile(m_DeviceFileMinor1));
     QVERIFY("  12A-bCd_EF+ " == readFromDeviceFile(m_DeviceFileMinor0));
 }
 

@@ -201,9 +201,14 @@ static void convert_input_to_lower_case(void)
     {
         memset(result_buffer_ptr, '\0', OUTPUT_BUFFER_SIZE);
 
-        for (size_t index = 0; index < strlen(input_buffer); ++index)
+        char temp[OUTPUT_BUFFER_SIZE];
+        trim_and_copy_string(temp, input_buffer, INPUT_BUFFER_SIZE);
+
+        const size_t length = strlen(temp);
+
+        for (size_t index = 0; index < length; ++index)
         {
-            result_buffer_ptr[index] = tolower(input_buffer[index]);
+            result_buffer_ptr[index] = tolower(temp[index]);
         }
     }
 }
@@ -215,7 +220,7 @@ static void reverse_input(void)
         memset(result_buffer_ptr, '\0', OUTPUT_BUFFER_SIZE);
 
         char temp[OUTPUT_BUFFER_SIZE];
-        trim_and_copy_string(temp, input_buffer, INPUT_BUFFER_SIZE); // one byte for '\n', one byte for '\0'
+        trim_and_copy_string(temp, input_buffer, INPUT_BUFFER_SIZE);
 
         const size_t length = strlen(temp);
 
