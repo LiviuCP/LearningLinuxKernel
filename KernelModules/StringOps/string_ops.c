@@ -223,8 +223,6 @@ static void reverse_input(void)
         {
             result_buffer_ptr[index] = temp[length - 1 - index];
         }
-
-        result_buffer_ptr[length] = '\n';
     }
 }
 
@@ -234,7 +232,15 @@ static void append_input_string_length(void)
     {
         char temp[OUTPUT_BUFFER_SIZE];
         trim_and_copy_string(temp, input_buffer, INPUT_BUFFER_SIZE);
-        sprintf(result_buffer_ptr, "%s; %ld\n", temp, strlen(temp));
+
+        if (strlen(temp) > 0)
+        {
+            sprintf(result_buffer_ptr, "%s; %ld", temp, strlen(temp));
+        }
+        else
+        {
+            memset(result_buffer_ptr, '\0', OUTPUT_BUFFER_SIZE);
+        }
     }
 }
 
