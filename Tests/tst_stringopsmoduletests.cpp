@@ -263,7 +263,7 @@ void StringOpsModuleTests::testReadFromAfterWriteToMinorNumber3()
     QVERIFY("12A-bCd_EF+" == readFromDeviceFile(m_DeviceFileMinor0));
 }
 
-void StringOpsModuleTests::testCombinedReadWrite() // 1 - 2 - 3, 2 - 3 - 1, 3 - 1 - 2
+void StringOpsModuleTests::testCombinedReadWrite()
 {
     writeToDeviceFile(m_DeviceFileMinor1, " Writing to minor number 1\n");
     QVERIFY("Writing to minor number 1" == readFromDeviceFile(m_DeviceFileMinor0));
