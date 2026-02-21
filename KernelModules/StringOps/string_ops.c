@@ -157,13 +157,19 @@ static ssize_t device_write(struct file* filp, const char* buffer, size_t length
 
     if (minor_number > 0)
     {
-        memset(input_buffer, '\0', INPUT_BUFFER_SIZE);
-        const size_t bytes_not_copied_count = copy_from_user(input_buffer, buffer, length);
+        char temp[INPUT_BUFFER_SIZE];
+        memset(temp, '\0', INPUT_BUFFER_SIZE);
+
+        const size_t max_bytes_to_copy_count = INPUT_BUFFER_SIZE - 1;
+        const size_t bytes_to_copy_count = length > max_bytes_to_copy_count ? max_bytes_to_copy_count : length;
+        const size_t bytes_not_copied_count = copy_from_user(temp, buffer, bytes_to_copy_count);
 
         if (bytes_not_copied_count > 0)
         {
             pr_warn("%s: %ld bytes could not be copied from user\n", THIS_MODULE->name, bytes_not_copied_count);
         }
+
+        trim_and_copy_string(input_buffer, temp, INPUT_BUFFER_SIZE);
 
         result = (ssize_t)strlen(input_buffer);
 
@@ -201,14 +207,9 @@ static void convert_input_to_lower_case(void)
     {
         memset(result_buffer_ptr, '\0', OUTPUT_BUFFER_SIZE);
 
-        char temp[OUTPUT_BUFFER_SIZE];
-        trim_and_copy_string(temp, input_buffer, INPUT_BUFFER_SIZE);
-
-        const size_t length = strlen(temp);
-
-        for (size_t index = 0; index < length; ++index)
+        for (size_t index = 0; index < strlen(input_buffer); ++index)
         {
-            result_buffer_ptr[index] = tolower(temp[index]);
+            result_buffer_ptr[index] = tolower(input_buffer[index]);
         }
     }
 }
@@ -219,14 +220,11 @@ static void reverse_input(void)
     {
         memset(result_buffer_ptr, '\0', OUTPUT_BUFFER_SIZE);
 
-        char temp[OUTPUT_BUFFER_SIZE];
-        trim_and_copy_string(temp, input_buffer, INPUT_BUFFER_SIZE);
-
-        const size_t length = strlen(temp);
+        const size_t length = strlen(input_buffer);
 
         for (size_t index = 0; index < length; ++index)
         {
-            result_buffer_ptr[index] = temp[length - 1 - index];
+            result_buffer_ptr[index] = input_buffer[length - 1 - index];
         }
     }
 }
@@ -235,12 +233,11 @@ static void append_input_string_length(void)
 {
     if (result_buffer_ptr)
     {
-        char temp[OUTPUT_BUFFER_SIZE];
-        trim_and_copy_string(temp, input_buffer, INPUT_BUFFER_SIZE);
+        const size_t length = strlen(input_buffer);
 
-        if (strlen(temp) > 0)
+        if (length > 0)
         {
-            sprintf(result_buffer_ptr, "%s; %ld", temp, strlen(temp));
+            sprintf(result_buffer_ptr, "%s; %ld", input_buffer, length);
         }
         else
         {
