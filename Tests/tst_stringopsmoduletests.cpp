@@ -195,6 +195,11 @@ void StringOpsModuleTests::testReadFromAfterWriteToMinorNumber1()
     QVERIFY("" == readFromDeviceFile(m_DeviceFileMinor1));
     QVERIFY("" == readFromDeviceFile(m_DeviceFileMinor0));
 
+    writeToDeviceFile(m_DeviceFileMinor1, "MyTest\n");
+
+    QVERIFY("mytest" == readFromDeviceFile(m_DeviceFileMinor1));
+    QVERIFY("MyTest" == readFromDeviceFile(m_DeviceFileMinor0));
+
     writeToDeviceFile(m_DeviceFileMinor1, "  12A-bCd_EF+ ");
 
     QVERIFY("12a-bcd_ef+" == readFromDeviceFile(m_DeviceFileMinor1));
@@ -218,6 +223,11 @@ void StringOpsModuleTests::testReadFromAfterWriteToMinorNumber2()
     QVERIFY("" == readFromDeviceFile(m_DeviceFileMinor2));
     QVERIFY("" == readFromDeviceFile(m_DeviceFileMinor0));
 
+    writeToDeviceFile(m_DeviceFileMinor2, "MyTest\n");
+
+    QVERIFY("tseTyM" == readFromDeviceFile(m_DeviceFileMinor2));
+    QVERIFY("MyTest" == readFromDeviceFile(m_DeviceFileMinor0));
+
     writeToDeviceFile(m_DeviceFileMinor2, "  +FE_dCb-A21 ");
 
     QVERIFY("12A-bCd_EF+" == readFromDeviceFile(m_DeviceFileMinor2));
@@ -240,6 +250,11 @@ void StringOpsModuleTests::testReadFromAfterWriteToMinorNumber3()
 
     QVERIFY("" == readFromDeviceFile(m_DeviceFileMinor3));
     QVERIFY("" == readFromDeviceFile(m_DeviceFileMinor0));
+
+    writeToDeviceFile(m_DeviceFileMinor3, "MyTest\n");
+
+    QVERIFY("MyTest; 6" == readFromDeviceFile(m_DeviceFileMinor3));
+    QVERIFY("MyTest" == readFromDeviceFile(m_DeviceFileMinor0));
 
     writeToDeviceFile(m_DeviceFileMinor3, "  12A-bCd_EF+ ");
 
