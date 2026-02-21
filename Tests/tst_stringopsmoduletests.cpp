@@ -39,6 +39,7 @@ private slots:
     void testReadFromAfterWriteToMinorNumber1();
     void testReadFromAfterWriteToMinorNumber2();
     void testReadFromAfterWriteToMinorNumber3();
+    void testCombinedReadWrite();
 
 private:
     void createDeviceFiles();
@@ -260,6 +261,48 @@ void StringOpsModuleTests::testReadFromAfterWriteToMinorNumber3()
 
     QVERIFY("12A-bCd_EF+; 11" == readFromDeviceFile(m_DeviceFileMinor3));
     QVERIFY("12A-bCd_EF+" == readFromDeviceFile(m_DeviceFileMinor0));
+}
+
+void StringOpsModuleTests::testCombinedReadWrite() // 1 - 2 - 3, 2 - 3 - 1, 3 - 1 - 2
+{
+    writeToDeviceFile(m_DeviceFileMinor1, " Writing to minor number 1\n");
+    QVERIFY("Writing to minor number 1" == readFromDeviceFile(m_DeviceFileMinor0));
+
+    writeToDeviceFile(m_DeviceFileMinor2, "Writing to Minor Number 2\n ");
+    QVERIFY("Writing to Minor Number 2" == readFromDeviceFile(m_DeviceFileMinor0));
+
+    writeToDeviceFile(m_DeviceFileMinor3, "Writing to minor number 3 \n");
+    QVERIFY("Writing to minor number 3" == readFromDeviceFile(m_DeviceFileMinor0));
+
+    QVERIFY("writing to minor number 1" == readFromDeviceFile(m_DeviceFileMinor1));
+    QVERIFY("2 rebmuN roniM ot gnitirW" == readFromDeviceFile(m_DeviceFileMinor2));
+    QVERIFY("Writing to minor number 3; 25" == readFromDeviceFile(m_DeviceFileMinor3));
+
+    writeToDeviceFile(m_DeviceFileMinor2, "\n\nAnother shOt on minor number 2!  ");
+    QVERIFY("Another shOt on minor number 2!" == readFromDeviceFile(m_DeviceFileMinor0));
+
+    writeToDeviceFile(m_DeviceFileMinor3, " Another shot on minor nr 3... ");
+    QVERIFY("Another shot on minor nr 3..." == readFromDeviceFile(m_DeviceFileMinor0));
+
+    writeToDeviceFile(m_DeviceFileMinor1, " _ Another shot on minoR Number 1\n \n");
+    QVERIFY("_ Another shot on minoR Number 1" == readFromDeviceFile(m_DeviceFileMinor0));
+
+    QVERIFY("_ another shot on minor number 1" == readFromDeviceFile(m_DeviceFileMinor1));
+    QVERIFY("!2 rebmun ronim no tOhs rehtonA" == readFromDeviceFile(m_DeviceFileMinor2));
+    QVERIFY("Another shot on minor nr 3...; 29" == readFromDeviceFile(m_DeviceFileMinor3));
+
+    writeToDeviceFile(m_DeviceFileMinor3, "\nMinor 3 is \nthe winner!!!\n\n");
+    QVERIFY("Minor 3 is \nthe winner!!!" == readFromDeviceFile(m_DeviceFileMinor0));
+
+    writeToDeviceFile(m_DeviceFileMinor1, "Well, I would say it's MINOR NUMBER 1, isn't it? \t ");
+    QVERIFY("Well, I would say it's MINOR NUMBER 1, isn't it?" == readFromDeviceFile(m_DeviceFileMinor0));
+
+    writeToDeviceFile(m_DeviceFileMinor2, "\t\t You're wrong! \tIt's number 2. \nFinally we did it! \t");
+    QVERIFY("You're wrong! \tIt's number 2. \nFinally we did it!" == readFromDeviceFile(m_DeviceFileMinor0));
+
+    QVERIFY("well, i would say it's minor number 1, isn't it?" == readFromDeviceFile(m_DeviceFileMinor1));
+    QVERIFY("!ti did ew yllaniF\n .2 rebmun s'tI\t !gnorw er'uoY" == readFromDeviceFile(m_DeviceFileMinor2));
+    QVERIFY("Minor 3 is \nthe winner!!!; 25" == readFromDeviceFile(m_DeviceFileMinor3));
 }
 
 void StringOpsModuleTests::createDeviceFiles()
