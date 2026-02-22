@@ -45,7 +45,7 @@ private:
     void removeDeviceFiles();
 
     bool writeToDeviceFile(const std::filesystem::path& deviceFile, const std::string& str);
-    std::string readFromDeviceFile(const std::filesystem::path& deviceFile);
+    std::optional<std::string> readFromDeviceFile(const std::filesystem::path& deviceFile);
 
     void resetKernelModule();
     bool isKernelModuleReset();
@@ -369,9 +369,9 @@ bool StringOpsModuleTests::writeToDeviceFile(const std::filesystem::path& device
     return success;
 }
 
-std::string StringOpsModuleTests::readFromDeviceFile(const std::filesystem::path& deviceFile)
+std::optional<std::string> StringOpsModuleTests::readFromDeviceFile(const std::filesystem::path& deviceFile)
 {
-    std::string result;
+    std::optional<std::string> result;
     const int fd{open(deviceFile.string().c_str(), O_RDONLY | O_NONBLOCK)};
 
     if (fd >= 0)
@@ -400,12 +400,14 @@ void StringOpsModuleTests::resetKernelModule()
 
 bool StringOpsModuleTests::isKernelModuleReset()
 {
-    const std::string str0{readFromDeviceFile(m_DeviceFileMinor0)};
-    const std::string str1{readFromDeviceFile(m_DeviceFileMinor1)};
-    const std::string str2{readFromDeviceFile(m_DeviceFileMinor2)};
-    const std::string str3{readFromDeviceFile(m_DeviceFileMinor3)};
+    const std::optional<std::string> str0{readFromDeviceFile(m_DeviceFileMinor0)};
+    const std::optional<std::string> str1{readFromDeviceFile(m_DeviceFileMinor1)};
+    const std::optional<std::string> str2{readFromDeviceFile(m_DeviceFileMinor2)};
+    const std::optional<std::string> str3{readFromDeviceFile(m_DeviceFileMinor3)};
 
-    return str0.empty() && str1.empty() && str2.empty() && str3.empty();
+    const bool areResultsValid{str0.has_value() && str1.has_value() && str2.has_value() && str3.has_value()};
+
+    return areResultsValid && str0->empty() && str1->empty() && str2->empty() && str3->empty();
 }
 
 QTEST_APPLESS_MAIN(StringOpsModuleTests)
