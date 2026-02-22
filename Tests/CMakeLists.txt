@@ -17,8 +17,14 @@ set(CMAKE_AUTORCC ON)
 
 enable_testing()
 
-add_executable(MappingModuleTests tst_mappingmoduletests.cpp)
+add_executable(MappingModuleTests tst_mappingmoduletests.cpp testutils.cpp)
 add_test(NAME MappingModuleTests COMMAND MappingModuleTests)
+
+add_executable(StringOpsModuleTests tst_stringopsmoduletests.cpp testutils.cpp)
+add_test(NAME StringOpsModuleTests COMMAND StringOpsModuleTests)
 
 target_link_libraries(MappingModuleTests PRIVATE Qt${QT_VERSION_MAJOR}::Test)
 target_link_libraries(MappingModuleTests PRIVATE Utilities)
+
+target_link_libraries(StringOpsModuleTests PRIVATE Qt${QT_VERSION_MAJOR}::Test)
+target_link_libraries(StringOpsModuleTests PRIVATE Utilities)

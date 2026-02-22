@@ -1,11 +1,10 @@
 #include <QTest>
 
 #include <cassert>
-#include <filesystem>
 #include <list>
 #include <map>
-#include <string_view>
 
+#include "testutils.h"
 #include "utils.h"
 
 static constexpr std::string_view keyFilePath{"/sys/kernel/mapping/key"};
@@ -75,8 +74,6 @@ private:
     void addOrModifyElements(const ElementsList& elements);
     std::optional<ElementsMap> retrieveElements();
 
-    std::optional<std::filesystem::path> getModulePath(const std::string_view moduleName);
-
     const bool m_IsUtilitiesModuleInitiallyLoaded;
 };
 
@@ -99,10 +96,10 @@ void MappingModuleTests::initTestCase()
 {
     try
     {
-        const auto utilitiesModulePath{getModulePath(utilitiesModuleName)};
+        const auto utilitiesModulePath{Utilities::Test::getModulePath(utilitiesModuleName)};
         QVERIFY(utilitiesModulePath.has_value());
 
-        const auto mappingModulePath{getModulePath(mappingModuleName)};
+        const auto mappingModulePath{Utilities::Test::getModulePath(mappingModuleName)};
         QVERIFY(mappingModulePath.has_value());
 
         if (!m_IsUtilitiesModuleInitiallyLoaded)
@@ -832,17 +829,6 @@ std::optional<ElementsMap> MappingModuleTests::retrieveElements()
     }
 
     return mapContent;
-}
-
-std::optional<std::filesystem::path> MappingModuleTests::getModulePath(const std::string_view moduleName)
-{
-    std::filesystem::path modulePath{Utilities::getApplicationPath()};
-    modulePath = modulePath.parent_path().parent_path();
-    modulePath /= Utilities::getModulesDirRelativePath();
-    modulePath /= moduleName;
-    modulePath += Utilities::getModuleFileExtension();
-
-    return std::filesystem::is_regular_file(modulePath) ? std::optional{modulePath} : std::nullopt;
 }
 
 QTEST_APPLESS_MAIN(MappingModuleTests)

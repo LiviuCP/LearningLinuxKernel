@@ -3,6 +3,7 @@
 #include <cctype>
 #include <climits>
 #include <fstream>
+#include <sstream>
 #include <stdexcept>
 #include <unistd.h>
 
@@ -80,6 +81,45 @@ bool Utilities::isKernelModuleLoaded(const std::string_view kernelModuleName)
     }
 
     return isLoaded;
+}
+
+bool Utilities::createCharacterDeviceFile(const std::filesystem::path& deviceFilePath, int majorNumber, int minorNumber)
+{
+    bool success{false};
+
+    if (!std::filesystem::exists(deviceFilePath) && majorNumber > 0 && minorNumber >= 0)
+    {
+        const std::string command{"mknod " + deviceFilePath.string() + " c " + std::to_string(majorNumber) + " " +
+                                  std::to_string(minorNumber)};
+        (void)executeCommand(command, WRITE_MODE);
+
+        success = std::filesystem::exists(deviceFilePath);
+    }
+
+    return success;
+}
+
+int Utilities::getMajorDriverNumber(const std::string_view kernelModuleName)
+{
+    int result = -1;
+
+    if (!kernelModuleName.empty())
+    {
+        const std::string command{"cat /proc/devices | grep -w " + std::string{kernelModuleName}};
+        const std::string commandOutput{executeCommand(command, READ_MODE)};
+
+        int majorNumber = -1;
+        std::istringstream istr{commandOutput};
+
+        istr >> majorNumber;
+
+        if (!istr.fail())
+        {
+            result = majorNumber;
+        }
+    }
+
+    return result;
 }
 
 std::optional<int> Utilities::readIntValueFromFile(const std::filesystem::path& filePath)
