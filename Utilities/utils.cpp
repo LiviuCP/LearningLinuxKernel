@@ -2,7 +2,8 @@
 #include <cassert>
 #include <cctype>
 #include <climits>
-#include <fstream>
+#include <cstring>
+#include <fcntl.h>
 #include <sstream>
 #include <stdexcept>
 #include <unistd.h>
@@ -43,6 +44,36 @@ std::string executeCommand(const std::string& command, bool isWriteMode)
 
     return commandOutput;
 }
+
+std::string trimAndConvertToStdString(const char* str)
+{
+    std::string result;
+    const size_t strLength{str ? strlen(str) : 0};
+
+    if (strLength > 0)
+    {
+        // trim left/right
+        size_t leftIndex = 0;
+
+        while (leftIndex < strLength && std::isspace(str[leftIndex]))
+        {
+            ++leftIndex;
+        }
+
+        size_t rightIndex = strLength - 1;
+
+        while (rightIndex > leftIndex && std::isspace(str[rightIndex]))
+        {
+            --rightIndex;
+        }
+
+        result.reserve(rightIndex - leftIndex + 1);
+        std::copy(str + leftIndex, str + rightIndex + 1, std::back_inserter(result));
+    }
+
+    return result;
+}
+
 } // namespace
 } // namespace Utilities
 
@@ -125,52 +156,81 @@ int Utilities::getMajorDriverNumber(const std::string_view kernelModuleName)
 std::optional<int> Utilities::readIntValueFromFile(const std::filesystem::path& filePath)
 {
     std::optional<int> result;
-    std::ifstream in{filePath};
 
-    if (in.is_open())
+    constexpr size_t maxAllowedDigitsCount{10}; // 32 bit integer considered
+    constexpr size_t signCharsCount{1};         // '-'
+
+    // in case there are some chars on the left/right side to be trimmed (and to reach a power of 2 bytes count)
+    constexpr size_t paddingBytesCount{5};
+
+    constexpr size_t maxCharsCountToRead{signCharsCount + maxAllowedDigitsCount + paddingBytesCount};
+    const std::optional<std::string> str{readStringFromFile(filePath, maxCharsCountToRead)};
+
+    if (str.has_value() && isValidInteger(str->c_str()))
     {
-        int elementValue;
-        in >> elementValue;
+        const bool isNegative{(*str)[0] == '-'};
+        const size_t charsCount{str->size()};
+        const bool isValidCharsCount{charsCount <= maxAllowedDigitsCount + static_cast<size_t>(isNegative)};
 
-        if (!in.fail())
+        if (isValidCharsCount)
         {
-            result = elementValue;
+            const size_t firstDigitPos{static_cast<size_t>(isNegative)};
+            const size_t lastDigitPos{charsCount - 1};
+
+            int powerOfTenMultiplier{1};
+            result = 0;
+
+            for (size_t index{lastDigitPos}; index > firstDigitPos; --index)
+            {
+                const int currentDigit{static_cast<int>((*str)[index] - '0')};
+                result = *result + currentDigit * powerOfTenMultiplier;
+                powerOfTenMultiplier *= 10;
+            }
+
+            const int firstDigit = static_cast<int>((*str)[firstDigitPos] - '0');
+
+            result = *result + firstDigit * powerOfTenMultiplier;
+            result = *result * (isNegative ? -1 : 1);
         }
     }
 
     return result;
 }
 
-std::optional<std::string> Utilities::readStringFromFile(const std::filesystem::path& filePath)
+std::optional<std::string> Utilities::readStringFromFile(const std::filesystem::path& filePath, size_t charsCount)
 {
     std::optional<std::string> result;
-    std::ifstream in{std::string{filePath}};
+    const int fd{open(filePath.string().c_str(), O_RDONLY | O_NONBLOCK)};
 
-    if (in.is_open())
+    if (fd >= 0)
     {
-        std::string str;
-        in >> str;
-        result = std::move(str);
+        const size_t bufferSize{charsCount + 1};
+        char buffer[bufferSize];
+        memset(buffer, '\0', bufferSize);
+        const ssize_t readCharsCount{read(fd, buffer, charsCount)};
+
+        if (readCharsCount >= 0)
+        {
+            result = trimAndConvertToStdString(buffer);
+        }
+
+        close(fd);
     }
 
     return result;
 }
 
-bool Utilities::writeStringToFile(const std::string& str, const std::filesystem::path& filePath)
+bool Utilities::writeStringToFile(const std::string& str, const std::filesystem::path& filePath, size_t charsCount)
 {
     bool success{false};
 
-    // empty strings should not be used as this would cause issues when updating attributes in kernel modules
-    // use the clearFileContent() function instead
-    if (!str.empty())
-    {
-        std::ofstream out{std::string{filePath}};
+    const int fd{open(filePath.string().c_str(), O_WRONLY | O_NONBLOCK)};
 
-        if (out.is_open())
-        {
-            out << str;
-            success = true;
-        }
+    if (fd >= 0)
+    {
+        const ssize_t writtenCharsCount{write(fd, str.c_str(), charsCount)};
+        success = writtenCharsCount >= 0;
+        close(fd);
     }
 
     return success;
@@ -178,14 +238,7 @@ bool Utilities::writeStringToFile(const std::string& str, const std::filesystem:
 
 void Utilities::clearFileContent(const std::filesystem::path& filePath)
 {
-    if (!std::filesystem::exists(filePath) || !std::filesystem::is_regular_file(filePath))
-    {
-        throw std::runtime_error("File " + std::string{filePath} + " does not exist or is invalid!");
-    }
-
-    // this hack is needed to ensure the module attributes are updated even when the string is empty
-    const std::string command{"echo | tee " + filePath.string() + " > /dev/null 2> /dev/null"};
-    executeCommand(command, WRITE_MODE);
+    writeStringToFile("", filePath, 0);
 }
 
 void Utilities::clearScreen()

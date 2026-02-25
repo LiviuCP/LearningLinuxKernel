@@ -17,9 +17,10 @@ bool isKernelModuleLoaded(const std::string_view kernelModuleName);
 bool createCharacterDeviceFile(const std::filesystem::path& deviceFilePath, int majorNumber, int minorNumber);
 int getMajorDriverNumber(const std::string_view kernelModuleName);
 
-std::optional<int> readIntValueFromFile(const std::filesystem::path& filePath);
-std::optional<std::string> readStringFromFile(const std::filesystem::path& filePath);
-bool writeStringToFile(const std::string& str, const std::filesystem::path& filePath);
+std::optional<int> readIntValueFromFile(
+    const std::filesystem::path& filePath); // reads a 32 bit integer from the beginning of a file
+std::optional<std::string> readStringFromFile(const std::filesystem::path& filePath, size_t charsCount);
+bool writeStringToFile(const std::string& str, const std::filesystem::path& filePath, size_t charsCount);
 void clearFileContent(const std::filesystem::path& filePath);
 
 void clearScreen();

@@ -36,6 +36,10 @@ static constexpr std::string_view utilitiesModuleName{"kernelutilities"};
 using ElementsMap = std::map<std::string, int>;
 using ElementsList = std::list<std::pair<std::string, int>>;
 
+static constexpr size_t maxKeyStrSize{64};
+static constexpr size_t maxCommandStrSize{32};
+static constexpr size_t maxStatusStrSize{16};
+
 /* These tests should be run from a terminal using sudo */
 
 class MappingModuleTests : public QObject
@@ -720,29 +724,22 @@ void MappingModuleTests::writeKey(const std::string& key)
 {
     if (!key.empty())
     {
-        Utilities::writeStringToFile(key, keyFilePath);
+        Utilities::writeStringToFile(key, keyFilePath, maxKeyStrSize);
     }
     else
     {
-        try
-        {
-            Utilities::clearFileContent(keyFilePath);
-        }
-        catch (std::runtime_error& err)
-        {
-            QFAIL(err.what());
-        }
+        Utilities::clearFileContent(keyFilePath);
     }
 }
 
 std::optional<std::string> MappingModuleTests::readKey()
 {
-    return Utilities::readStringFromFile(keyFilePath);
+    return Utilities::readStringFromFile(keyFilePath, maxKeyStrSize);
 }
 
 void MappingModuleTests::writeValue(int value)
 {
-    Utilities::writeStringToFile(std::to_string(value), valueFilePath);
+    Utilities::writeStringToFile(std::to_string(value), valueFilePath, std::to_string(value).size());
 }
 
 std::optional<int> MappingModuleTests::readValue()
@@ -752,12 +749,12 @@ std::optional<int> MappingModuleTests::readValue()
 
 void MappingModuleTests::writeCommand(const std::string& command)
 {
-    Utilities::writeStringToFile(command, commandFilePath);
+    Utilities::writeStringToFile(command, commandFilePath, maxCommandStrSize);
 }
 
 std::optional<std::string> MappingModuleTests::readStatus()
 {
-    return Utilities::readStringFromFile(statusFilePath);
+    return Utilities::readStringFromFile(statusFilePath, maxStatusStrSize);
 }
 
 std::optional<size_t> MappingModuleTests::readCount()

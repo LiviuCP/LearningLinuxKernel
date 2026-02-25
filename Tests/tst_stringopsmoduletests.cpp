@@ -1,8 +1,6 @@
 #include <QTest>
 
-#include <fcntl.h>
 #include <set>
-#include <unistd.h>
 
 #include "testutils.h"
 #include "utils.h"
@@ -17,7 +15,7 @@ static constexpr int minorNumber2{2};
 static constexpr int minorNumber3{3};
 static constexpr int minorNumber4{4};
 
-static constexpr size_t maxBufferSize{256};
+static constexpr size_t maxCharsCountToRead{255};
 
 /* These tests should be run from a terminal using sudo */
 
@@ -355,40 +353,12 @@ void StringOpsModuleTests::removeDeviceFiles()
 
 bool StringOpsModuleTests::writeToDeviceFile(const std::filesystem::path& deviceFile, const std::string& str)
 {
-    bool success{false};
-
-    const int fd{open(deviceFile.string().c_str(), O_WRONLY | O_NONBLOCK)};
-
-    if (fd >= 0)
-    {
-        const ssize_t writtenCharsCount{write(fd, str.c_str(), str.size())};
-        success = writtenCharsCount >= 0;
-        close(fd);
-    }
-
-    return success;
+    return Utilities::writeStringToFile(str, deviceFile, str.size());
 }
 
 std::optional<std::string> StringOpsModuleTests::readFromDeviceFile(const std::filesystem::path& deviceFile)
 {
-    std::optional<std::string> result;
-    const int fd{open(deviceFile.string().c_str(), O_RDONLY | O_NONBLOCK)};
-
-    if (fd >= 0)
-    {
-        char buffer[maxBufferSize];
-        memset(buffer, '\0', maxBufferSize);
-        ssize_t readCharsCount{read(fd, buffer, maxBufferSize - 1)};
-
-        if (readCharsCount >= 0)
-        {
-            result = std::string{buffer};
-        }
-
-        close(fd);
-    }
-
-    return result;
+    return Utilities::readStringFromFile(deviceFile, maxCharsCountToRead);
 }
 
 void StringOpsModuleTests::resetKernelModule()

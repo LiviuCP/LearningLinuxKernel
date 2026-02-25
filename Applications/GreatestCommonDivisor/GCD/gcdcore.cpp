@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <filesystem>
-#include <fstream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -17,6 +16,8 @@ static constexpr std::string_view statusFilePath{"/sys/kernel/division/status"};
 
 static constexpr std::string_view divideCommandStr{"divide"};
 static constexpr std::string_view syncedStatusStr{"synced"};
+
+static constexpr size_t maxStatusStrSize{16};
 
 namespace GCD::Core
 {
@@ -40,18 +41,24 @@ void passDivisionOperandsToKernelModule(int divided, int divider)
                                  "invalid!\nPlease check that the module is loaded and generates correct files.");
     }
 
-    if (const bool success{Utilities::writeStringToFile(std::to_string(divided), dividedFilePath)}; !success)
+    if (const bool success{
+            Utilities::writeStringToFile(std::to_string(divided), dividedFilePath, std::to_string(divided).size())};
+        !success)
     {
         throw std::runtime_error("File " + std::string{dividedFilePath} +
                                  " could not be opened for writing!\nPlease try again by running the app with sudo.");
     }
 
-    if (const bool success{Utilities::writeStringToFile(std::to_string(divider), dividerFilePath)}; !success)
+    if (const bool success{
+            Utilities::writeStringToFile(std::to_string(divider), dividerFilePath, std::to_string(divider).size())};
+        !success)
     {
         throw std::runtime_error("File " + std::string{dividerFilePath} + " could not be opened for writing!");
     }
 
-    if (const bool success{Utilities::writeStringToFile(std::string{divideCommandStr}, commandFilePath)}; !success)
+    if (const bool success{
+            Utilities::writeStringToFile(std::string{divideCommandStr}, commandFilePath, divideCommandStr.size())};
+        !success)
     {
         throw std::runtime_error("File " + std::string{commandFilePath} + " could not be opened for writing!");
     }
@@ -59,7 +66,7 @@ void passDivisionOperandsToKernelModule(int divided, int divider)
 
 int retrieveResultFromKernelModule(const std::string_view resultFilePath)
 {
-    const std::optional<std::string> status{Utilities::readStringFromFile(statusFilePath)};
+    const std::optional<std::string> status{Utilities::readStringFromFile(statusFilePath, maxStatusStrSize)};
 
     if (!status.has_value())
     {
