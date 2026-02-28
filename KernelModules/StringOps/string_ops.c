@@ -169,11 +169,13 @@ static ssize_t device_write(struct file* filp, const char* buffer, size_t length
             pr_warn("%s: %ld bytes could not be copied from user\n", THIS_MODULE->name, bytes_not_copied_count);
         }
 
+        result = (ssize_t)strlen(
+            temp); // the total number of chars provided by user (not the trimmed one) needs to be returned
         trim_and_copy_string(input_buffer, temp, INPUT_BUFFER_SIZE);
 
-        result = (ssize_t)strlen(input_buffer);
-
-        pr_info("%s: user wrote to minor number %d: %s", THIS_MODULE->name, minor_number, input_buffer);
+        pr_info("%s: user wrote to minor number %d: %s\n", THIS_MODULE->name, minor_number, temp);
+        pr_info("%s: after trimming the user provided string was stored to minor number %d as: %s\n", THIS_MODULE->name,
+                minor_number, input_buffer);
     }
 
     switch (minor_number)
