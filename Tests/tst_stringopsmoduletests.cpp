@@ -1,19 +1,14 @@
 #include <QTest>
 
-#include <set>
-
 #include "testutils.h"
 #include "utils.h"
 
 static constexpr std::string_view stringOpsModuleName{"string_ops"};
 static constexpr std::string_view utilitiesModuleName{"kernelutilities"};
-static constexpr std::string_view baseDeviceFileName{"teststringops"};
+static constexpr std::string_view deviceDirPath{"/dev"};
+static constexpr std::string_view baseDeviceFileName{"stringops"};
 
-static constexpr int minorNumber0{0};
-static constexpr int minorNumber1{1};
-static constexpr int minorNumber2{2};
-static constexpr int minorNumber3{3};
-static constexpr int minorNumber4{4};
+static constexpr int unsupportedMinorNumber{4};
 
 static constexpr size_t maxCharsCountToRead{255};
 
@@ -39,8 +34,9 @@ private slots:
     void testCombinedReadFromAfterWriteTo();
 
 private:
-    void createDeviceFiles();
-    void removeDeviceFiles();
+    void initializeSupportedMinorNumbers();
+    void initializeUnsupportedMinorNumber();
+    void removeUnsupportedMinorNumberDeviceFile();
 
     bool writeToDeviceFile(const std::filesystem::path& deviceFile, const std::string& str);
     std::optional<std::string> readFromDeviceFile(const std::filesystem::path& deviceFile);
@@ -54,7 +50,7 @@ private:
     std::filesystem::path m_DeviceFileMinor1;
     std::filesystem::path m_DeviceFileMinor2;
     std::filesystem::path m_DeviceFileMinor3;
-    std::filesystem::path m_DeviceFileMinor4;
+    std::filesystem::path m_UnsupportedMinorNumberDeviceFile;
 
     const bool m_IsUtilitiesModuleInitiallyLoaded;
 };
@@ -94,7 +90,11 @@ void StringOpsModuleTests::initTestCase()
         m_MajorNumber = Utilities::getMajorDriverNumber(stringOpsModuleName);
         QVERIFY(m_MajorNumber > 0);
 
-        createDeviceFiles();
+        // these device files should be created automatically when the string_ops kernel module gets loaded
+        initializeSupportedMinorNumbers();
+
+        // this file should be created manually; it is only required for testing purposes
+        initializeUnsupportedMinorNumber();
     }
     catch (const std::runtime_error& err)
     {
@@ -106,7 +106,7 @@ void StringOpsModuleTests::cleanupTestCase()
 {
     try
     {
-        removeDeviceFiles();
+        removeUnsupportedMinorNumberDeviceFile();
 
         if (Utilities::isKernelModuleLoaded(stringOpsModuleName))
         {
@@ -152,7 +152,7 @@ void StringOpsModuleTests::testCanWriteToDeviceFiles()
     success = writeToDeviceFile(m_DeviceFileMinor3, emptyStr);
     QVERIFY(success);
 
-    success = writeToDeviceFile(m_DeviceFileMinor4, emptyStr);
+    success = writeToDeviceFile(m_UnsupportedMinorNumberDeviceFile, emptyStr);
     QVERIFY(!success);
 
     /* non-empty string */
@@ -169,7 +169,7 @@ void StringOpsModuleTests::testCanWriteToDeviceFiles()
     success = writeToDeviceFile(m_DeviceFileMinor3, str);
     QVERIFY(success);
 
-    success = writeToDeviceFile(m_DeviceFileMinor4, str);
+    success = writeToDeviceFile(m_UnsupportedMinorNumberDeviceFile, str);
     QVERIFY(!success);
 }
 
@@ -299,55 +299,48 @@ void StringOpsModuleTests::testCombinedReadFromAfterWriteTo()
     QVERIFY("Minor 3 is \nthe winner!!!; 25" == readFromDeviceFile(m_DeviceFileMinor3));
 }
 
-void StringOpsModuleTests::createDeviceFiles()
+void StringOpsModuleTests::initializeSupportedMinorNumbers()
 {
-    const std::filesystem::path deviceDirPath{"/dev"};
-    QVERIFY(std::filesystem::exists(deviceDirPath));
-
     m_DeviceFileMinor0 = deviceDirPath;
     m_DeviceFileMinor1 = deviceDirPath;
     m_DeviceFileMinor2 = deviceDirPath;
     m_DeviceFileMinor3 = deviceDirPath;
-    m_DeviceFileMinor4 = deviceDirPath;
 
-    m_DeviceFileMinor0 /= (std::string{baseDeviceFileName} + std::to_string(minorNumber0));
-    m_DeviceFileMinor1 /= (std::string{baseDeviceFileName} + std::to_string(minorNumber1));
-    m_DeviceFileMinor2 /= (std::string{baseDeviceFileName} + std::to_string(minorNumber2));
-    m_DeviceFileMinor3 /= (std::string{baseDeviceFileName} + std::to_string(minorNumber3));
-    m_DeviceFileMinor4 /= (std::string{baseDeviceFileName} + std::to_string(minorNumber4));
+    size_t currentMinorNumber{0};
 
-    QVERIFY(!std::filesystem::exists(m_DeviceFileMinor0));
-    QVERIFY(!std::filesystem::exists(m_DeviceFileMinor1));
-    QVERIFY(!std::filesystem::exists(m_DeviceFileMinor2));
-    QVERIFY(!std::filesystem::exists(m_DeviceFileMinor3));
-    QVERIFY(!std::filesystem::exists(m_DeviceFileMinor4));
-
-    bool success{true};
-
-    success = success && Utilities::createCharacterDeviceFile(m_DeviceFileMinor0, m_MajorNumber, minorNumber0);
-    success = success && Utilities::createCharacterDeviceFile(m_DeviceFileMinor1, m_MajorNumber, minorNumber1);
-    success = success && Utilities::createCharacterDeviceFile(m_DeviceFileMinor2, m_MajorNumber, minorNumber2);
-    success = success && Utilities::createCharacterDeviceFile(m_DeviceFileMinor3, m_MajorNumber, minorNumber3);
-    success = success && Utilities::createCharacterDeviceFile(m_DeviceFileMinor4, m_MajorNumber, minorNumber4);
-
-    QVERIFY(success);
+    m_DeviceFileMinor0 /= (std::string{baseDeviceFileName} + std::to_string(currentMinorNumber++));
+    m_DeviceFileMinor1 /= (std::string{baseDeviceFileName} + std::to_string(currentMinorNumber++));
+    m_DeviceFileMinor2 /= (std::string{baseDeviceFileName} + std::to_string(currentMinorNumber++));
+    m_DeviceFileMinor3 /= (std::string{baseDeviceFileName} + std::to_string(currentMinorNumber));
 
     QVERIFY(std::filesystem::is_character_file(m_DeviceFileMinor0));
     QVERIFY(std::filesystem::is_character_file(m_DeviceFileMinor1));
     QVERIFY(std::filesystem::is_character_file(m_DeviceFileMinor2));
     QVERIFY(std::filesystem::is_character_file(m_DeviceFileMinor3));
-    QVERIFY(std::filesystem::is_character_file(m_DeviceFileMinor4));
 }
 
-void StringOpsModuleTests::removeDeviceFiles()
+void StringOpsModuleTests::initializeUnsupportedMinorNumber()
 {
-    for (const auto& deviceFile :
-         std::set{m_DeviceFileMinor0, m_DeviceFileMinor1, m_DeviceFileMinor2, m_DeviceFileMinor3, m_DeviceFileMinor4})
+    m_UnsupportedMinorNumberDeviceFile = deviceDirPath;
+    m_UnsupportedMinorNumberDeviceFile /= (std::string{baseDeviceFileName} + std::to_string(unsupportedMinorNumber));
+
+    QVERIFY(!std::filesystem::exists(m_UnsupportedMinorNumberDeviceFile));
+
+    // the device files 0-3 should exist when the kernel module got loaded. Minor number 4 is created "manually" for
+    // test purposes
+    const bool success{Utilities::createCharacterDeviceFile(m_UnsupportedMinorNumberDeviceFile, m_MajorNumber,
+                                                            unsupportedMinorNumber)};
+    QVERIFY(success);
+
+    QVERIFY(std::filesystem::is_character_file(m_UnsupportedMinorNumberDeviceFile));
+}
+
+void StringOpsModuleTests::removeUnsupportedMinorNumberDeviceFile()
+{
+
+    if (std::filesystem::exists(m_UnsupportedMinorNumberDeviceFile))
     {
-        if (std::filesystem::exists(deviceFile))
-        {
-            std::filesystem::remove(deviceFile);
-        }
+        std::filesystem::remove(m_UnsupportedMinorNumberDeviceFile);
     }
 }
 
