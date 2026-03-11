@@ -18,3 +18,4 @@ add_subdirectory(KernelUtilities)
 
 add_dependencies(Division KernelUtilities)
 add_dependencies(Mapping KernelUtilities)
+add_dependencies(StringOps KernelUtilities)
