@@ -1,0 +1,323 @@
+#include <linux/cdev.h>
+#include <linux/ctype.h>
+#include <linux/fs.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/uaccess.h>
+
+#define SUCCESS 0
+#define INPUT_BUFFER_SIZE 128
+#define OUTPUT_BUFFER_SIZE 256
+#define SUPPORTED_MINOR_NUMBERS_COUNT 4
+
+MODULE_LICENSE("GPL");
+
+MODULE_DESCRIPTION(
+    "This driver module performs various operations on strings depending on the minor version number.\n"
+    "Four minor numbers are currently supported:\n"
+    "- 0: read-only access, last provided user input can be retrieved\n"
+    "- 1: user provided string is converted to lower-case\n"
+    "- 2: user provided string is trimmed and reverted\n"
+    "- 3: the length of the (trimmed) user provided string is calculated and appended to (trimmed) string\n"
+    "Any other minor number is not supported and no operation will be performed.\n");
+
+MODULE_AUTHOR("Liviu Popa");
+
+static struct class* string_ops_class = NULL;
+static struct cdev string_ops_cdev;
+
+static int major_number = 0;
+static int minor_number;
+static int is_device_open = 0;
+
+static char input_buffer[INPUT_BUFFER_SIZE];          // shared input buffer (used by any minor number)
+static char minor1_output_buffer[OUTPUT_BUFFER_SIZE]; // result buffer for minor 1
+static char minor2_output_buffer[OUTPUT_BUFFER_SIZE]; // result buffer for minor 2
+static char minor3_output_buffer[OUTPUT_BUFFER_SIZE]; // result buffer for minor 3
+
+static char*
+    result_buffer_ptr; // can point to any input/output buffer depending on minor number and operation (read/write)
+
+extern void trim_and_copy_string(char* dest, const char* src, size_t max_str_length);
+
+static int device_open(struct inode*, struct file*);
+static int device_release(struct inode*, struct file*);
+static ssize_t device_read(struct file*, char*, size_t, loff_t*);
+static ssize_t device_write(struct file*, const char*, size_t, loff_t*);
+
+static struct file_operations file_ops = {
+    .owner = THIS_MODULE, .read = device_read, .write = device_write, .open = device_open, .release = device_release};
+
+static void convert_input_to_lower_case(void);                      // minor number 1 operation
+static void reverse_input(void);                                    // minor number 2 operation
+static void append_input_string_length(void);                       // minor number 3 operation
+static void reset_buffers(void);                                    // input/output buffers reset
+static void do_module_cleanup(size_t existing_minor_numbers_count); // destroy character device, delete device files,
+                                                                    // delete class, unregister module
+
+static int string_ops_init(void)
+{
+    int result = -1;
+
+    do
+    {
+        major_number = register_chrdev(major_number, THIS_MODULE->name, &file_ops);
+
+        if (major_number < 0)
+        {
+            pr_alert("%s: registering char device failed\n", THIS_MODULE->name);
+            break;
+        }
+
+        cdev_init(&string_ops_cdev, &file_ops);
+
+        int cdev_add_result = cdev_add(&string_ops_cdev, major_number, SUPPORTED_MINOR_NUMBERS_COUNT);
+
+        if (cdev_add_result < 0)
+        {
+            pr_alert("%s: cannot add device to the system\n", THIS_MODULE->name);
+            do_module_cleanup(0);
+            break;
+        }
+
+        string_ops_class = class_create(THIS_MODULE, "string_ops_class");
+
+        if (!string_ops_class)
+        {
+            pr_alert("%s: cannot create the struct class (string_ops_class)\n", THIS_MODULE->name);
+            do_module_cleanup(0);
+            break;
+        }
+
+        int current_minor_number = 0;
+
+        for (; current_minor_number < SUPPORTED_MINOR_NUMBERS_COUNT; ++current_minor_number)
+        {
+            if (!device_create(string_ops_class, NULL, MKDEV(major_number, current_minor_number), NULL, "stringops%d",
+                               current_minor_number))
+            {
+                pr_alert("%s: cannot create the device with minor %d!\n", THIS_MODULE->name, current_minor_number);
+                break;
+            }
+        }
+
+        if (current_minor_number != SUPPORTED_MINOR_NUMBERS_COUNT)
+        {
+            // destroy all previously created minor number devices (current number creation failed)
+            const size_t existing_minor_numbers_count = (size_t)current_minor_number;
+            do_module_cleanup((size_t)existing_minor_numbers_count);
+            break;
+        }
+
+        result = SUCCESS;
+        reset_buffers();
+        pr_info("%s: device registered, major number %d successfully assigned\n", THIS_MODULE->name, major_number);
+    } while (false);
+
+    return result;
+}
+
+static void string_ops_exit(void)
+{
+    do_module_cleanup(SUPPORTED_MINOR_NUMBERS_COUNT);
+    pr_info("%s: device with major number %d unregistered\n", THIS_MODULE->name, major_number);
+}
+
+static int device_open(struct inode* inode, struct file* file)
+{
+    int result = SUCCESS;
+
+    if (!is_device_open)
+    {
+        minor_number = iminor(inode);
+
+        pr_info("%s: opening device, minor number is: %d\n", THIS_MODULE->name, minor_number);
+
+        result_buffer_ptr = minor_number == 0   ? input_buffer
+                            : minor_number == 1 ? minor1_output_buffer
+                            : minor_number == 2 ? minor2_output_buffer
+                            : minor_number == 3 ? minor3_output_buffer
+                                                : NULL;
+        if (result_buffer_ptr)
+        {
+            ++is_device_open;
+            try_module_get(THIS_MODULE);
+        }
+        else
+        {
+            result = -1;
+            pr_alert("%s: minor number should be between 0 and 3. %d is not supported!\n", THIS_MODULE->name,
+                     minor_number);
+        }
+    }
+    else
+    {
+        result = -EBUSY;
+        pr_warn("%s: device is busy\n", THIS_MODULE->name);
+    }
+
+    return result;
+}
+
+static int device_release(struct inode* inode, struct file* file)
+{
+    pr_info("%s: releasing device, minor number is: %d\n", THIS_MODULE->name, minor_number);
+
+    --is_device_open;
+    module_put(THIS_MODULE);
+
+    return SUCCESS;
+}
+
+static ssize_t device_read(struct file* filp, char* buffer, size_t length, loff_t* offset)
+{
+    ssize_t result = 0;
+
+    if (!result_buffer_ptr)
+    {
+        result = -1;
+    }
+    else if (*result_buffer_ptr != '\0')
+    {
+        ssize_t bytes_read = 0;
+
+        const char* const result_buffer_start_ptr = result_buffer_ptr;
+
+        while (length && *result_buffer_ptr)
+        {
+            put_user(*(result_buffer_ptr++), buffer++);
+            --length;
+            bytes_read++;
+        }
+
+        result = bytes_read;
+
+        pr_info("%s: user read from minor number %d: %s", THIS_MODULE->name, minor_number, result_buffer_start_ptr);
+    }
+
+    return result;
+}
+
+static ssize_t device_write(struct file* filp, const char* buffer, size_t length, loff_t* offset)
+{
+    ssize_t result = -EINVAL;
+
+    if (minor_number > 0)
+    {
+        char temp[INPUT_BUFFER_SIZE];
+        memset(temp, '\0', INPUT_BUFFER_SIZE);
+
+        const size_t max_bytes_to_copy_count = INPUT_BUFFER_SIZE - 1;
+        const size_t bytes_to_copy_count = length > max_bytes_to_copy_count ? max_bytes_to_copy_count : length;
+        const size_t bytes_not_copied_count = copy_from_user(temp, buffer, bytes_to_copy_count);
+
+        if (bytes_not_copied_count > 0)
+        {
+            pr_warn("%s: %ld bytes could not be copied from user\n", THIS_MODULE->name, bytes_not_copied_count);
+        }
+
+        result = (ssize_t)strlen(
+            temp); // the total number of chars provided by user (not the trimmed one) needs to be returned
+        trim_and_copy_string(input_buffer, temp, INPUT_BUFFER_SIZE);
+
+        pr_info("%s: user wrote to minor number %d: %s\n", THIS_MODULE->name, minor_number, temp);
+        pr_info("%s: after trimming the user provided string was stored to minor number %d as: %s\n", THIS_MODULE->name,
+                minor_number, input_buffer);
+    }
+
+    switch (minor_number)
+    {
+    case 0: {
+        pr_err("%s: unsupported write operation for minor number %d!\n", THIS_MODULE->name, minor_number);
+        break;
+    }
+    case 1: {
+        convert_input_to_lower_case();
+        break;
+    }
+    case 2: {
+        reverse_input();
+        break;
+    }
+    case 3: {
+        append_input_string_length();
+        break;
+    }
+    default:
+        break;
+    }
+
+    return result;
+}
+
+static void convert_input_to_lower_case(void)
+{
+    if (result_buffer_ptr)
+    {
+        memset(result_buffer_ptr, '\0', OUTPUT_BUFFER_SIZE);
+
+        for (size_t index = 0; index < strlen(input_buffer); ++index)
+        {
+            result_buffer_ptr[index] = tolower(input_buffer[index]);
+        }
+    }
+}
+
+static void reverse_input(void)
+{
+    if (result_buffer_ptr)
+    {
+        memset(result_buffer_ptr, '\0', OUTPUT_BUFFER_SIZE);
+
+        const size_t length = strlen(input_buffer);
+
+        for (size_t index = 0; index < length; ++index)
+        {
+            result_buffer_ptr[index] = input_buffer[length - 1 - index];
+        }
+    }
+}
+
+static void append_input_string_length(void)
+{
+    if (result_buffer_ptr)
+    {
+        const size_t length = strlen(input_buffer);
+
+        if (length > 0)
+        {
+            sprintf(result_buffer_ptr, "%s; %ld", input_buffer, length);
+        }
+        else
+        {
+            memset(result_buffer_ptr, '\0', OUTPUT_BUFFER_SIZE);
+        }
+    }
+}
+
+static void reset_buffers(void)
+{
+    memset(input_buffer, '\0', INPUT_BUFFER_SIZE);
+    memset(minor1_output_buffer, '\0', OUTPUT_BUFFER_SIZE);
+    memset(minor2_output_buffer, '\0', OUTPUT_BUFFER_SIZE);
+    memset(minor3_output_buffer, '\0', OUTPUT_BUFFER_SIZE);
+}
+
+static void do_module_cleanup(size_t existing_minor_numbers_count)
+{
+    if (string_ops_class)
+    {
+        for (int minor_number = 0; minor_number < (int)existing_minor_numbers_count; ++minor_number)
+        {
+            device_destroy(string_ops_class, MKDEV(major_number, minor_number));
+        }
+
+        class_destroy(string_ops_class);
+    }
+
+    cdev_del(&string_ops_cdev);
+    unregister_chrdev(major_number, THIS_MODULE->name);
+}
+
+module_init(string_ops_init);
+module_exit(string_ops_exit);
