@@ -12,14 +12,9 @@
 
 MODULE_LICENSE("GPL");
 
-MODULE_DESCRIPTION(
-    "This driver module performs various operations on strings depending on the minor version number.\n"
-    "Four minor numbers are currently supported:\n"
-    "- 0: read-only access, last provided user input can be retrieved\n"
-    "- 1: user provided string is converted to lower-case\n"
-    "- 2: user provided string is trimmed and reverted\n"
-    "- 3: the length of the (trimmed) user provided string is calculated and appended to (trimmed) string\n"
-    "Any other minor number is not supported and no operation will be performed.\n");
+MODULE_DESCRIPTION("This driver module provides and receives strings to/from user.\n"
+                   "This happens by reading from or writing to the device file.\n"
+                   "However the input/output can be altered by using various ioctl commands.\n");
 
 MODULE_AUTHOR("Liviu Popa");
 
