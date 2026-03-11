@@ -6,9 +6,8 @@
 #include <linux/uaccess.h>
 
 #define SUCCESS 0
-#define INPUT_BUFFER_SIZE 128
-#define OUTPUT_BUFFER_SIZE 256
-#define SUPPORTED_MINOR_NUMBERS_COUNT 4
+#define BUFFER_SIZE 1024
+#define SUPPORTED_MINOR_NUMBERS_COUNT 1
 
 MODULE_LICENSE("GPL");
 
@@ -22,16 +21,10 @@ static struct class* string_ops_class = NULL;
 static struct cdev string_ops_cdev;
 
 static int major_number = 0;
-static int minor_number;
 static int is_device_open = 0;
 
-static char input_buffer[INPUT_BUFFER_SIZE];          // shared input buffer (used by any minor number)
-static char minor1_output_buffer[OUTPUT_BUFFER_SIZE]; // result buffer for minor 1
-static char minor2_output_buffer[OUTPUT_BUFFER_SIZE]; // result buffer for minor 2
-static char minor3_output_buffer[OUTPUT_BUFFER_SIZE]; // result buffer for minor 3
-
-static char*
-    result_buffer_ptr; // can point to any input/output buffer depending on minor number and operation (read/write)
+static char buffer[BUFFER_SIZE]; // shared input/output buffer
+static char* buffer_ptr;         // points to the input/output buffer
 
 extern void trim_and_copy_string(char* dest, const char* src, size_t max_str_length);
 
@@ -43,12 +36,9 @@ static ssize_t device_write(struct file*, const char*, size_t, loff_t*);
 static struct file_operations file_ops = {
     .owner = THIS_MODULE, .read = device_read, .write = device_write, .open = device_open, .release = device_release};
 
-static void convert_input_to_lower_case(void);                      // minor number 1 operation
-static void reverse_input(void);                                    // minor number 2 operation
-static void append_input_string_length(void);                       // minor number 3 operation
-static void reset_buffers(void);                                    // input/output buffers reset
-static void do_module_cleanup(size_t existing_minor_numbers_count); // destroy character device, delete device files,
-                                                                    // delete class, unregister module
+static void reset_buffers(void);     // input/output buffers reset
+static void do_module_cleanup(void); // destroy character device, delete device files,
+                                     // delete class, unregister module
 
 static int string_ops_init(void)
 {
@@ -71,7 +61,7 @@ static int string_ops_init(void)
         if (cdev_add_result < 0)
         {
             pr_alert("%s: cannot add device to the system\n", THIS_MODULE->name);
-            do_module_cleanup(0);
+            do_module_cleanup();
             break;
         }
 
@@ -80,27 +70,14 @@ static int string_ops_init(void)
         if (!string_ops_class)
         {
             pr_alert("%s: cannot create the struct class (string_ops_class)\n", THIS_MODULE->name);
-            do_module_cleanup(0);
+            do_module_cleanup();
             break;
         }
 
-        int current_minor_number = 0;
-
-        for (; current_minor_number < SUPPORTED_MINOR_NUMBERS_COUNT; ++current_minor_number)
+        if (!device_create(string_ops_class, NULL, MKDEV(major_number, 0), NULL, "ioctlstringops"))
         {
-            if (!device_create(string_ops_class, NULL, MKDEV(major_number, current_minor_number), NULL, "stringops%d",
-                               current_minor_number))
-            {
-                pr_alert("%s: cannot create the device with minor %d!\n", THIS_MODULE->name, current_minor_number);
-                break;
-            }
-        }
-
-        if (current_minor_number != SUPPORTED_MINOR_NUMBERS_COUNT)
-        {
-            // destroy all previously created minor number devices (current number creation failed)
-            const size_t existing_minor_numbers_count = (size_t)current_minor_number;
-            do_module_cleanup((size_t)existing_minor_numbers_count);
+            pr_alert("%s: cannot create the device!\n", THIS_MODULE->name);
+            do_module_cleanup();
             break;
         }
 
@@ -114,7 +91,7 @@ static int string_ops_init(void)
 
 static void string_ops_exit(void)
 {
-    do_module_cleanup(SUPPORTED_MINOR_NUMBERS_COUNT);
+    do_module_cleanup();
     pr_info("%s: device with major number %d unregistered\n", THIS_MODULE->name, major_number);
 }
 
@@ -124,26 +101,11 @@ static int device_open(struct inode* inode, struct file* file)
 
     if (!is_device_open)
     {
-        minor_number = iminor(inode);
+        pr_info("%s: opening device\n", THIS_MODULE->name);
 
-        pr_info("%s: opening device, minor number is: %d\n", THIS_MODULE->name, minor_number);
-
-        result_buffer_ptr = minor_number == 0   ? input_buffer
-                            : minor_number == 1 ? minor1_output_buffer
-                            : minor_number == 2 ? minor2_output_buffer
-                            : minor_number == 3 ? minor3_output_buffer
-                                                : NULL;
-        if (result_buffer_ptr)
-        {
-            ++is_device_open;
-            try_module_get(THIS_MODULE);
-        }
-        else
-        {
-            result = -1;
-            pr_alert("%s: minor number should be between 0 and 3. %d is not supported!\n", THIS_MODULE->name,
-                     minor_number);
-        }
+        buffer_ptr = buffer;
+        ++is_device_open;
+        try_module_get(THIS_MODULE);
     }
     else
     {
@@ -156,7 +118,7 @@ static int device_open(struct inode* inode, struct file* file)
 
 static int device_release(struct inode* inode, struct file* file)
 {
-    pr_info("%s: releasing device, minor number is: %d\n", THIS_MODULE->name, minor_number);
+    pr_info("%s: releasing device\n", THIS_MODULE->name);
 
     --is_device_open;
     module_put(THIS_MODULE);
@@ -168,145 +130,67 @@ static ssize_t device_read(struct file* filp, char* buffer, size_t length, loff_
 {
     ssize_t result = 0;
 
-    if (!result_buffer_ptr)
+    if (!buffer_ptr)
     {
         result = -1;
     }
-    else if (*result_buffer_ptr != '\0')
+    else if (*buffer_ptr != '\0')
     {
         ssize_t bytes_read = 0;
 
-        const char* const result_buffer_start_ptr = result_buffer_ptr;
+        const char* const result_buffer_start_ptr = buffer_ptr;
 
-        while (length && *result_buffer_ptr)
+        while (length && *buffer_ptr)
         {
-            put_user(*(result_buffer_ptr++), buffer++);
+            put_user(*(buffer_ptr++), buffer++);
             --length;
             bytes_read++;
         }
 
         result = bytes_read;
 
-        pr_info("%s: user read from minor number %d: %s", THIS_MODULE->name, minor_number, result_buffer_start_ptr);
+        pr_info("%s: user read: %s", THIS_MODULE->name, result_buffer_start_ptr);
     }
 
     return result;
 }
 
-static ssize_t device_write(struct file* filp, const char* buffer, size_t length, loff_t* offset)
+static ssize_t device_write(struct file* filp, const char* buf, size_t length, loff_t* offset)
 {
     ssize_t result = -EINVAL;
 
-    if (minor_number > 0)
+    char temp[BUFFER_SIZE];
+    memset(temp, '\0', BUFFER_SIZE);
+
+    const size_t max_bytes_to_copy_count = BUFFER_SIZE - 1;
+    const size_t bytes_to_copy_count = length > max_bytes_to_copy_count ? max_bytes_to_copy_count : length;
+    const size_t bytes_not_copied_count = copy_from_user(temp, buf, bytes_to_copy_count);
+
+    if (bytes_not_copied_count > 0)
     {
-        char temp[INPUT_BUFFER_SIZE];
-        memset(temp, '\0', INPUT_BUFFER_SIZE);
-
-        const size_t max_bytes_to_copy_count = INPUT_BUFFER_SIZE - 1;
-        const size_t bytes_to_copy_count = length > max_bytes_to_copy_count ? max_bytes_to_copy_count : length;
-        const size_t bytes_not_copied_count = copy_from_user(temp, buffer, bytes_to_copy_count);
-
-        if (bytes_not_copied_count > 0)
-        {
-            pr_warn("%s: %ld bytes could not be copied from user\n", THIS_MODULE->name, bytes_not_copied_count);
-        }
-
-        result = (ssize_t)strlen(
-            temp); // the total number of chars provided by user (not the trimmed one) needs to be returned
-        trim_and_copy_string(input_buffer, temp, INPUT_BUFFER_SIZE);
-
-        pr_info("%s: user wrote to minor number %d: %s\n", THIS_MODULE->name, minor_number, temp);
-        pr_info("%s: after trimming the user provided string was stored to minor number %d as: %s\n", THIS_MODULE->name,
-                minor_number, input_buffer);
+        pr_warn("%s: %ld bytes could not be copied from user\n", THIS_MODULE->name, bytes_not_copied_count);
     }
 
-    switch (minor_number)
-    {
-    case 0: {
-        pr_err("%s: unsupported write operation for minor number %d!\n", THIS_MODULE->name, minor_number);
-        break;
-    }
-    case 1: {
-        convert_input_to_lower_case();
-        break;
-    }
-    case 2: {
-        reverse_input();
-        break;
-    }
-    case 3: {
-        append_input_string_length();
-        break;
-    }
-    default:
-        break;
-    }
+    result =
+        (ssize_t)strlen(temp); // the total number of chars provided by user (not the trimmed one) needs to be returned
+    trim_and_copy_string(buffer, temp, BUFFER_SIZE);
+
+    pr_info("%s: user wrote: %s\n", THIS_MODULE->name, temp);
+    pr_info("%s: after trimming the user provided string was stored as: %s\n", THIS_MODULE->name, buffer);
 
     return result;
-}
-
-static void convert_input_to_lower_case(void)
-{
-    if (result_buffer_ptr)
-    {
-        memset(result_buffer_ptr, '\0', OUTPUT_BUFFER_SIZE);
-
-        for (size_t index = 0; index < strlen(input_buffer); ++index)
-        {
-            result_buffer_ptr[index] = tolower(input_buffer[index]);
-        }
-    }
-}
-
-static void reverse_input(void)
-{
-    if (result_buffer_ptr)
-    {
-        memset(result_buffer_ptr, '\0', OUTPUT_BUFFER_SIZE);
-
-        const size_t length = strlen(input_buffer);
-
-        for (size_t index = 0; index < length; ++index)
-        {
-            result_buffer_ptr[index] = input_buffer[length - 1 - index];
-        }
-    }
-}
-
-static void append_input_string_length(void)
-{
-    if (result_buffer_ptr)
-    {
-        const size_t length = strlen(input_buffer);
-
-        if (length > 0)
-        {
-            sprintf(result_buffer_ptr, "%s; %ld", input_buffer, length);
-        }
-        else
-        {
-            memset(result_buffer_ptr, '\0', OUTPUT_BUFFER_SIZE);
-        }
-    }
 }
 
 static void reset_buffers(void)
 {
-    memset(input_buffer, '\0', INPUT_BUFFER_SIZE);
-    memset(minor1_output_buffer, '\0', OUTPUT_BUFFER_SIZE);
-    memset(minor2_output_buffer, '\0', OUTPUT_BUFFER_SIZE);
-    memset(minor3_output_buffer, '\0', OUTPUT_BUFFER_SIZE);
+    memset(buffer, '\0', BUFFER_SIZE);
 }
 
-static void do_module_cleanup(size_t existing_minor_numbers_count)
+static void do_module_cleanup()
 {
     if (string_ops_class)
     {
-        for (int minor_number = 0; minor_number < (int)existing_minor_numbers_count; ++minor_number)
-        {
-            device_destroy(string_ops_class, MKDEV(major_number, minor_number));
-        }
-
+        device_destroy(string_ops_class, MKDEV(major_number, 0));
         class_destroy(string_ops_class);
     }
 
