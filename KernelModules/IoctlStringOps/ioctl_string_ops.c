@@ -1,6 +1,7 @@
 #include <linux/cdev.h>
 #include <linux/ctype.h>
 #include <linux/fs.h>
+#include <linux/ioctl.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/uaccess.h>
@@ -8,6 +9,8 @@
 #define SUCCESS 0
 #define BUFFER_SIZE 1024
 #define SUPPORTED_MINOR_NUMBERS_COUNT 1
+
+#define GET_BUFFER_SIZE _IOR(9999, 'a', size_t*)
 
 MODULE_LICENSE("GPL");
 
@@ -32,9 +35,14 @@ static int device_open(struct inode*, struct file*);
 static int device_release(struct inode*, struct file*);
 static ssize_t device_read(struct file*, char*, size_t, loff_t*);
 static ssize_t device_write(struct file*, const char*, size_t, loff_t*);
+static long device_ioctl(struct file*, unsigned int, unsigned long);
 
-static struct file_operations file_ops = {
-    .owner = THIS_MODULE, .read = device_read, .write = device_write, .open = device_open, .release = device_release};
+static struct file_operations file_ops = {.owner = THIS_MODULE,
+                                          .read = device_read,
+                                          .write = device_write,
+                                          .open = device_open,
+                                          .unlocked_ioctl = device_ioctl,
+                                          .release = device_release};
 
 static void reset_buffers(void);     // input/output buffers reset
 static void do_module_cleanup(void); // destroy character device, delete device files,
@@ -179,6 +187,26 @@ static ssize_t device_write(struct file* filp, const char* buf, size_t length, l
     pr_info("%s: after trimming the user provided string was stored as: %s\n", THIS_MODULE->name, buffer);
 
     return result;
+}
+
+static long device_ioctl(struct file* file, unsigned int command, unsigned long arg)
+{
+    switch (command)
+    {
+    case GET_BUFFER_SIZE: {
+        const size_t buffer_length = strlen(buffer);
+        const int result = copy_to_user((size_t*)arg, &buffer_length, sizeof(buffer_length));
+        if (result)
+        {
+            pr_err("%s: IOCTL - failed reading buffer size!\n", THIS_MODULE->name);
+        }
+        break;
+    }
+    default:
+        break;
+    }
+
+    return 0;
 }
 
 static void reset_buffers(void)

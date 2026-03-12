@@ -23,8 +23,14 @@ add_test(NAME MappingModuleTests COMMAND MappingModuleTests)
 add_executable(StringOpsModuleTests tst_stringopsmoduletests.cpp testutils.cpp)
 add_test(NAME StringOpsModuleTests COMMAND StringOpsModuleTests)
 
+add_executable(IoctlStringOpsModuleTests tst_ioctlstringopsmoduletests.cpp testutils.cpp)
+add_test(NAME IoctlStringOpsModuleTests COMMAND IoctlStringOpsModuleTests)
+
 target_link_libraries(MappingModuleTests PRIVATE Qt${QT_VERSION_MAJOR}::Test)
 target_link_libraries(MappingModuleTests PRIVATE Utilities)
 
 target_link_libraries(StringOpsModuleTests PRIVATE Qt${QT_VERSION_MAJOR}::Test)
 target_link_libraries(StringOpsModuleTests PRIVATE Utilities)
+
+target_link_libraries(IoctlStringOpsModuleTests PRIVATE Qt${QT_VERSION_MAJOR}::Test)
+target_link_libraries(IoctlStringOpsModuleTests PRIVATE Utilities)
