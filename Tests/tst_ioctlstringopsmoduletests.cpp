@@ -8,6 +8,7 @@
 #include "utils.h"
 
 #define GET_BUFFER_SIZE _IOR(9999, 'a', size_t*)
+#define TRIM_USER_INPUT _IOWR(9999, 'b', int*)
 
 static constexpr std::string_view stringOpsModuleName{"ioctl_string_ops"};
 static constexpr std::string_view utilitiesModuleName{"kernelutilities"};
@@ -32,14 +33,16 @@ private slots:
     void cleanup();
 
     void testGetBufferSize();
+    void testEnableUserInputTrimming();
 
 private:
     void initializeDeviceFile();
 
     bool writeToDeviceFile(const std::filesystem::path& deviceFile, const std::string& str);
-    std::optional<std::string> readFromDeviceFile(const std::filesystem::path& deviceFile);
+    std::optional<std::string> readFromDeviceFile(const std::filesystem::path& deviceFile, bool shouldTrimInput = true);
 
     size_t ioctlReadBufferSize();
+    void ioctlEnableUserInputTrimming(bool enabled);
 
     void resetKernelModule();
     bool isKernelModuleReset();
@@ -129,6 +132,25 @@ void IoctlStringOpsModuleTests::testGetBufferSize()
     QVERIFY(ioctlReadBufferSize() == 20);
 }
 
+void IoctlStringOpsModuleTests::testEnableUserInputTrimming()
+{
+    writeToDeviceFile(m_DeviceFile, "  This is the test of my life! ");
+    QVERIFY(readFromDeviceFile(m_DeviceFile, false) == "This is the test of my life!");
+
+    ioctlEnableUserInputTrimming(false);
+
+    writeToDeviceFile(m_DeviceFile, "  This is another good test! ");
+    QVERIFY(readFromDeviceFile(m_DeviceFile, false) == "  This is another good test! ");
+
+    writeToDeviceFile(m_DeviceFile, "     This is the final test!  ");
+    QVERIFY(readFromDeviceFile(m_DeviceFile, false) == "     This is the final test!  ");
+
+    ioctlEnableUserInputTrimming(true);
+
+    writeToDeviceFile(m_DeviceFile, "   End of story!    ");
+    QVERIFY(readFromDeviceFile(m_DeviceFile, false) == "End of story!");
+}
+
 void IoctlStringOpsModuleTests::initializeDeviceFile()
 {
     m_DeviceFile = deviceDirPath;
@@ -142,15 +164,16 @@ bool IoctlStringOpsModuleTests::writeToDeviceFile(const std::filesystem::path& d
     return Utilities::writeStringToFile(str, deviceFile, str.size());
 }
 
-std::optional<std::string> IoctlStringOpsModuleTests::readFromDeviceFile(const std::filesystem::path& deviceFile)
+std::optional<std::string> IoctlStringOpsModuleTests::readFromDeviceFile(const std::filesystem::path& deviceFile,
+                                                                         bool shouldTrimInput)
 {
-    return Utilities::readStringFromFile(deviceFile, maxCharsCountToRead);
+    return Utilities::readStringFromFile(deviceFile, maxCharsCountToRead, shouldTrimInput);
 }
 
 size_t IoctlStringOpsModuleTests::ioctlReadBufferSize()
 {
     size_t result{0};
-    int fd = open(m_DeviceFile.c_str(), O_RDONLY);
+    const int fd{open(m_DeviceFile.c_str(), O_RDONLY)};
 
     if (fd < 0)
     {
@@ -163,6 +186,22 @@ size_t IoctlStringOpsModuleTests::ioctlReadBufferSize()
     }
 
     return result;
+}
+
+void IoctlStringOpsModuleTests::ioctlEnableUserInputTrimming(bool enabled)
+{
+    const int fd{open(m_DeviceFile.c_str(), O_WRONLY)};
+
+    if (fd < 0)
+    {
+        qDebug("Cannot open device file %s for reading!\n", m_DeviceFile.filename().c_str());
+    }
+    else
+    {
+        const int trimmingEnabled{enabled};
+        ioctl(fd, TRIM_USER_INPUT, &trimmingEnabled);
+        close(fd);
+    }
 }
 
 void IoctlStringOpsModuleTests::resetKernelModule()

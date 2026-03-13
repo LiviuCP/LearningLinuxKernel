@@ -10,7 +10,11 @@
 #define BUFFER_SIZE 1024
 #define SUPPORTED_MINOR_NUMBERS_COUNT 1
 
+#define TRIM_INPUT_ENABLED 1
+#define DISABLE_INPUT_TRIMMING 0b11111110
+
 #define GET_BUFFER_SIZE _IOR(9999, 'a', size_t*)
+#define TRIM_USER_INPUT _IOWR(9999, 'b', int*)
 
 MODULE_LICENSE("GPL");
 
@@ -28,6 +32,9 @@ static int is_device_open = 0;
 
 static char buffer[BUFFER_SIZE]; // shared input/output buffer
 static char* buffer_ptr;         // points to the input/output buffer
+
+/* 1-6: reserved, 0 - trim user input (default true) */
+static unsigned char settings = 0b00000001;
 
 extern void trim_and_copy_string(char* dest, const char* src, size_t max_str_length);
 
@@ -181,10 +188,20 @@ static ssize_t device_write(struct file* filp, const char* buf, size_t length, l
 
     result =
         (ssize_t)strlen(temp); // the total number of chars provided by user (not the trimmed one) needs to be returned
-    trim_and_copy_string(buffer, temp, BUFFER_SIZE);
 
     pr_info("%s: user wrote: %s\n", THIS_MODULE->name, temp);
-    pr_info("%s: after trimming the user provided string was stored as: %s\n", THIS_MODULE->name, buffer);
+
+    if (settings & TRIM_INPUT_ENABLED)
+    {
+        trim_and_copy_string(buffer, temp, BUFFER_SIZE);
+        pr_info("%s: after trimming the user provided string was stored as: \"%s\"\n", THIS_MODULE->name, buffer);
+    }
+    else
+    {
+        memset(buffer, '\0', BUFFER_SIZE);
+        strncpy(buffer, temp, result);
+        pr_info("%s: no trimming applied, the user provided string was stored as: \"%s\"\n", THIS_MODULE->name, buffer);
+    }
 
     return result;
 }
@@ -199,6 +216,25 @@ static long device_ioctl(struct file* file, unsigned int command, unsigned long 
         if (result)
         {
             pr_err("%s: IOCTL - failed reading buffer size!\n", THIS_MODULE->name);
+        }
+        break;
+    }
+    case TRIM_USER_INPUT: {
+        int should_trim_user_input;
+        const int result = copy_from_user(&should_trim_user_input, (int*)arg, sizeof(int));
+
+        if (result)
+        {
+            pr_err("%s: IOCTL - failed reading the should trim user input variable\n", THIS_MODULE->name);
+            break;
+        }
+        if (should_trim_user_input)
+        {
+            settings |= TRIM_INPUT_ENABLED;
+        }
+        else
+        {
+            settings &= DISABLE_INPUT_TRIMMING;
         }
         break;
     }
