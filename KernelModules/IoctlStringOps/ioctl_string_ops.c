@@ -11,12 +11,14 @@
 #define SUPPORTED_MINOR_NUMBERS_COUNT 1
 
 #define TRIM_USER_INPUT_ENABLED 0b00000001
+#define OUTPUT_PREFIX_ENABLED 0b00000010
 #define DEFAULT_SETTINGS 0b00000001
 
 #define GET_BUFFER_SIZE _IOR(9999, 'a', size_t*)
 #define TRIM_USER_INPUT _IOW(9999, 'b', uint8_t*)
 #define DO_MODULE_RESET _IOW(9999, 'c', void*)
 #define IS_MODULE_RESET _IOR(9999, 'd', uint8_t*)
+#define SET_OUTPUT_PREFIX _IOW(9999, 'e', void*)
 
 MODULE_LICENSE("GPL");
 
@@ -34,6 +36,8 @@ static int is_device_open = 0;
 
 static char buffer[BUFFER_SIZE]; // shared input/output buffer
 static char* buffer_ptr;         // points to the input/output buffer
+static char output_prefix[BUFFER_SIZE];
+static char* output_prefix_ptr;
 
 /* 1-6: reserved, 0 - trim user input (default true) */
 static unsigned char settings = DEFAULT_SETTINGS;
@@ -121,6 +125,7 @@ static int device_open(struct inode* inode, struct file* file)
         pr_info("%s: opening device\n", THIS_MODULE->name);
 
         buffer_ptr = buffer;
+        output_prefix_ptr = output_prefix;
         ++is_device_open;
         try_module_get(THIS_MODULE);
     }
@@ -147,6 +152,8 @@ static ssize_t device_read(struct file* filp, char* buffer, size_t length, loff_
 {
     ssize_t result = 0;
 
+    const char* const result_buffer_start_ptr = buffer_ptr;
+
     if (!buffer_ptr)
     {
         result = -1;
@@ -155,18 +162,37 @@ static ssize_t device_read(struct file* filp, char* buffer, size_t length, loff_
     {
         ssize_t bytes_read = 0;
 
-        const char* const result_buffer_start_ptr = buffer_ptr;
-
-        while (length && *buffer_ptr)
+        if (settings & OUTPUT_PREFIX_ENABLED)
         {
-            put_user(*(buffer_ptr++), buffer++);
-            --length;
-            bytes_read++;
+            char output_buf[2 * BUFFER_SIZE];
+            char* output_buf_ptr = output_buf;
+            memset(output_buf, '\0', 2 * BUFFER_SIZE);
+            strncpy(output_buf, output_prefix, strlen(output_prefix));
+            strncpy(output_buf + strlen(output_prefix), buffer_ptr, strlen(buffer_ptr));
+
+            while (length && *output_buf_ptr)
+            {
+                put_user(*(output_buf_ptr++), buffer++);
+                --length;
+                bytes_read++;
+            }
+
+            result = bytes_read;
+            pr_info("%s: user read: %s", THIS_MODULE->name, result_buffer_start_ptr);
         }
+        else
+        {
 
-        result = bytes_read;
+            while (length && *buffer_ptr)
+            {
+                put_user(*(buffer_ptr++), buffer++);
+                --length;
+                bytes_read++;
+            }
 
-        pr_info("%s: user read: %s", THIS_MODULE->name, result_buffer_start_ptr);
+            result = bytes_read;
+            pr_info("%s: user read: %s", THIS_MODULE->name, result_buffer_start_ptr);
+        }
     }
 
     return result;
@@ -251,6 +277,36 @@ static long device_ioctl(struct file* file, unsigned int command, unsigned long 
         {
             pr_err("%s: IOCTL - failed checking if it is reset!\n", THIS_MODULE->name);
         }
+        break;
+    }
+    case SET_OUTPUT_PREFIX: {
+        void* start = (void*)arg;
+        if (!start)
+        {
+            break;
+        }
+        size_t prefix_size;
+        int result = copy_from_user(&prefix_size, start, sizeof(prefix_size));
+        if (result || prefix_size >= BUFFER_SIZE)
+        {
+            break;
+        }
+        if (prefix_size == 0)
+        {
+            settings &= ~OUTPUT_PREFIX_ENABLED;
+            break;
+        }
+        char prefix_buffer[BUFFER_SIZE];
+        memset(prefix_buffer, '\0', BUFFER_SIZE);
+        start = (char*)start + sizeof(prefix_size);
+        result = copy_from_user(prefix_buffer, start, prefix_size);
+        if (result || strlen(prefix_buffer) != prefix_size)
+        {
+            pr_err("%s: IOCTL - unable to set prefix\n", THIS_MODULE->name);
+        }
+        memset(output_prefix, '\0', BUFFER_SIZE);
+        strncpy(output_prefix, prefix_buffer, prefix_size);
+        settings |= OUTPUT_PREFIX_ENABLED;
         break;
     }
     default:

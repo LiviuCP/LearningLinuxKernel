@@ -11,6 +11,7 @@
 #define TRIM_USER_INPUT _IOW(9999, 'b', uint8_t*)
 #define DO_MODULE_RESET _IOW(9999, 'c', void*)
 #define IS_MODULE_RESET _IOR(9999, 'd', uint8_t*)
+#define SET_OUTPUT_PREFIX _IOW(9999, 'e', void*)
 
 static constexpr std::string_view stringOpsModuleName{"ioctl_string_ops"};
 static constexpr std::string_view utilitiesModuleName{"kernelutilities"};
@@ -36,6 +37,7 @@ private slots:
 
     void testGetBufferSize();
     void testEnableUserInputTrimming();
+    void testSetOutputPrefix();
 
 private:
     void initializeDeviceFile();
@@ -45,6 +47,7 @@ private:
 
     size_t ioctlReadBufferSize();
     void ioctlEnableUserInputTrimming(bool enabled);
+    void ioctlSetOutputPrefix(const std::string& outputPrefix);
 
     void resetKernelModule();
     bool isKernelModuleReset();
@@ -153,6 +156,24 @@ void IoctlStringOpsModuleTests::testEnableUserInputTrimming()
     QVERIFY(readFromDeviceFile(m_DeviceFile, false) == "End of story!");
 }
 
+void IoctlStringOpsModuleTests::testSetOutputPrefix()
+{
+    writeToDeviceFile(m_DeviceFile, "This Is just a TEST!");
+    QVERIFY(readFromDeviceFile(m_DeviceFile, false) == "This Is just a TEST!");
+
+    ioctlSetOutputPrefix("My take: ");
+    QVERIFY(readFromDeviceFile(m_DeviceFile, false) == "My take: This Is just a TEST!");
+
+    writeToDeviceFile(m_DeviceFile, "This Is just another TEST!");
+    QVERIFY(readFromDeviceFile(m_DeviceFile, false) == "My take: This Is just another TEST!");
+
+    ioctlSetOutputPrefix("My hot take: ");
+    QVERIFY(readFromDeviceFile(m_DeviceFile, false) == "My hot take: This Is just another TEST!");
+
+    ioctlSetOutputPrefix("");
+    QVERIFY(readFromDeviceFile(m_DeviceFile, false) == "This Is just another TEST!");
+}
+
 void IoctlStringOpsModuleTests::initializeDeviceFile()
 {
     m_DeviceFile = deviceDirPath;
@@ -196,11 +217,35 @@ void IoctlStringOpsModuleTests::ioctlEnableUserInputTrimming(bool enabled)
 
     if (fd < 0)
     {
-        qDebug("Cannot open device file %s for reading!\n", m_DeviceFile.filename().c_str());
+        qDebug("Cannot open device file %s for writing!\n", m_DeviceFile.filename().c_str());
     }
     else
     {
         ioctl(fd, TRIM_USER_INPUT, &enabled);
+        close(fd);
+    }
+}
+
+void IoctlStringOpsModuleTests::ioctlSetOutputPrefix(const std::string& outputPrefix)
+{
+    const int fd{open(m_DeviceFile.c_str(), O_WRONLY)};
+
+    if (fd < 0)
+    {
+        qDebug("Cannot open device file %s for writing!\n", m_DeviceFile.filename().c_str());
+    }
+    else
+    {
+        assert(outputPrefix.size() < 251 /* output buffer minus last char ('\0') minus size_t size */);
+
+        char data[256];
+        memset(data, '\0', 256);
+        size_t* prefixSize{reinterpret_cast<size_t*>(data)};
+        *prefixSize = outputPrefix.size();
+        ++prefixSize;
+        char* prefix{reinterpret_cast<char*>(prefixSize)};
+        strncpy(prefix, outputPrefix.c_str(), outputPrefix.size());
+        ioctl(fd, SET_OUTPUT_PREFIX, data);
         close(fd);
     }
 }
@@ -211,7 +256,7 @@ void IoctlStringOpsModuleTests::resetKernelModule()
 
     if (fd < 0)
     {
-        qDebug("Cannot open device file %s for reading!\n", m_DeviceFile.filename().c_str());
+        qDebug("Cannot open device file %s for writing!\n", m_DeviceFile.filename().c_str());
     }
     else
     {
