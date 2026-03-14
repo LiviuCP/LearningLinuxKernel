@@ -10,8 +10,8 @@
 #define BUFFER_SIZE 1024
 #define SUPPORTED_MINOR_NUMBERS_COUNT 1
 
-#define TRIM_INPUT_ENABLED 1
-#define DISABLE_INPUT_TRIMMING 0b11111110
+#define TRIM_USER_INPUT_ENABLED 0b00000001
+#define DEFAULT_SETTINGS 0b00000001
 
 #define GET_BUFFER_SIZE _IOR(9999, 'a', size_t*)
 #define TRIM_USER_INPUT _IOW(9999, 'b', uint8_t*)
@@ -36,7 +36,7 @@ static char buffer[BUFFER_SIZE]; // shared input/output buffer
 static char* buffer_ptr;         // points to the input/output buffer
 
 /* 1-6: reserved, 0 - trim user input (default true) */
-static unsigned char settings = 0b00000001;
+static unsigned char settings = DEFAULT_SETTINGS;
 
 extern void trim_and_copy_string(char* dest, const char* src, size_t max_str_length);
 
@@ -193,7 +193,7 @@ static ssize_t device_write(struct file* filp, const char* buf, size_t length, l
 
     pr_info("%s: user wrote: %s\n", THIS_MODULE->name, temp);
 
-    if (settings & TRIM_INPUT_ENABLED)
+    if (settings & TRIM_USER_INPUT_ENABLED)
     {
         trim_and_copy_string(buffer, temp, BUFFER_SIZE);
         pr_info("%s: after trimming the user provided string was stored as: \"%s\"\n", THIS_MODULE->name, buffer);
@@ -231,21 +231,21 @@ static long device_ioctl(struct file* file, unsigned int command, unsigned long 
         }
         if (should_trim_user_input)
         {
-            settings |= TRIM_INPUT_ENABLED;
+            settings |= TRIM_USER_INPUT_ENABLED;
         }
         else
         {
-            settings &= DISABLE_INPUT_TRIMMING;
+            settings &= ~TRIM_USER_INPUT_ENABLED;
         }
         break;
     }
     case DO_MODULE_RESET: {
-        settings = 0b00000001;
+        settings = DEFAULT_SETTINGS;
         memset(buffer, '\0', BUFFER_SIZE);
         break;
     }
     case IS_MODULE_RESET: {
-        const uint8_t is_reset = (settings == 0b00000001 && strlen(buffer) == 0);
+        const uint8_t is_reset = (settings == DEFAULT_SETTINGS && strlen(buffer) == 0);
         const int result = copy_to_user((uint8_t*)arg, &is_reset, sizeof(is_reset));
         if (result)
         {
