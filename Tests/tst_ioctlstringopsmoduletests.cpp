@@ -8,9 +8,9 @@
 #include "utils.h"
 
 #define GET_BUFFER_SIZE _IOR(9999, 'a', size_t*)
-#define TRIM_USER_INPUT _IOWR(9999, 'b', int*)
-#define DO_RESET _IOWR(9999, 'c', void*)
-#define IS_RESET _IOR(9999, 'd', unsigned char*)
+#define TRIM_USER_INPUT _IOW(9999, 'b', uint8_t*)
+#define DO_RESET _IOW(9999, 'c', void*)
+#define IS_RESET _IOR(9999, 'd', uint8_t*)
 
 static constexpr std::string_view stringOpsModuleName{"ioctl_string_ops"};
 static constexpr std::string_view utilitiesModuleName{"kernelutilities"};
@@ -200,8 +200,7 @@ void IoctlStringOpsModuleTests::ioctlEnableUserInputTrimming(bool enabled)
     }
     else
     {
-        const int trimmingEnabled{enabled};
-        ioctl(fd, TRIM_USER_INPUT, &trimmingEnabled);
+        ioctl(fd, TRIM_USER_INPUT, &enabled);
         close(fd);
     }
 }

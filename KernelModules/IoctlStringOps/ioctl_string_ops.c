@@ -14,9 +14,9 @@
 #define DISABLE_INPUT_TRIMMING 0b11111110
 
 #define GET_BUFFER_SIZE _IOR(9999, 'a', size_t*)
-#define TRIM_USER_INPUT _IOWR(9999, 'b', int*)
-#define DO_RESET _IOWR(9999, 'c', void*)
-#define IS_RESET _IOR(9999, 'd', unsigned char*)
+#define TRIM_USER_INPUT _IOW(9999, 'b', uint8_t*)
+#define DO_RESET _IOW(9999, 'c', void*)
+#define IS_RESET _IOR(9999, 'd', uint8_t*)
 
 MODULE_LICENSE("GPL");
 
@@ -222,9 +222,8 @@ static long device_ioctl(struct file* file, unsigned int command, unsigned long 
         break;
     }
     case TRIM_USER_INPUT: {
-        int should_trim_user_input;
-        const int result = copy_from_user(&should_trim_user_input, (int*)arg, sizeof(int));
-
+        uint8_t should_trim_user_input;
+        const int result = copy_from_user(&should_trim_user_input, (uint8_t*)arg, sizeof(uint8_t));
         if (result)
         {
             pr_err("%s: IOCTL - failed reading the should trim user input variable\n", THIS_MODULE->name);
@@ -246,8 +245,8 @@ static long device_ioctl(struct file* file, unsigned int command, unsigned long 
         break;
     }
     case IS_RESET: {
-        const unsigned char is_reset = (unsigned char)(settings == 0b00000001 && strlen(buffer) == 0);
-        const int result = copy_to_user((unsigned char*)arg, &is_reset, sizeof(is_reset));
+        const uint8_t is_reset = (settings == 0b00000001 && strlen(buffer) == 0);
+        const int result = copy_to_user((uint8_t*)arg, &is_reset, sizeof(is_reset));
         if (result)
         {
             pr_err("%s: IOCTL - failed checking if it is reset!\n", THIS_MODULE->name);
