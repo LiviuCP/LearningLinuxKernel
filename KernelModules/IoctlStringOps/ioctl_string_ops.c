@@ -15,8 +15,8 @@
 
 #define GET_BUFFER_SIZE _IOR(9999, 'a', size_t*)
 #define TRIM_USER_INPUT _IOW(9999, 'b', uint8_t*)
-#define DO_RESET _IOW(9999, 'c', void*)
-#define IS_RESET _IOR(9999, 'd', uint8_t*)
+#define DO_MODULE_RESET _IOW(9999, 'c', void*)
+#define IS_MODULE_RESET _IOR(9999, 'd', uint8_t*)
 
 MODULE_LICENSE("GPL");
 
@@ -239,12 +239,12 @@ static long device_ioctl(struct file* file, unsigned int command, unsigned long 
         }
         break;
     }
-    case DO_RESET: {
+    case DO_MODULE_RESET: {
         settings = 0b00000001;
         memset(buffer, '\0', BUFFER_SIZE);
         break;
     }
-    case IS_RESET: {
+    case IS_MODULE_RESET: {
         const uint8_t is_reset = (settings == 0b00000001 && strlen(buffer) == 0);
         const int result = copy_to_user((uint8_t*)arg, &is_reset, sizeof(is_reset));
         if (result)

@@ -9,8 +9,8 @@
 
 #define GET_BUFFER_SIZE _IOR(9999, 'a', size_t*)
 #define TRIM_USER_INPUT _IOW(9999, 'b', uint8_t*)
-#define DO_RESET _IOW(9999, 'c', void*)
-#define IS_RESET _IOR(9999, 'd', uint8_t*)
+#define DO_MODULE_RESET _IOW(9999, 'c', void*)
+#define IS_MODULE_RESET _IOR(9999, 'd', uint8_t*)
 
 static constexpr std::string_view stringOpsModuleName{"ioctl_string_ops"};
 static constexpr std::string_view utilitiesModuleName{"kernelutilities"};
@@ -215,7 +215,7 @@ void IoctlStringOpsModuleTests::resetKernelModule()
     }
     else
     {
-        ioctl(fd, DO_RESET, nullptr);
+        ioctl(fd, DO_MODULE_RESET, nullptr);
         close(fd);
     }
 }
@@ -231,7 +231,7 @@ bool IoctlStringOpsModuleTests::isKernelModuleReset()
     }
     else
     {
-        ioctl(fd, IS_RESET, &isReset);
+        ioctl(fd, IS_MODULE_RESET, &isReset);
         close(fd);
     }
 
