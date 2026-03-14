@@ -9,6 +9,8 @@
 
 #define GET_BUFFER_SIZE _IOR(9999, 'a', size_t*)
 #define TRIM_USER_INPUT _IOWR(9999, 'b', int*)
+#define DO_RESET _IOWR(9999, 'c', void*)
+#define IS_RESET _IOR(9999, 'd', unsigned char*)
 
 static constexpr std::string_view stringOpsModuleName{"ioctl_string_ops"};
 static constexpr std::string_view utilitiesModuleName{"kernelutilities"};
@@ -206,13 +208,35 @@ void IoctlStringOpsModuleTests::ioctlEnableUserInputTrimming(bool enabled)
 
 void IoctlStringOpsModuleTests::resetKernelModule()
 {
-    writeToDeviceFile(m_DeviceFile, "");
+    const int fd{open(m_DeviceFile.c_str(), O_WRONLY)};
+
+    if (fd < 0)
+    {
+        qDebug("Cannot open device file %s for reading!\n", m_DeviceFile.filename().c_str());
+    }
+    else
+    {
+        ioctl(fd, DO_RESET, nullptr);
+        close(fd);
+    }
 }
 
 bool IoctlStringOpsModuleTests::isKernelModuleReset()
 {
-    const std::optional<std::string> str{readFromDeviceFile(m_DeviceFile)};
-    return str.has_value() && str->empty();
+    bool isReset{false};
+    const int fd{open(m_DeviceFile.c_str(), O_RDONLY)};
+
+    if (fd < 0)
+    {
+        qDebug("Cannot open device file %s for reading!\n", m_DeviceFile.filename().c_str());
+    }
+    else
+    {
+        ioctl(fd, IS_RESET, &isReset);
+        close(fd);
+    }
+
+    return isReset;
 }
 
 QTEST_APPLESS_MAIN(IoctlStringOpsModuleTests)

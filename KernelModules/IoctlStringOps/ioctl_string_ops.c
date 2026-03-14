@@ -15,6 +15,8 @@
 
 #define GET_BUFFER_SIZE _IOR(9999, 'a', size_t*)
 #define TRIM_USER_INPUT _IOWR(9999, 'b', int*)
+#define DO_RESET _IOWR(9999, 'c', void*)
+#define IS_RESET _IOR(9999, 'd', unsigned char*)
 
 MODULE_LICENSE("GPL");
 
@@ -235,6 +237,20 @@ static long device_ioctl(struct file* file, unsigned int command, unsigned long 
         else
         {
             settings &= DISABLE_INPUT_TRIMMING;
+        }
+        break;
+    }
+    case DO_RESET: {
+        settings = 0b00000001;
+        memset(buffer, '\0', BUFFER_SIZE);
+        break;
+    }
+    case IS_RESET: {
+        const unsigned char is_reset = (unsigned char)(settings == 0b00000001 && strlen(buffer) == 0);
+        const int result = copy_to_user((unsigned char*)arg, &is_reset, sizeof(is_reset));
+        if (result)
+        {
+            pr_err("%s: IOCTL - failed checking if it is reset!\n", THIS_MODULE->name);
         }
         break;
     }
