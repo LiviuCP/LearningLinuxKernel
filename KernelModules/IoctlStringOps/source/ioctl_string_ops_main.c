@@ -249,33 +249,7 @@ static long device_ioctl(struct file* file, unsigned int command, unsigned long 
         break;
     }
     case SET_OUTPUT_PREFIX: {
-        void* start = (void*)arg;
-        if (!start)
-        {
-            break;
-        }
-        size_t prefix_size;
-        int result = copy_from_user(&prefix_size, start, sizeof(prefix_size));
-        if (result || prefix_size >= BUFFER_SIZE)
-        {
-            break;
-        }
-        if (prefix_size == 0)
-        {
-            settings &= ~OUTPUT_PREFIX_ENABLED;
-            break;
-        }
-        char prefix_buffer[BUFFER_SIZE];
-        memset(prefix_buffer, '\0', BUFFER_SIZE);
-        start = (char*)start + sizeof(prefix_size);
-        result = copy_from_user(prefix_buffer, start, prefix_size);
-        if (result || strlen(prefix_buffer) != prefix_size)
-        {
-            pr_err("%s: IOCTL - unable to set prefix\n", THIS_MODULE->name);
-        }
-        memset(output_prefix, '\0', BUFFER_SIZE);
-        strncpy(output_prefix, prefix_buffer, prefix_size);
-        settings |= OUTPUT_PREFIX_ENABLED;
+        ioctl_set_output_prefix(output_prefix, &settings, (void*)arg);
         break;
     }
     default:

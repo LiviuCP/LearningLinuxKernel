@@ -12,3 +12,4 @@ void ioctl_get_buffer_size(char* module_buffer, size_t* buffer_size);
 void ioctl_trim_user_input(uint8_t* settings, uint8_t* should_trim);
 void ioctl_do_module_reset(char* module_buffer, uint8_t* settings);
 void ioctl_is_module_reset(char* module_buffer, uint8_t* settings, uint8_t* is_module_reset);
+void ioctl_set_output_prefix(char* output_prefix, uint8_t* settings, void* output_prefix_data);

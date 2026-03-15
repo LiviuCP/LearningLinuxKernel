@@ -62,3 +62,36 @@ void ioctl_is_module_reset(char* module_buffer, uint8_t* settings, uint8_t* is_m
         }
     }
 }
+
+void ioctl_set_output_prefix(char* output_prefix, uint8_t* settings, void* output_prefix_data)
+{
+    for (;;)
+    {
+        if (!output_prefix || !settings || !output_prefix_data)
+        {
+            break;
+        }
+        size_t prefix_size;
+        int result = copy_from_user(&prefix_size, output_prefix_data, sizeof(prefix_size));
+        if (result || prefix_size >= BUFFER_SIZE)
+        {
+            break;
+        }
+        if (prefix_size == 0)
+        {
+            *settings &= ~OUTPUT_PREFIX_ENABLED;
+            break;
+        }
+        char prefix_buffer[BUFFER_SIZE];
+        memset(prefix_buffer, '\0', BUFFER_SIZE);
+        output_prefix_data = (char*)output_prefix_data + sizeof(prefix_size);
+        result = copy_from_user(prefix_buffer, output_prefix_data, prefix_size);
+        if (result || strlen(prefix_buffer) != prefix_size)
+        {
+            pr_err("%s: IOCTL - unable to set prefix\n", THIS_MODULE->name);
+        }
+        memset(output_prefix, '\0', BUFFER_SIZE);
+        strncpy(output_prefix, prefix_buffer, prefix_size);
+        *settings |= OUTPUT_PREFIX_ENABLED;
+    }
+}
