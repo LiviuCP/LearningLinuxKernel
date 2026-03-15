@@ -6,13 +6,7 @@
 #include <linux/module.h>
 #include <linux/uaccess.h>
 
-#define SUCCESS 0
-#define BUFFER_SIZE 1024
-#define SUPPORTED_MINOR_NUMBERS_COUNT 1
-
-#define TRIM_USER_INPUT_ENABLED 0b00000001
-#define OUTPUT_PREFIX_ENABLED 0b00000010
-#define DEFAULT_SETTINGS 0b00000001
+#include "ioctl_string_ops_impl.h"
 
 #define GET_BUFFER_SIZE _IOR(9999, 'a', size_t*)
 #define TRIM_USER_INPUT _IOW(9999, 'b', uint8_t*)
@@ -40,7 +34,7 @@ static char output_prefix[BUFFER_SIZE];
 static char* output_prefix_ptr;
 
 /* 1-6: reserved, 0 - trim user input (default true) */
-static unsigned char settings = DEFAULT_SETTINGS;
+static uint8_t settings = DEFAULT_SETTINGS;
 
 extern void trim_and_copy_string(char* dest, const char* src, size_t max_str_length);
 
@@ -239,44 +233,19 @@ static long device_ioctl(struct file* file, unsigned int command, unsigned long 
     switch (command)
     {
     case GET_BUFFER_SIZE: {
-        const size_t buffer_length = strlen(buffer);
-        const int result = copy_to_user((size_t*)arg, &buffer_length, sizeof(buffer_length));
-        if (result)
-        {
-            pr_err("%s: IOCTL - failed reading buffer size!\n", THIS_MODULE->name);
-        }
+        ioctl_get_buffer_size(buffer, (size_t*)arg);
         break;
     }
     case TRIM_USER_INPUT: {
-        uint8_t should_trim_user_input;
-        const int result = copy_from_user(&should_trim_user_input, (uint8_t*)arg, sizeof(uint8_t));
-        if (result)
-        {
-            pr_err("%s: IOCTL - failed reading the should trim user input variable\n", THIS_MODULE->name);
-            break;
-        }
-        if (should_trim_user_input)
-        {
-            settings |= TRIM_USER_INPUT_ENABLED;
-        }
-        else
-        {
-            settings &= ~TRIM_USER_INPUT_ENABLED;
-        }
+        ioctl_trim_user_input(&settings, (uint8_t*)arg);
         break;
     }
     case DO_MODULE_RESET: {
-        settings = DEFAULT_SETTINGS;
-        memset(buffer, '\0', BUFFER_SIZE);
+        ioctl_do_module_reset(buffer, &settings);
         break;
     }
     case IS_MODULE_RESET: {
-        const uint8_t is_reset = (settings == DEFAULT_SETTINGS && strlen(buffer) == 0);
-        const int result = copy_to_user((uint8_t*)arg, &is_reset, sizeof(is_reset));
-        if (result)
-        {
-            pr_err("%s: IOCTL - failed checking if it is reset!\n", THIS_MODULE->name);
-        }
+        ioctl_is_module_reset(buffer, &settings, (uint8_t*)arg);
         break;
     }
     case SET_OUTPUT_PREFIX: {

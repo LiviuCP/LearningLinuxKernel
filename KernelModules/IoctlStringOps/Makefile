@@ -1,4 +1,4 @@
-SRC := source/ioctl_string_ops_main.c
+SRC := source/ioctl_string_ops_impl.c source/ioctl_string_ops_main.c
 
 obj-m += ioctl_string_ops.o
 
