@@ -49,7 +49,7 @@ static struct file_operations file_ops = {.owner = THIS_MODULE,
 static void do_module_cleanup(void); // destroy character device, delete device files,
                                      // delete class, unregister module
 
-static int string_ops_init(void)
+static int ioctl_string_ops_init(void)
 {
     int result = -1;
 
@@ -98,7 +98,7 @@ static int string_ops_init(void)
     return result;
 }
 
-static void string_ops_exit(void)
+static void ioctl_string_ops_exit(void)
 {
     do_module_cleanup();
     pr_info("%s: device with major number %d unregistered\n", THIS_MODULE->name, major_number);
@@ -258,5 +258,5 @@ static void do_module_cleanup()
     unregister_chrdev(major_number, THIS_MODULE->name);
 }
 
-module_init(string_ops_init);
-module_exit(string_ops_exit);
+module_init(ioctl_string_ops_init);
+module_exit(ioctl_string_ops_exit);
