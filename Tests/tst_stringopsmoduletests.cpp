@@ -351,7 +351,7 @@ bool StringOpsModuleTests::writeToDeviceFile(const std::filesystem::path& device
 
 std::optional<std::string> StringOpsModuleTests::readFromDeviceFile(const std::filesystem::path& deviceFile)
 {
-    return Utilities::readStringFromFile(deviceFile, maxCharsCountToRead);
+    return Utilities::readStringFromFile(deviceFile, maxCharsCountToRead, TRIM_MODE);
 }
 
 void StringOpsModuleTests::resetKernelModule()

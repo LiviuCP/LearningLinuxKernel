@@ -8,6 +8,9 @@
 #define READ_MODE false
 #define WRITE_MODE true
 
+#define NON_TRIM_MODE false
+#define TRIM_MODE true
+
 namespace Utilities
 {
 void loadKernelModule(const std::filesystem::path& kernelModulePath);
@@ -19,7 +22,8 @@ int getMajorDriverNumber(const std::string_view kernelModuleName);
 
 std::optional<int> readIntValueFromFile(
     const std::filesystem::path& filePath); // reads a 32 bit integer from the beginning of a file
-std::optional<std::string> readStringFromFile(const std::filesystem::path& filePath, size_t charsCount);
+std::optional<std::string> readStringFromFile(const std::filesystem::path& filePath, size_t charsCount,
+                                              bool shouldTrimInput);
 bool writeStringToFile(const std::string& str, const std::filesystem::path& filePath, size_t charsCount);
 void clearFileContent(const std::filesystem::path& filePath);
 

@@ -66,7 +66,7 @@ void passDivisionOperandsToKernelModule(int divided, int divider)
 
 int retrieveResultFromKernelModule(const std::string_view resultFilePath)
 {
-    const std::optional<std::string> status{Utilities::readStringFromFile(statusFilePath, maxStatusStrSize)};
+    const std::optional<std::string> status{Utilities::readStringFromFile(statusFilePath, maxStatusStrSize, TRIM_MODE)};
 
     if (!status.has_value())
     {

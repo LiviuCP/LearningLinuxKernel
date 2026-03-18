@@ -164,7 +164,7 @@ std::optional<int> Utilities::readIntValueFromFile(const std::filesystem::path& 
     constexpr size_t paddingBytesCount{5};
 
     constexpr size_t maxCharsCountToRead{signCharsCount + maxAllowedDigitsCount + paddingBytesCount};
-    const std::optional<std::string> str{readStringFromFile(filePath, maxCharsCountToRead)};
+    const std::optional<std::string> str{readStringFromFile(filePath, maxCharsCountToRead, TRIM_MODE)};
 
     if (str.has_value() && isValidInteger(str->c_str()))
     {
@@ -197,7 +197,8 @@ std::optional<int> Utilities::readIntValueFromFile(const std::filesystem::path& 
     return result;
 }
 
-std::optional<std::string> Utilities::readStringFromFile(const std::filesystem::path& filePath, size_t charsCount)
+std::optional<std::string> Utilities::readStringFromFile(const std::filesystem::path& filePath, size_t charsCount,
+                                                         bool shouldTrimInput)
 {
     std::optional<std::string> result;
     const int fd{open(filePath.string().c_str(), O_RDONLY | O_NONBLOCK)};
@@ -211,7 +212,7 @@ std::optional<std::string> Utilities::readStringFromFile(const std::filesystem::
 
         if (readCharsCount >= 0)
         {
-            result = trimAndConvertToStdString(buffer);
+            result = shouldTrimInput ? trimAndConvertToStdString(buffer) : std::string{buffer};
         }
 
         close(fd);

@@ -734,7 +734,7 @@ void MappingModuleTests::writeKey(const std::string& key)
 
 std::optional<std::string> MappingModuleTests::readKey()
 {
-    return Utilities::readStringFromFile(keyFilePath, maxKeyStrSize);
+    return Utilities::readStringFromFile(keyFilePath, maxKeyStrSize, TRIM_MODE);
 }
 
 void MappingModuleTests::writeValue(int value)
@@ -754,7 +754,7 @@ void MappingModuleTests::writeCommand(const std::string& command)
 
 std::optional<std::string> MappingModuleTests::readStatus()
 {
-    return Utilities::readStringFromFile(statusFilePath, maxStatusStrSize);
+    return Utilities::readStringFromFile(statusFilePath, maxStatusStrSize, TRIM_MODE);
 }
 
 std::optional<size_t> MappingModuleTests::readCount()

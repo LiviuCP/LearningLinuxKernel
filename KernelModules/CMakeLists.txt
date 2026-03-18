@@ -11,11 +11,13 @@ add_custom_target(${KERNEL_MODULES_PROJECT_NAME}_clean)
 
 add_subdirectory(Average)
 add_subdirectory(Division)
+add_subdirectory(IoctlStringOps)
 add_subdirectory(Mapping)
 add_subdirectory(MinMax)
 add_subdirectory(StringOps)
 add_subdirectory(KernelUtilities)
 
 add_dependencies(Division KernelUtilities)
+add_dependencies(IoctlStringOps KernelUtilities)
 add_dependencies(Mapping KernelUtilities)
 add_dependencies(StringOps KernelUtilities)
