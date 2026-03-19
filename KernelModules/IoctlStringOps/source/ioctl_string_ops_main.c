@@ -16,8 +16,8 @@ MODULE_DESCRIPTION("This driver module provides and receives strings to/from use
 
 MODULE_AUTHOR("Liviu Popa");
 
-static struct class* string_ops_class = NULL;
-static struct cdev string_ops_cdev;
+static struct class* ioctl_string_ops_class = NULL;
+static struct cdev ioctl_string_ops_cdev;
 
 static int major_number = 0;
 static int is_device_open = 0;
@@ -63,9 +63,9 @@ static int ioctl_string_ops_init(void)
             break;
         }
 
-        cdev_init(&string_ops_cdev, &file_ops);
+        cdev_init(&ioctl_string_ops_cdev, &file_ops);
 
-        int cdev_add_result = cdev_add(&string_ops_cdev, major_number, SUPPORTED_MINOR_NUMBERS_COUNT);
+        int cdev_add_result = cdev_add(&ioctl_string_ops_cdev, major_number, SUPPORTED_MINOR_NUMBERS_COUNT);
 
         if (cdev_add_result < 0)
         {
@@ -74,16 +74,16 @@ static int ioctl_string_ops_init(void)
             break;
         }
 
-        string_ops_class = class_create(THIS_MODULE, "string_ops_class");
+        ioctl_string_ops_class = class_create(THIS_MODULE, "ioctl_string_ops_class");
 
-        if (!string_ops_class)
+        if (!ioctl_string_ops_class)
         {
-            pr_alert("%s: cannot create the struct class (string_ops_class)\n", THIS_MODULE->name);
+            pr_alert("%s: cannot create the struct class (ioctl_string_ops_class)\n", THIS_MODULE->name);
             do_module_cleanup();
             break;
         }
 
-        if (!device_create(string_ops_class, NULL, MKDEV(major_number, 0), NULL, "ioctlstringops"))
+        if (!device_create(ioctl_string_ops_class, NULL, MKDEV(major_number, 0), NULL, "ioctlstringops"))
         {
             pr_alert("%s: cannot create the device!\n", THIS_MODULE->name);
             do_module_cleanup();
@@ -248,13 +248,13 @@ static long device_ioctl(struct file* file, unsigned int command, unsigned long 
 
 static void do_module_cleanup()
 {
-    if (string_ops_class)
+    if (ioctl_string_ops_class)
     {
-        device_destroy(string_ops_class, MKDEV(major_number, 0));
-        class_destroy(string_ops_class);
+        device_destroy(ioctl_string_ops_class, MKDEV(major_number, 0));
+        class_destroy(ioctl_string_ops_class);
     }
 
-    cdev_del(&string_ops_cdev);
+    cdev_del(&ioctl_string_ops_cdev);
     unregister_chrdev(major_number, THIS_MODULE->name);
 }
 
