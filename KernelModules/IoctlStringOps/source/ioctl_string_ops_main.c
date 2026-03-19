@@ -243,7 +243,7 @@ static long device_ioctl(struct file* file, unsigned int command, unsigned long 
         break;
     }
 
-    return 0;
+    return result;
 }
 
 static void do_module_cleanup()
