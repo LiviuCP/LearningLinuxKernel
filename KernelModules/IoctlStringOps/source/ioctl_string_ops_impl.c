@@ -15,8 +15,7 @@ long ioctl_trim_user_input(const uint8_t* should_trim, uint8_t* module_settings)
         }
 
         uint8_t should_trim_user_input;
-        const size_t bytes_not_copied_count =
-            copy_from_user(&should_trim_user_input, (uint8_t*)should_trim, sizeof(uint8_t));
+        const size_t bytes_not_copied_count = copy_from_user(&should_trim_user_input, should_trim, sizeof(uint8_t));
 
         if (bytes_not_copied_count > 0)
         {
