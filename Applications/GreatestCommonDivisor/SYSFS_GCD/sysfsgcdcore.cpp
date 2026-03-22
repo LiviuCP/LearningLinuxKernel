@@ -4,7 +4,7 @@
 #include <string>
 #include <string_view>
 
-#include "gcdcore.h"
+#include "sysfsgcdcore.h"
 #include "utils.h"
 
 static constexpr std::string_view dividedFilePath{"/sys/kernel/division/divided"};

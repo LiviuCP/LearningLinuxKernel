@@ -1,9 +1,9 @@
 #include <cmath>
 #include <iostream>
 
-#include "gcdcore.h"
-#include "gcdloader.h"
 #include "gcdparser.h"
+#include "sysfsgcdcore.h"
+#include "sysfsgcdloader.h"
 #include "utils.h"
 
 #define SUCCESS 0
@@ -11,12 +11,12 @@
 
 /* How to use:
     - build the whole LearningLinuxKernel project
-    - run this application: sudo ./GreatestCommonDivisor [integer1] [integer2] # g.c.d. is retrieved
+    - run this application: sudo ./SysfsGreatestCommonDivisor [integer1] [integer2] # g.c.d. is retrieved
      (e.g. sudo ./GreatestCommonDivisor 6 10 # g.c.d. is 2)
 
     Notes:
     - the application requests loading of the Division and KernelUtilities kernel modules so no action is required from
-   user side other that running the app with "sudo" and providing the required arguments (divided and divider).
+   user side other that running the app with "sudo" and providing the required arguments (divided and divider)
     - the kernel modules will be left in the same state that they had when the application got opened: if a module is
    open it will be left open, same for the closed state
     - the KernelUtilities module is used by Division so it should be loaded beforehand; the two modules should be
