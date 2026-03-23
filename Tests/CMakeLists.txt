@@ -28,3 +28,11 @@ target_link_libraries(StringOpsModuleTests PRIVATE Utilities)
 
 target_link_libraries(IoctlStringOpsModuleTests PRIVATE Qt${QT_VERSION_MAJOR}::Test)
 target_link_libraries(IoctlStringOpsModuleTests PRIVATE Utilities)
+
+set(RUN_ALL_TESTS RunAllTests)
+
+add_custom_target(${RUN_ALL_TESTS})
+target_sources(${RUN_ALL_TESTS} PRIVATE runalltests.sh)
+
+add_custom_command(TARGET ${RUN_ALL_TESTS} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/runalltests.sh ${CMAKE_CURRENT_BINARY_DIR}/runalltests.sh)
