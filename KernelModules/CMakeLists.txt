@@ -1,5 +1,3 @@
-cmake_minimum_required(VERSION 3.5)
-
 project(KernelModules LANGUAGES C)
 
 set(KERNEL_MODULES_PROJECT_NAME ${PROJECT_NAME})
