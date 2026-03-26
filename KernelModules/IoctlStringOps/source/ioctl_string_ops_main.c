@@ -1,12 +1,19 @@
 #include <linux/cdev.h>
-#include <linux/ctype.h>
 #include <linux/fs.h>
-#include <linux/ioctl.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/uaccess.h>
 
 #include "ioctl_string_ops_impl.h"
+
+#define SUCCESS 0
+#define SUPPORTED_MINOR_NUMBERS_COUNT 1
+
+// 9999 is an arbitrarily chosen "magic number" (in a "real" (production) system an official assignment would be
+// required; might be the major driver number)
+#define IOCTL_TRIM_USER_INPUT _IOW(9999, 'a', uint8_t*)
+#define IOCTL_GET_CHARS_COUNT_FROM_BUFFER _IOR(9999, 'b', size_t*)
+#define IOCTL_SET_OUTPUT_PREFIX _IOW(9999, 'c', void*)
+#define IOCTL_GET_OUTPUT_PREFIX_SIZE _IOR(9999, 'd', size_t*)
+#define IOCTL_DO_MODULE_RESET _IOW(9999, 'e', void*)
+#define IOCTL_IS_MODULE_RESET _IOR(9999, 'f', uint8_t*)
 
 MODULE_LICENSE("GPL");
 
@@ -21,17 +28,6 @@ static struct cdev ioctl_string_ops_cdev;
 
 static int major_number = 0;
 static int is_device_open = 0;
-
-static char buffer[BUFFER_SIZE]; // shared input/output buffer
-static char output_prefix[PREFIX_BUFFER_SIZE];
-
-/* 0 - trim user input
-   1 - enable output prefix
-   2-6: reserved for future use
-*/
-static uint8_t settings = DEFAULT_SETTINGS;
-
-extern void trim_and_copy_string(char* dest, const char* src, size_t max_str_length);
 
 static int device_open(struct inode*, struct file*);
 static int device_release(struct inode*, struct file*);
@@ -91,7 +87,7 @@ static int ioctl_string_ops_init(void)
         }
 
         result = SUCCESS;
-        reset_buffers(buffer, output_prefix);
+        reset_buffers();
         pr_info("%s: device registered, major number %d successfully assigned\n", THIS_MODULE->name, major_number);
     } while (false);
 
@@ -136,77 +132,12 @@ static int device_release(struct inode* inode, struct file* file)
 
 static ssize_t device_read(struct file* filp, char* buf, size_t length, loff_t* offset)
 {
-    ssize_t result = 0;
-
-    const char* const result_buffer_start_ptr = buffer;
-
-    if (*buffer != '\0')
-    {
-        ssize_t bytes_read = 0;
-        char* output_buf_ptr = buffer;
-
-        if (settings & OUTPUT_PREFIX_ENABLED)
-        {
-            char output_buf[PREFIX_BUFFER_SIZE + BUFFER_SIZE];
-
-            output_buf_ptr = output_buf;
-            memset(output_buf_ptr, '\0', PREFIX_BUFFER_SIZE + BUFFER_SIZE);
-
-            const size_t output_prefix_size = strlen(output_prefix);
-            const size_t buffer_size = strlen(buffer);
-
-            strncpy(output_buf_ptr, output_prefix, output_prefix_size);
-            strncpy(output_buf_ptr + output_prefix_size, buffer, buffer_size);
-        }
-
-        while (length && *output_buf_ptr)
-        {
-            put_user(*(output_buf_ptr++), buf++);
-            --length;
-            bytes_read++;
-        }
-
-        result = bytes_read;
-        pr_info("%s: user read: %s", THIS_MODULE->name, result_buffer_start_ptr);
-    }
-
-    return result;
+    return device_read_impl(filp, buf, length, offset);
 }
 
 static ssize_t device_write(struct file* filp, const char* buf, size_t length, loff_t* offset)
 {
-    ssize_t result = -EINVAL;
-
-    char temp[BUFFER_SIZE];
-    memset(temp, '\0', BUFFER_SIZE);
-
-    const size_t max_bytes_to_copy_count = BUFFER_SIZE - 1;
-    const size_t bytes_to_copy_count = length > max_bytes_to_copy_count ? max_bytes_to_copy_count : length;
-    const size_t bytes_not_copied_count = copy_from_user(temp, buf, bytes_to_copy_count);
-
-    if (bytes_not_copied_count > 0)
-    {
-        pr_warn("%s: %ld bytes could not be copied from user\n", THIS_MODULE->name, bytes_not_copied_count);
-    }
-
-    result =
-        (ssize_t)strlen(temp); // the total number of chars provided by user (not the trimmed one) needs to be returned
-
-    pr_info("%s: user wrote: %s\n", THIS_MODULE->name, temp);
-
-    if (settings & TRIM_USER_INPUT_ENABLED)
-    {
-        trim_and_copy_string(buffer, temp, BUFFER_SIZE);
-        pr_info("%s: after trimming the user provided string was stored as: \"%s\"\n", THIS_MODULE->name, buffer);
-    }
-    else
-    {
-        memset(buffer, '\0', BUFFER_SIZE);
-        strncpy(buffer, temp, result);
-        pr_info("%s: no trimming applied, the user provided string was stored as: \"%s\"\n", THIS_MODULE->name, buffer);
-    }
-
-    return result;
+    return device_write_impl(filp, buf, length, offset);
 }
 
 static long device_ioctl(struct file* file, unsigned int command, unsigned long arg)
@@ -216,27 +147,27 @@ static long device_ioctl(struct file* file, unsigned int command, unsigned long 
     switch (command)
     {
     case IOCTL_TRIM_USER_INPUT: {
-        result = ioctl_trim_user_input((uint8_t*)arg, &settings);
+        result = ioctl_trim_user_input((uint8_t*)arg);
         break;
     }
     case IOCTL_GET_CHARS_COUNT_FROM_BUFFER: {
-        result = ioctl_get_chars_count_from_buffer(buffer, (size_t*)arg);
+        result = ioctl_get_chars_count_from_buffer((size_t*)arg);
         break;
     }
     case IOCTL_SET_OUTPUT_PREFIX: {
-        result = ioctl_set_output_prefix((void*)arg, output_prefix, &settings);
+        result = ioctl_set_output_prefix((void*)arg);
         break;
     }
     case IOCTL_GET_OUTPUT_PREFIX_SIZE: {
-        result = ioctl_get_output_prefix_size(output_prefix, (size_t*)arg);
+        result = ioctl_get_output_prefix_size((size_t*)arg);
         break;
     }
     case IOCTL_DO_MODULE_RESET: {
-        result = ioctl_do_module_reset(buffer, output_prefix, &settings);
+        result = ioctl_do_module_reset();
         break;
     }
     case IOCTL_IS_MODULE_RESET: {
-        result = ioctl_is_module_reset(buffer, &settings, (uint8_t*)arg);
+        result = ioctl_is_module_reset((uint8_t*)arg);
         break;
     }
     default:

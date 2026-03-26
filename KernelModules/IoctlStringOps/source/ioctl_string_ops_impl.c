@@ -3,13 +3,101 @@
 
 #include "ioctl_string_ops_impl.h"
 
-long ioctl_trim_user_input(const uint8_t* should_trim, uint8_t* module_settings)
+#define BUFFER_SIZE 1024
+#define PREFIX_BUFFER_SIZE 128
+
+#define TRIM_USER_INPUT_ENABLED 0b00000001
+#define OUTPUT_PREFIX_ENABLED 0b00000010
+#define DEFAULT_SETTINGS 0b00000001
+
+static char buffer[BUFFER_SIZE]; // shared input/output buffer
+static char output_prefix[PREFIX_BUFFER_SIZE];
+
+/* 0 - trim user input
+   1 - enable output prefix
+   2-6: reserved for future use
+*/
+static uint8_t settings = DEFAULT_SETTINGS;
+
+extern void trim_and_copy_string(char* dest, const char* src, size_t max_str_length);
+
+ssize_t device_read_impl(struct file* filp, char* buf, size_t length, loff_t* offset)
+{
+    ssize_t bytes_read = 0;
+    char* output_buffer_ptr = buffer;
+
+    if (settings & OUTPUT_PREFIX_ENABLED)
+    {
+        char consolidated_output_buffer[PREFIX_BUFFER_SIZE + BUFFER_SIZE];
+
+        output_buffer_ptr = consolidated_output_buffer;
+        memset(output_buffer_ptr, '\0', PREFIX_BUFFER_SIZE + BUFFER_SIZE);
+
+        const size_t output_prefix_size = strlen(output_prefix);
+        const size_t buffer_size = strlen(buffer);
+
+        strncpy(output_buffer_ptr, output_prefix, output_prefix_size);
+        strncpy(output_buffer_ptr + output_prefix_size, buffer, buffer_size);
+    }
+
+    while (length && *output_buffer_ptr)
+    {
+        put_user(*(output_buffer_ptr++), buf++);
+        --length;
+        bytes_read++;
+    }
+
+    if (bytes_read > 0)
+    {
+        pr_info("%s: user read: %s", THIS_MODULE->name, buffer);
+    }
+
+    return bytes_read;
+}
+
+ssize_t device_write_impl(struct file* filp, const char* buf, size_t length, loff_t* offset)
+{
+    ssize_t result = -EINVAL;
+
+    char temp[BUFFER_SIZE];
+    memset(temp, '\0', BUFFER_SIZE);
+
+    const size_t max_bytes_to_copy_count = BUFFER_SIZE - 1;
+    const size_t bytes_to_copy_count = length > max_bytes_to_copy_count ? max_bytes_to_copy_count : length;
+    const size_t bytes_not_copied_count = copy_from_user(temp, buf, bytes_to_copy_count);
+
+    if (bytes_not_copied_count > 0)
+    {
+        pr_warn("%s: %ld bytes could not be copied from user\n", THIS_MODULE->name, bytes_not_copied_count);
+    }
+
+    result =
+        (ssize_t)strlen(temp); // the total number of chars provided by user (not the trimmed one) needs to be returned
+
+    pr_info("%s: user wrote: %s\n", THIS_MODULE->name, temp);
+
+    if (settings & TRIM_USER_INPUT_ENABLED)
+    {
+        trim_and_copy_string(buffer, temp, BUFFER_SIZE);
+        pr_info("%s: after trimming the user provided string was stored as: \"%s\"\n", THIS_MODULE->name, buffer);
+    }
+    else
+    {
+        memset(buffer, '\0', BUFFER_SIZE);
+        strncpy(buffer, temp, result);
+        pr_info("%s: no trimming applied, the user provided string was stored as: \"%s\"\n", THIS_MODULE->name, buffer);
+    }
+
+    return result;
+}
+
+long ioctl_trim_user_input(const uint8_t* should_trim)
 {
     long result = -1;
 
     for (;;)
     {
-        if (!should_trim || !module_settings)
+        if (!should_trim)
         {
             break;
         }
@@ -25,11 +113,11 @@ long ioctl_trim_user_input(const uint8_t* should_trim, uint8_t* module_settings)
 
         if (should_trim_user_input)
         {
-            *module_settings |= TRIM_USER_INPUT_ENABLED;
+            settings |= TRIM_USER_INPUT_ENABLED;
         }
         else
         {
-            *module_settings &= ~TRIM_USER_INPUT_ENABLED;
+            settings &= ~TRIM_USER_INPUT_ENABLED;
         }
 
         result = 0;
@@ -39,15 +127,14 @@ long ioctl_trim_user_input(const uint8_t* should_trim, uint8_t* module_settings)
     return result;
 }
 
-long ioctl_get_chars_count_from_buffer(const char* module_buffer, size_t* buffer_size)
+long ioctl_get_chars_count_from_buffer(size_t* buffer_size)
 {
     long result = -1;
 
-    if (module_buffer && buffer_size)
+    if (buffer_size)
     {
-        const size_t module_buffer_length = strlen(module_buffer);
-        const size_t bytes_not_copied_count =
-            copy_to_user(buffer_size, &module_buffer_length, sizeof(module_buffer_length));
+        const size_t buffer_length = strlen(buffer);
+        const size_t bytes_not_copied_count = copy_to_user(buffer_size, &buffer_length, sizeof(buffer_length));
 
         if (bytes_not_copied_count == 0)
         {
@@ -62,13 +149,13 @@ long ioctl_get_chars_count_from_buffer(const char* module_buffer, size_t* buffer
     return result;
 }
 
-long ioctl_set_output_prefix(const void* output_prefix_data, char* module_output_prefix, uint8_t* module_settings)
+long ioctl_set_output_prefix(const void* output_prefix_data)
 {
     uint8_t success = 0;
 
     for (;;)
     {
-        if (!output_prefix_data || !module_output_prefix || !module_settings)
+        if (!output_prefix_data)
         {
             break;
         }
@@ -83,8 +170,8 @@ long ioctl_set_output_prefix(const void* output_prefix_data, char* module_output
 
         if (prefix_size == 0)
         {
-            memset(module_output_prefix, '\0', PREFIX_BUFFER_SIZE);
-            *module_settings &= ~OUTPUT_PREFIX_ENABLED;
+            memset(output_prefix, '\0', PREFIX_BUFFER_SIZE);
+            settings &= ~OUTPUT_PREFIX_ENABLED;
             success = 1;
             break;
         }
@@ -101,9 +188,9 @@ long ioctl_set_output_prefix(const void* output_prefix_data, char* module_output
             break;
         }
 
-        memset(module_output_prefix, '\0', PREFIX_BUFFER_SIZE);
-        strncpy(module_output_prefix, temp, prefix_size);
-        *module_settings |= OUTPUT_PREFIX_ENABLED;
+        memset(output_prefix, '\0', PREFIX_BUFFER_SIZE);
+        strncpy(output_prefix, temp, prefix_size);
+        settings |= OUTPUT_PREFIX_ENABLED;
         success = 1;
         break;
     }
@@ -116,13 +203,13 @@ long ioctl_set_output_prefix(const void* output_prefix_data, char* module_output
     return success ? 0 : -1;
 }
 
-long ioctl_get_output_prefix_size(const char* module_output_prefix, size_t* output_prefix_size)
+long ioctl_get_output_prefix_size(size_t* output_prefix_size)
 {
     long result = -1;
 
-    if (module_output_prefix && output_prefix_size)
+    if (output_prefix_size)
     {
-        const size_t module_output_prefix_length = strlen(module_output_prefix);
+        const size_t module_output_prefix_length = strlen(output_prefix);
         const size_t bytes_not_copied_count =
             copy_to_user(output_prefix_size, &module_output_prefix_length, sizeof(module_output_prefix_length));
 
@@ -139,27 +226,21 @@ long ioctl_get_output_prefix_size(const char* module_output_prefix, size_t* outp
     return result;
 }
 
-long ioctl_do_module_reset(char* module_buffer, char* module_output_prefix, uint8_t* module_settings)
+long ioctl_do_module_reset()
 {
-    long result = -1;
+    reset_buffers();
+    settings = DEFAULT_SETTINGS;
 
-    if (module_buffer && module_settings)
-    {
-        reset_buffers(module_buffer, module_output_prefix);
-        *module_settings = DEFAULT_SETTINGS;
-        result = 0;
-    }
-
-    return result;
+    return 0;
 }
 
-long ioctl_is_module_reset(const char* module_buffer, const uint8_t* module_settings, uint8_t* is_module_reset)
+long ioctl_is_module_reset(uint8_t* is_module_reset)
 {
     long result = -1;
 
-    if (module_buffer && module_settings && is_module_reset)
+    if (is_module_reset)
     {
-        const uint8_t is_reset = (*module_settings == DEFAULT_SETTINGS && strlen(module_buffer) == 0);
+        const uint8_t is_reset = (settings == DEFAULT_SETTINGS && strlen(buffer) == 0);
         const size_t bytes_not_copied_count = copy_to_user(is_module_reset, &is_reset, sizeof(is_reset));
 
         if (bytes_not_copied_count == 0)
@@ -175,15 +256,8 @@ long ioctl_is_module_reset(const char* module_buffer, const uint8_t* module_sett
     return result;
 }
 
-void reset_buffers(char* module_buffer, char* module_output_prefix)
+void reset_buffers(void)
 {
-    if (module_buffer)
-    {
-        memset(module_buffer, '\0', BUFFER_SIZE);
-    }
-
-    if (module_output_prefix)
-    {
-        memset(module_output_prefix, '\0', PREFIX_BUFFER_SIZE);
-    }
+    memset(buffer, '\0', BUFFER_SIZE);
+    memset(output_prefix, '\0', PREFIX_BUFFER_SIZE);
 }
