@@ -19,7 +19,7 @@ static char output_prefix[PREFIX_BUFFER_SIZE];
 */
 static uint8_t settings = DEFAULT_SETTINGS;
 
-extern void trim_and_copy_string(char* dest, const char* src, size_t max_str_length);
+extern void trim_and_copy_string(char* dest, const char* src, size_t max_str_length, const char* calling_module_name);
 
 ssize_t device_read_impl(struct file* filp, char* buf, size_t length, loff_t* offset)
 {
@@ -78,7 +78,7 @@ ssize_t device_write_impl(struct file* filp, const char* buf, size_t length, lof
 
     if (settings & TRIM_USER_INPUT_ENABLED)
     {
-        trim_and_copy_string(buffer, temp, BUFFER_SIZE);
+        trim_and_copy_string(buffer, temp, BUFFER_SIZE, THIS_MODULE->name);
         pr_info("%s: after trimming the user provided string was stored as: \"%s\"\n", THIS_MODULE->name, buffer);
     }
     else

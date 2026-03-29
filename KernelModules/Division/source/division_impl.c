@@ -17,7 +17,7 @@ static const char* synced_status_str = "synced";
 static const size_t divide_cmd_str_length = 6;
 static const size_t reset_cmd_str_length = 5;
 
-extern void trim_and_copy_string(char* dest, const char* src, size_t max_str_length);
+extern void trim_and_copy_string(char* dest, const char* src, size_t max_str_length, const char* calling_module_name);
 
 static int compute_quotient_and_remainder(struct division_data* data)
 {
@@ -172,7 +172,7 @@ void store_command(struct division_data* data, const char* command_str)
             break;
         }
 
-        trim_and_copy_string(data->command, command_str, MAX_COMMAND_STR_LENGTH);
+        trim_and_copy_string(data->command, command_str, MAX_COMMAND_STR_LENGTH, THIS_MODULE->name);
         const size_t command_length = strlen(data->command);
 
         pr_info("%s: issued command: %s\n", THIS_MODULE->name, data->command);

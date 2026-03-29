@@ -25,7 +25,7 @@ static void (*destroy_map_element)(struct map_element_data* element_data) = NULL
 
 static struct mapping_data* data = NULL;
 
-extern void trim_and_copy_string(char* dest, const char* src, size_t max_str_length);
+extern void trim_and_copy_string(char* dest, const char* src, size_t max_str_length, const char* calling_module_name);
 
 static void reset_key_and_value(void)
 {
@@ -252,7 +252,7 @@ void store_key(const char* key_str)
 {
     if (data)
     {
-        trim_and_copy_string(data->key, key_str, MAX_KEY_STR_LENGTH);
+        trim_and_copy_string(data->key, key_str, MAX_KEY_STR_LENGTH, THIS_MODULE->name);
         memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
         strncpy(data->status, dirty_status_str, strlen(dirty_status_str));
         pr_info("%s: key entered: %s\n", THIS_MODULE->name, data->key);
@@ -285,7 +285,7 @@ void store_command(const char* command_str)
 {
     if (data && create_map_element && destroy_map_element)
     {
-        trim_and_copy_string(data->command, command_str, MAX_COMMAND_STR_LENGTH);
+        trim_and_copy_string(data->command, command_str, MAX_COMMAND_STR_LENGTH, THIS_MODULE->name);
         const size_t command_length = strlen(data->command);
 
         pr_info("%s: issued command: %s\n", THIS_MODULE->name, data->command);

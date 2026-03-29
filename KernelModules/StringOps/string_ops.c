@@ -9,6 +9,7 @@
 #define INPUT_BUFFER_SIZE 128
 #define OUTPUT_BUFFER_SIZE 256
 #define SUPPORTED_MINOR_NUMBERS_COUNT 4
+#define TO_LOWER_CASE 1
 
 MODULE_LICENSE("GPL");
 
@@ -38,7 +39,11 @@ static char minor3_output_buffer[OUTPUT_BUFFER_SIZE]; // result buffer for minor
 static char*
     result_buffer_ptr; // can point to any input/output buffer depending on minor number and operation (read/write)
 
-extern void trim_and_copy_string(char* dest, const char* src, size_t max_str_length);
+extern void trim_and_copy_string(char* dest, const char* src, size_t max_str_length, const char* calling_module_name);
+extern void convert_to_same_case_and_copy_string(char* dest, const char* src, size_t chars_count, int to_lower_case,
+                                                 const char* calling_module_name); // minor 1 operation
+extern void reverse_and_copy_string(char* dest, const char* src, size_t chars_count,
+                                    const char* calling_module_name); // minor 2 operation
 
 static int device_open(struct inode*, struct file*);
 static int device_release(struct inode*, struct file*);
@@ -48,8 +53,6 @@ static ssize_t device_write(struct file*, const char*, size_t, loff_t*);
 static struct file_operations file_ops = {
     .owner = THIS_MODULE, .read = device_read, .write = device_write, .open = device_open, .release = device_release};
 
-static void convert_input_to_lower_case(void);                      // minor number 1 operation
-static void reverse_input(void);                                    // minor number 2 operation
 static void append_input_string_length(void);                       // minor number 3 operation
 static void reset_buffers(void);                                    // input/output buffers reset
 static void do_module_cleanup(size_t existing_minor_numbers_count); // destroy character device, delete device files,
@@ -218,7 +221,7 @@ static ssize_t device_write(struct file* filp, const char* buffer, size_t length
 
         result = (ssize_t)strlen(
             temp); // the total number of chars provided by user (not the trimmed one) needs to be returned
-        trim_and_copy_string(input_buffer, temp, INPUT_BUFFER_SIZE);
+        trim_and_copy_string(input_buffer, temp, INPUT_BUFFER_SIZE, THIS_MODULE->name);
 
         pr_info("%s: user wrote to minor number %d: %s\n", THIS_MODULE->name, minor_number, temp);
         pr_info("%s: after trimming the user provided string was stored to minor number %d as: %s\n", THIS_MODULE->name,
@@ -232,11 +235,12 @@ static ssize_t device_write(struct file* filp, const char* buffer, size_t length
         break;
     }
     case 1: {
-        convert_input_to_lower_case();
+        convert_to_same_case_and_copy_string(result_buffer_ptr, input_buffer, OUTPUT_BUFFER_SIZE, TO_LOWER_CASE,
+                                             THIS_MODULE->name);
         break;
     }
     case 2: {
-        reverse_input();
+        reverse_and_copy_string(result_buffer_ptr, input_buffer, OUTPUT_BUFFER_SIZE, THIS_MODULE->name);
         break;
     }
     case 3: {
@@ -248,34 +252,6 @@ static ssize_t device_write(struct file* filp, const char* buffer, size_t length
     }
 
     return result;
-}
-
-static void convert_input_to_lower_case(void)
-{
-    if (result_buffer_ptr)
-    {
-        memset(result_buffer_ptr, '\0', OUTPUT_BUFFER_SIZE);
-
-        for (size_t index = 0; index < strlen(input_buffer); ++index)
-        {
-            result_buffer_ptr[index] = tolower(input_buffer[index]);
-        }
-    }
-}
-
-static void reverse_input(void)
-{
-    if (result_buffer_ptr)
-    {
-        memset(result_buffer_ptr, '\0', OUTPUT_BUFFER_SIZE);
-
-        const size_t length = strlen(input_buffer);
-
-        for (size_t index = 0; index < length; ++index)
-        {
-            result_buffer_ptr[index] = input_buffer[length - 1 - index];
-        }
-    }
 }
 
 static void append_input_string_length(void)
