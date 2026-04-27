@@ -83,7 +83,7 @@ static int string_ops_init(void)
             break;
         }
 
-        string_ops_class = class_create(THIS_MODULE, "string_ops_class");
+        string_ops_class = class_create("string_ops_class");
 
         if (!string_ops_class)
         {

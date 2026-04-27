@@ -14,7 +14,7 @@ $(BUILD_DIR):
 	mkdir -p "$@"
 
 $(BUILD_DIR_MAKEFILE): $(BUILD_DIR)
-	echo $(ADD_EXTRA_SYMBOLS) > "$@"
+	touch "$@"
 
 clean:
 	make -C /lib/modules/$(shell uname -r)/build M=$(BUILD_DIR) src=$(PWD) clean

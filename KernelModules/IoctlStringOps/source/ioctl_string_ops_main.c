@@ -70,7 +70,7 @@ static int ioctl_string_ops_init(void)
             break;
         }
 
-        ioctl_string_ops_class = class_create(THIS_MODULE, "ioctl_string_ops_class");
+        ioctl_string_ops_class = class_create("ioctl_string_ops_class");
 
         if (!ioctl_string_ops_class)
         {

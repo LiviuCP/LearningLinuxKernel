@@ -54,7 +54,7 @@ static int ioctl_division_init(void)
             break;
         }
 
-        ioctl_division_class = class_create(THIS_MODULE, "ioctl_division_class");
+        ioctl_division_class = class_create("ioctl_division_class");
 
         if (!ioctl_division_class)
         {

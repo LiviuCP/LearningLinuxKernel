@@ -5,6 +5,7 @@ obj-m += ioctl_string_ops.o
 ioctl_string_ops-objs := $(SRC:.c=.o)
 
 KERNEL_UTILITIES_BUILD_DIR := $(shell cd $(BUILD_DIR) && cd ../KernelUtilities && echo `pwd`)
+KBUILD_EXTRA_SYMBOLS += $(KERNEL_UTILITIES_BUILD_DIR)/Module.symvers
 
 # the BUILD_DIR variable should be provided from project (CMake), not set manually by user
 BUILD_DIR_MAKEFILE := $(BUILD_DIR)/Makefile

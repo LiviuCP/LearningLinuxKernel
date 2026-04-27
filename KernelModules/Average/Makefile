@@ -11,6 +11,7 @@ average1-objs := $(SRC_COMMON:.c=.o) $(SRC_V1:.c=.o)
 average2-objs := $(SRC_COMMON:.c=.o) $(SRC_V2:.c=.o)
 
 KERNEL_UTILITIES_BUILD_DIR := $(shell cd $(BUILD_DIR) && cd ../KernelUtilities && echo `pwd`)
+KBUILD_EXTRA_SYMBOLS += $(KERNEL_UTILITIES_BUILD_DIR)/Module.symvers
 
 # the BUILD_DIR variable should be provided from project (CMake), not set manually by user
 BUILD_DIR_MAKEFILE := $(BUILD_DIR)/Makefile

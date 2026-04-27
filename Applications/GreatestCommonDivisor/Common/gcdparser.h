@@ -1,6 +1,7 @@
 #pragma once
 
 #include <optional>
+#include <utility>
 
 using ParsedArguments = std::optional<std::pair<int, int>>;
 
