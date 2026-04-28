@@ -7,12 +7,12 @@
 #include "testutils.h"
 #include "utils.h"
 
-#define IOCTL_TRIM_USER_INPUT _IOW(9999, 'a', uint8_t*)
-#define IOCTL_GET_CHARS_COUNT_FROM_BUFFER _IOR(9999, 'b', size_t*)
-#define IOCTL_SET_OUTPUT_PREFIX _IOW(9999, 'c', void*)
-#define IOCTL_GET_OUTPUT_PREFIX_SIZE _IOR(9999, 'd', size_t*)
-#define IOCTL_DO_MODULE_RESET _IOW(9999, 'e', void*)
-#define IOCTL_IS_MODULE_RESET _IOR(9999, 'f', uint8_t*)
+#define IOCTL_DO_MODULE_RESET _IOW(9999, 'a', void*)
+#define IOCTL_IS_MODULE_RESET _IOR(9999, 'b', uint8_t*)
+#define IOCTL_TRIM_USER_INPUT _IOW(9999, 'c', uint8_t*)
+#define IOCTL_GET_CHARS_COUNT_FROM_BUFFER _IOR(9999, 'd', size_t*)
+#define IOCTL_SET_OUTPUT_PREFIX _IOW(9999, 'e', void*)
+#define IOCTL_GET_OUTPUT_PREFIX_SIZE _IOR(9999, 'f', size_t*)
 
 static constexpr std::string_view stringOpsModuleName{"ioctl_string_ops"};
 static constexpr std::string_view utilitiesModuleName{"kernelutilities"};

@@ -8,12 +8,12 @@
 
 // 9999 is an arbitrarily chosen "magic number" (in a "real" (production) system an official assignment would be
 // required; might be the major driver number)
-#define IOCTL_TRIM_USER_INPUT _IOW(9999, 'a', uint8_t*)
-#define IOCTL_GET_CHARS_COUNT_FROM_BUFFER _IOR(9999, 'b', size_t*)
-#define IOCTL_SET_OUTPUT_PREFIX _IOW(9999, 'c', void*)
-#define IOCTL_GET_OUTPUT_PREFIX_SIZE _IOR(9999, 'd', size_t*)
-#define IOCTL_DO_MODULE_RESET _IOW(9999, 'e', void*)
-#define IOCTL_IS_MODULE_RESET _IOR(9999, 'f', uint8_t*)
+#define IOCTL_DO_MODULE_RESET _IOW(9999, 'a', void*)
+#define IOCTL_IS_MODULE_RESET _IOR(9999, 'b', uint8_t*)
+#define IOCTL_TRIM_USER_INPUT _IOW(9999, 'c', uint8_t*)
+#define IOCTL_GET_CHARS_COUNT_FROM_BUFFER _IOR(9999, 'd', size_t*)
+#define IOCTL_SET_OUTPUT_PREFIX _IOW(9999, 'e', void*)
+#define IOCTL_GET_OUTPUT_PREFIX_SIZE _IOR(9999, 'f', size_t*)
 
 MODULE_LICENSE("GPL");
 
@@ -146,6 +146,14 @@ static long device_ioctl(struct file* file, unsigned int command, unsigned long 
 
     switch (command)
     {
+    case IOCTL_DO_MODULE_RESET: {
+        result = ioctl_do_module_reset();
+        break;
+    }
+    case IOCTL_IS_MODULE_RESET: {
+        result = ioctl_is_module_reset((uint8_t*)arg);
+        break;
+    }
     case IOCTL_TRIM_USER_INPUT: {
         result = ioctl_trim_user_input((uint8_t*)arg);
         break;
@@ -160,14 +168,6 @@ static long device_ioctl(struct file* file, unsigned int command, unsigned long 
     }
     case IOCTL_GET_OUTPUT_PREFIX_SIZE: {
         result = ioctl_get_output_prefix_size((size_t*)arg);
-        break;
-    }
-    case IOCTL_DO_MODULE_RESET: {
-        result = ioctl_do_module_reset();
-        break;
-    }
-    case IOCTL_IS_MODULE_RESET: {
-        result = ioctl_is_module_reset((uint8_t*)arg);
         break;
     }
     default:

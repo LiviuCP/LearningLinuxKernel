@@ -91,6 +91,36 @@ ssize_t device_write_impl(struct file* filp, const char* buf, size_t length, lof
     return result;
 }
 
+long ioctl_do_module_reset()
+{
+    reset_buffers();
+    settings = DEFAULT_SETTINGS;
+
+    return 0;
+}
+
+long ioctl_is_module_reset(uint8_t* is_module_reset)
+{
+    long result = -1;
+
+    if (is_module_reset)
+    {
+        const uint8_t is_reset = (settings == DEFAULT_SETTINGS && strlen(buffer) == 0);
+        const size_t bytes_not_copied_count = copy_to_user(is_module_reset, &is_reset, sizeof(is_reset));
+
+        if (bytes_not_copied_count == 0)
+        {
+            result = 0;
+        }
+        else
+        {
+            pr_err("%s: IOCTL: failed checking if the module is reset!\n", THIS_MODULE->name);
+        }
+    }
+
+    return result;
+}
+
 long ioctl_trim_user_input(const uint8_t* should_trim)
 {
     long result = -1;
@@ -220,36 +250,6 @@ long ioctl_get_output_prefix_size(size_t* output_prefix_size)
         else
         {
             pr_err("%s: IOCTL: failed reading output prefix size!\n", THIS_MODULE->name);
-        }
-    }
-
-    return result;
-}
-
-long ioctl_do_module_reset()
-{
-    reset_buffers();
-    settings = DEFAULT_SETTINGS;
-
-    return 0;
-}
-
-long ioctl_is_module_reset(uint8_t* is_module_reset)
-{
-    long result = -1;
-
-    if (is_module_reset)
-    {
-        const uint8_t is_reset = (settings == DEFAULT_SETTINGS && strlen(buffer) == 0);
-        const size_t bytes_not_copied_count = copy_to_user(is_module_reset, &is_reset, sizeof(is_reset));
-
-        if (bytes_not_copied_count == 0)
-        {
-            result = 0;
-        }
-        else
-        {
-            pr_err("%s: IOCTL: failed checking if the module is reset!\n", THIS_MODULE->name);
         }
     }
 
