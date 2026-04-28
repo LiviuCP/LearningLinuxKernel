@@ -8,14 +8,16 @@
 
 #define TRIM_USER_INPUT_ENABLED 0b00000001
 #define OUTPUT_PREFIX_ENABLED 0b00000010
+#define USER_INPUT_APPENDING_ENABLED 0b00100000
 #define DEFAULT_SETTINGS 0b00000001
 
 static char buffer[BUFFER_SIZE]; // shared input/output buffer
 static char output_prefix[PREFIX_BUFFER_SIZE];
 
-/* 0 - trim user input
-   1 - enable output prefix
-   2-6: reserved for future use
+/* 0: trim user input
+   1: enable output prefix
+   2: input mode
+   3-7: reserved for future use
 */
 static uint8_t settings = DEFAULT_SETTINGS;
 
@@ -250,6 +252,64 @@ long ioctl_get_output_prefix_size(size_t* output_prefix_size)
         else
         {
             pr_err("%s: IOCTL: failed reading output prefix size!\n", THIS_MODULE->name);
+        }
+    }
+
+    return result;
+}
+
+long ioctl_enable_input_append_mode(uint8_t* should_append)
+{
+    long result = -1;
+
+    for (;;)
+    {
+        if (!should_append)
+        {
+            break;
+        }
+
+        uint8_t should_append_user_input;
+        const size_t bytes_not_copied_count = copy_from_user(&should_append_user_input, should_append, sizeof(uint8_t));
+
+        if (bytes_not_copied_count > 0)
+        {
+            pr_err("%s: IOCTL: failed updating the \"input mode\" setting!\n", THIS_MODULE->name);
+            break;
+        }
+
+        if (should_append_user_input)
+        {
+            settings |= USER_INPUT_APPENDING_ENABLED;
+        }
+        else
+        {
+            settings &= ~USER_INPUT_APPENDING_ENABLED;
+        }
+
+        result = 0;
+        break;
+    }
+
+    return result;
+}
+
+long ioctl_is_input_append_mode_enabled(uint8_t* is_append_enabled)
+{
+    long result = -1;
+
+    if (is_append_enabled)
+    {
+        const uint8_t is_enabled = settings & USER_INPUT_APPENDING_ENABLED;
+        const size_t bytes_not_copied_count = copy_to_user(is_append_enabled, &is_enabled, sizeof(is_enabled));
+
+        if (bytes_not_copied_count == 0)
+        {
+            result = 0;
+        }
+        else
+        {
+            pr_err("%s: IOCTL: failed checking if the user input append mode is enabled!\n", THIS_MODULE->name);
         }
     }
 

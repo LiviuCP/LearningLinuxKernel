@@ -14,6 +14,8 @@
 #define IOCTL_GET_CHARS_COUNT_FROM_BUFFER _IOR(9999, 'd', size_t*)
 #define IOCTL_SET_OUTPUT_PREFIX _IOW(9999, 'e', void*)
 #define IOCTL_GET_OUTPUT_PREFIX_SIZE _IOR(9999, 'f', size_t*)
+#define IOCTL_ENABLE_INPUT_APPEND_MODE _IOW(9999, 'g', uint8_t*)
+#define IOCTL_IS_INPUT_APPEND_MODE_ENABLED _IOR(9999, 'h', uint8_t*)
 
 MODULE_LICENSE("GPL");
 
@@ -168,6 +170,14 @@ static long device_ioctl(struct file* file, unsigned int command, unsigned long 
     }
     case IOCTL_GET_OUTPUT_PREFIX_SIZE: {
         result = ioctl_get_output_prefix_size((size_t*)arg);
+        break;
+    }
+    case IOCTL_ENABLE_INPUT_APPEND_MODE: {
+        result = ioctl_enable_input_append_mode((uint8_t*)arg);
+        break;
+    }
+    case IOCTL_IS_INPUT_APPEND_MODE_ENABLED: {
+        result = ioctl_is_input_append_mode_enabled((uint8_t*)arg);
         break;
     }
     default:
