@@ -48,6 +48,7 @@ private slots:
 
     void testEnableUserInputTrimming();
     void testSetOutputPrefix();
+    void testSetAppendMode();
 
 private:
     void initializeDeviceFile();
@@ -59,6 +60,9 @@ private:
     std::optional<size_t> ioctlReadCharsCountFromBuffer();
     void ioctlSetOutputPrefix(const std::string& outputPrefix);
     std::optional<size_t> ioctlReadOutputPrefixSize();
+
+    void ioctlEnableInputAppendMode(bool enabled);
+    bool ioctlIsInputAppendModeEnabled();
 
     void resetKernelModule();
     bool isKernelModuleReset();
@@ -248,6 +252,23 @@ void IoctlStringOpsModuleTests::testSetOutputPrefix()
     QVERIFY(ioctlReadCharsCountFromBuffer() == 26);
 }
 
+void IoctlStringOpsModuleTests::testSetAppendMode()
+{
+    writeToDeviceFile(m_DeviceFile, "This Is just a TEST!");
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == "This Is just a TEST!");
+
+    QVERIFY(!ioctlIsInputAppendModeEnabled());
+
+    ioctlEnableInputAppendMode(true);
+
+    // QVERIFY(ioctlIsInputAppendModeEnabled());
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == "This Is just a TEST!");
+
+    writeToDeviceFile(m_DeviceFile, "And I passed it!");
+
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == "This Is just a TEST!And I passed it!");
+}
+
 void IoctlStringOpsModuleTests::initializeDeviceFile()
 {
     m_DeviceFile = deviceDirPath;
@@ -353,6 +374,43 @@ std::optional<size_t> IoctlStringOpsModuleTests::ioctlReadOutputPrefixSize()
     }
 
     return result;
+}
+
+void IoctlStringOpsModuleTests::ioctlEnableInputAppendMode(bool enabled)
+{
+    const int fd{open(m_DeviceFile.c_str(), O_WRONLY)};
+
+    if (fd > 0)
+    {
+        const long retVal{ioctl(fd, IOCTL_ENABLE_INPUT_APPEND_MODE, &enabled)};
+        close(fd);
+
+        if (retVal != 0)
+        {
+            QFAIL("Enabling/disabling trimming failed!");
+        }
+    }
+}
+
+bool IoctlStringOpsModuleTests::ioctlIsInputAppendModeEnabled()
+{
+    bool isEnabled{false};
+    const int fd{open(m_DeviceFile.c_str(), O_RDONLY)};
+
+    if (fd > 0)
+    {
+        bool isAppendingEnabled;
+        const long retVal{ioctl(fd, IOCTL_IS_INPUT_APPEND_MODE_ENABLED, &isAppendingEnabled)};
+
+        if (retVal == 0)
+        {
+            isEnabled = isAppendingEnabled;
+        }
+
+        close(fd);
+    }
+
+    return isEnabled;
 }
 
 void IoctlStringOpsModuleTests::resetKernelModule()

@@ -78,16 +78,43 @@ ssize_t device_write_impl(struct file* filp, const char* buf, size_t length, lof
 
     pr_info("%s: user wrote: %s\n", THIS_MODULE->name, temp);
 
+    char input_buffer[BUFFER_SIZE];
+
     if (settings & TRIM_USER_INPUT_ENABLED)
     {
-        trim_and_copy_string(buffer, temp, BUFFER_SIZE, THIS_MODULE->name);
-        pr_info("%s: after trimming the user provided string was stored as: \"%s\"\n", THIS_MODULE->name, buffer);
+        trim_and_copy_string(input_buffer, temp, BUFFER_SIZE, THIS_MODULE->name);
+        pr_info("%s: after trimming the user provided string was stored as: \"%s\"\n", THIS_MODULE->name, input_buffer);
+    }
+    else
+    {
+        memset(input_buffer, '\0', BUFFER_SIZE);
+        strncpy(input_buffer, temp, result);
+        pr_info("%s: no trimming applied, the user provided string was stored as: \"%s\"\n", THIS_MODULE->name,
+                input_buffer);
+    }
+
+    if (settings & USER_INPUT_APPENDING_ENABLED)
+    {
+        const size_t max_chars_count = BUFFER_SIZE - 1;
+        const size_t buffer_chars_count = strlen(buffer);
+        const size_t available_chars_count = max_chars_count - buffer_chars_count;
+        const size_t chars_to_append_count = (size_t)result;
+
+        if (available_chars_count >= chars_to_append_count)
+        {
+            strncpy(buffer + buffer_chars_count, input_buffer, chars_to_append_count);
+            pr_info("%s: the input has been appended to the driver buffer\n", THIS_MODULE->name);
+        }
+        else
+        {
+            pr_warn("%s: the input could not be appended to the driver buffer. There is not enough space.\n",
+                    THIS_MODULE->name);
+        }
     }
     else
     {
         memset(buffer, '\0', BUFFER_SIZE);
-        strncpy(buffer, temp, result);
-        pr_info("%s: no trimming applied, the user provided string was stored as: \"%s\"\n", THIS_MODULE->name, buffer);
+        strncpy(buffer, input_buffer, result);
     }
 
     return result;
