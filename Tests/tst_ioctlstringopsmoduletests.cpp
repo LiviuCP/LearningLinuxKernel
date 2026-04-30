@@ -254,19 +254,49 @@ void IoctlStringOpsModuleTests::testSetOutputPrefix()
 
 void IoctlStringOpsModuleTests::testSetAppendMode()
 {
-    writeToDeviceFile(m_DeviceFile, "This Is just a TEST!");
-    QVERIFY(readFromDeviceFile(m_DeviceFile) == "This Is just a TEST!");
+    ioctlEnableUserInputTrimming(false);
 
+    writeToDeviceFile(m_DeviceFile, "This Is just a TEST!");
+
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == "This Is just a TEST!");
     QVERIFY(!ioctlIsInputAppendModeEnabled());
 
     ioctlEnableInputAppendMode(true);
 
-    QVERIFY(ioctlIsInputAppendModeEnabled());
     QVERIFY(readFromDeviceFile(m_DeviceFile) == "This Is just a TEST!");
+    QVERIFY(ioctlIsInputAppendModeEnabled());
 
-    writeToDeviceFile(m_DeviceFile, "And I passed it!");
+    writeToDeviceFile(m_DeviceFile, " And I passed it!");
 
-    QVERIFY(readFromDeviceFile(m_DeviceFile) == "This Is just a TEST!And I passed it!");
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == "This Is just a TEST! And I passed it!");
+    QVERIFY(ioctlIsInputAppendModeEnabled());
+
+    ioctlEnableInputAppendMode(false);
+    writeToDeviceFile(m_DeviceFile, "Oops, I've been overwriting my content!");
+
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == "Oops, I've been overwriting my content!");
+    QVERIFY(!ioctlIsInputAppendModeEnabled());
+
+    writeToDeviceFile(m_DeviceFile, "The magic number is: ");
+
+    ioctlEnableUserInputTrimming(true);
+    ioctlEnableInputAppendMode(true);
+
+    writeToDeviceFile(m_DeviceFile, "1- ");
+    writeToDeviceFile(m_DeviceFile, " 2- ");
+    writeToDeviceFile(m_DeviceFile, "\n3-");
+    writeToDeviceFile(m_DeviceFile, "4!\t");
+
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == "The magic number is: 1-2-3-4!");
+    QVERIFY(ioctlIsInputAppendModeEnabled());
+
+    resetKernelModule();
+
+    writeToDeviceFile(m_DeviceFile, " first ");
+    writeToDeviceFile(m_DeviceFile, " last \n");
+
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == "last");
+    QVERIFY(!ioctlIsInputAppendModeEnabled());
 }
 
 void IoctlStringOpsModuleTests::initializeDeviceFile()
