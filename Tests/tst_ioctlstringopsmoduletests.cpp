@@ -261,7 +261,7 @@ void IoctlStringOpsModuleTests::testSetAppendMode()
 
     ioctlEnableInputAppendMode(true);
 
-    // QVERIFY(ioctlIsInputAppendModeEnabled());
+    QVERIFY(ioctlIsInputAppendModeEnabled());
     QVERIFY(readFromDeviceFile(m_DeviceFile) == "This Is just a TEST!");
 
     writeToDeviceFile(m_DeviceFile, "And I passed it!");
@@ -399,7 +399,7 @@ bool IoctlStringOpsModuleTests::ioctlIsInputAppendModeEnabled()
 
     if (fd > 0)
     {
-        bool isAppendingEnabled;
+        uint8_t isAppendingEnabled;
         const long retVal{ioctl(fd, IOCTL_IS_INPUT_APPEND_MODE_ENABLED, &isAppendingEnabled)};
 
         if (retVal == 0)
