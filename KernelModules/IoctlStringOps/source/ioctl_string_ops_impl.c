@@ -154,7 +154,7 @@ long ioctl_trim_user_input(const uint8_t* should_trim)
 {
     long result = -1;
 
-    for (;;)
+    do
     {
         if (!should_trim)
         {
@@ -180,8 +180,7 @@ long ioctl_trim_user_input(const uint8_t* should_trim)
         }
 
         result = 0;
-        break;
-    }
+    } while (false);
 
     return result;
 }
@@ -212,7 +211,7 @@ long ioctl_set_output_prefix(const void* output_prefix_data)
 {
     uint8_t success = 0;
 
-    for (;;)
+    do
     {
         if (!output_prefix_data)
         {
@@ -251,8 +250,7 @@ long ioctl_set_output_prefix(const void* output_prefix_data)
         strncpy(output_prefix, temp, prefix_size);
         settings |= OUTPUT_PREFIX_ENABLED;
         success = 1;
-        break;
-    }
+    } while (false);
 
     if (!success)
     {
@@ -289,7 +287,7 @@ long ioctl_enable_input_append_mode(uint8_t* should_append)
 {
     long result = -1;
 
-    for (;;)
+    do
     {
         if (!should_append)
         {
@@ -315,8 +313,7 @@ long ioctl_enable_input_append_mode(uint8_t* should_append)
         }
 
         result = 0;
-        break;
-    }
+    } while (false);
 
     return result;
 }
