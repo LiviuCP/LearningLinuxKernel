@@ -7,12 +7,14 @@
 #include "testutils.h"
 #include "utils.h"
 
-#define IOCTL_TRIM_USER_INPUT _IOW(9999, 'a', uint8_t*)
-#define IOCTL_GET_CHARS_COUNT_FROM_BUFFER _IOR(9999, 'b', size_t*)
-#define IOCTL_SET_OUTPUT_PREFIX _IOW(9999, 'c', void*)
-#define IOCTL_GET_OUTPUT_PREFIX_SIZE _IOR(9999, 'd', size_t*)
-#define IOCTL_DO_MODULE_RESET _IOW(9999, 'e', void*)
-#define IOCTL_IS_MODULE_RESET _IOR(9999, 'f', uint8_t*)
+#define IOCTL_DO_MODULE_RESET _IOW(9999, 'a', void*)
+#define IOCTL_IS_MODULE_RESET _IOR(9999, 'b', uint8_t*)
+#define IOCTL_TRIM_USER_INPUT _IOW(9999, 'c', uint8_t*)
+#define IOCTL_GET_CHARS_COUNT_FROM_BUFFER _IOR(9999, 'd', size_t*)
+#define IOCTL_SET_OUTPUT_PREFIX _IOW(9999, 'e', void*)
+#define IOCTL_GET_OUTPUT_PREFIX_SIZE _IOR(9999, 'f', size_t*)
+#define IOCTL_ENABLE_INPUT_APPEND_MODE _IOW(9999, 'g', uint8_t*)
+#define IOCTL_IS_INPUT_APPEND_MODE_ENABLED _IOR(9999, 'h', uint8_t*)
 
 static constexpr std::string_view stringOpsModuleName{"ioctl_string_ops"};
 static constexpr std::string_view utilitiesModuleName{"kernelutilities"};
@@ -46,6 +48,7 @@ private slots:
 
     void testEnableUserInputTrimming();
     void testSetOutputPrefix();
+    void testSetAppendMode();
 
 private:
     void initializeDeviceFile();
@@ -57,6 +60,9 @@ private:
     std::optional<size_t> ioctlReadCharsCountFromBuffer();
     void ioctlSetOutputPrefix(const std::string& outputPrefix);
     std::optional<size_t> ioctlReadOutputPrefixSize();
+
+    void ioctlEnableInputAppendMode(bool enabled);
+    bool ioctlIsInputAppendModeEnabled();
 
     void resetKernelModule();
     bool isKernelModuleReset();
@@ -246,6 +252,93 @@ void IoctlStringOpsModuleTests::testSetOutputPrefix()
     QVERIFY(ioctlReadCharsCountFromBuffer() == 26);
 }
 
+void IoctlStringOpsModuleTests::testSetAppendMode()
+{
+    ioctlEnableUserInputTrimming(false);
+
+    writeToDeviceFile(m_DeviceFile, "This Is just a TEST!");
+
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == "This Is just a TEST!");
+    QVERIFY(!ioctlIsInputAppendModeEnabled());
+
+    ioctlEnableInputAppendMode(true);
+
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == "This Is just a TEST!");
+    QVERIFY(ioctlIsInputAppendModeEnabled());
+
+    writeToDeviceFile(m_DeviceFile, " And I passed it!");
+
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == "This Is just a TEST! And I passed it!");
+    QVERIFY(ioctlIsInputAppendModeEnabled());
+
+    ioctlEnableInputAppendMode(false);
+    writeToDeviceFile(m_DeviceFile, "Oops, I've been overwriting my content!");
+
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == "Oops, I've been overwriting my content!");
+    QVERIFY(!ioctlIsInputAppendModeEnabled());
+
+    writeToDeviceFile(m_DeviceFile, "The magic number is: ");
+
+    ioctlEnableUserInputTrimming(true);
+    ioctlEnableInputAppendMode(true);
+
+    writeToDeviceFile(m_DeviceFile, "1- ");
+    writeToDeviceFile(m_DeviceFile, " 2- ");
+    writeToDeviceFile(m_DeviceFile, "\n3-");
+    writeToDeviceFile(m_DeviceFile, "4!\t");
+
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == "The magic number is: 1-2-3-4!");
+    QVERIFY(ioctlIsInputAppendModeEnabled());
+
+    resetKernelModule();
+
+    writeToDeviceFile(m_DeviceFile, " first ");
+    writeToDeviceFile(m_DeviceFile, " last \n");
+
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == "last");
+    QVERIFY(!ioctlIsInputAppendModeEnabled());
+
+    /* Test appending when maximum buffer capacity is reached */
+
+    resetKernelModule();
+    ioctlEnableInputAppendMode(true);
+
+    std::string str;
+    constexpr size_t maxCharsCountToWriteToModule{1023}; // buffer size excluding last character (should be '\0')
+
+    str.resize(maxCharsCountToWriteToModule - 1, 'a');
+
+    writeToDeviceFile(m_DeviceFile, str);
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == str);
+
+    writeToDeviceFile(m_DeviceFile, "bc");
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == str);
+
+    writeToDeviceFile(m_DeviceFile, "d");
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == str + "d");
+
+    writeToDeviceFile(m_DeviceFile, "e");
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == str + "d");
+
+    QVERIFY(ioctlIsInputAppendModeEnabled());
+
+    ioctlEnableInputAppendMode(false);
+
+    writeToDeviceFile(m_DeviceFile, "e");
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == "e");
+
+    writeToDeviceFile(m_DeviceFile, str);
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == str);
+
+    writeToDeviceFile(m_DeviceFile, str + "bc");
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == str + "b");
+
+    writeToDeviceFile(m_DeviceFile, str + "d");
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == str + "d");
+
+    QVERIFY(!ioctlIsInputAppendModeEnabled());
+}
+
 void IoctlStringOpsModuleTests::initializeDeviceFile()
 {
     m_DeviceFile = deviceDirPath;
@@ -351,6 +444,43 @@ std::optional<size_t> IoctlStringOpsModuleTests::ioctlReadOutputPrefixSize()
     }
 
     return result;
+}
+
+void IoctlStringOpsModuleTests::ioctlEnableInputAppendMode(bool enabled)
+{
+    const int fd{open(m_DeviceFile.c_str(), O_WRONLY)};
+
+    if (fd > 0)
+    {
+        const long retVal{ioctl(fd, IOCTL_ENABLE_INPUT_APPEND_MODE, &enabled)};
+        close(fd);
+
+        if (retVal != 0)
+        {
+            QFAIL("Enabling/disabling trimming failed!");
+        }
+    }
+}
+
+bool IoctlStringOpsModuleTests::ioctlIsInputAppendModeEnabled()
+{
+    bool isEnabled{false};
+    const int fd{open(m_DeviceFile.c_str(), O_RDONLY)};
+
+    if (fd > 0)
+    {
+        uint8_t isAppendingEnabled;
+        const long retVal{ioctl(fd, IOCTL_IS_INPUT_APPEND_MODE_ENABLED, &isAppendingEnabled)};
+
+        if (retVal == 0)
+        {
+            isEnabled = isAppendingEnabled;
+        }
+
+        close(fd);
+    }
+
+    return isEnabled;
 }
 
 void IoctlStringOpsModuleTests::resetKernelModule()

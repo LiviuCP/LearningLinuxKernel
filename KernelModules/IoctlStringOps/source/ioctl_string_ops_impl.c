@@ -8,14 +8,18 @@
 
 #define TRIM_USER_INPUT_ENABLED 0b00000001
 #define OUTPUT_PREFIX_ENABLED 0b00000010
+#define USER_INPUT_APPENDING_ENABLED 0b00100000
 #define DEFAULT_SETTINGS 0b00000001
 
-static char buffer[BUFFER_SIZE]; // shared input/output buffer
-static char output_prefix[PREFIX_BUFFER_SIZE];
+static char input_buffer[BUFFER_SIZE]; // buffer where trimmed/untrimmed input is stored before writing to data buffer
+static char buffer[BUFFER_SIZE];       // data buffer
+static char
+    output_prefix[PREFIX_BUFFER_SIZE]; // prefix to be prepended to data read from data buffer before sending to user
 
-/* 0 - trim user input
-   1 - enable output prefix
-   2-6: reserved for future use
+/* 0: trim user input
+   1: enable output prefix
+   2: input mode
+   3-7: reserved for future use
 */
 static uint8_t settings = DEFAULT_SETTINGS;
 
@@ -55,37 +59,131 @@ ssize_t device_read_impl(struct file* filp, char* buf, size_t length, loff_t* of
     return bytes_read;
 }
 
-ssize_t device_write_impl(struct file* filp, const char* buf, size_t length, loff_t* offset)
+static void write_to_input_buffer(char* raw_input_buffer)
 {
-    ssize_t result = -EINVAL;
-
-    char temp[BUFFER_SIZE];
-    memset(temp, '\0', BUFFER_SIZE);
-
-    const size_t max_bytes_to_copy_count = BUFFER_SIZE - 1;
-    const size_t bytes_to_copy_count = length > max_bytes_to_copy_count ? max_bytes_to_copy_count : length;
-    const size_t bytes_not_copied_count = copy_from_user(temp, buf, bytes_to_copy_count);
-
-    if (bytes_not_copied_count > 0)
+    if (raw_input_buffer)
     {
-        pr_warn("%s: %ld bytes could not be copied from user\n", THIS_MODULE->name, bytes_not_copied_count);
+        if (settings & TRIM_USER_INPUT_ENABLED)
+        {
+            trim_and_copy_string(input_buffer, raw_input_buffer, BUFFER_SIZE, THIS_MODULE->name);
+            pr_info("%s: after trimming the user provided string was stored as: \"%s\"\n", THIS_MODULE->name,
+                    input_buffer);
+        }
+        else
+        {
+            const size_t chars_count = strlen(raw_input_buffer);
+
+            if (chars_count < BUFFER_SIZE)
+            {
+                memset(input_buffer, '\0', BUFFER_SIZE);
+                strncpy(input_buffer, raw_input_buffer, chars_count);
+                pr_info("%s: no trimming applied, the user provided string was stored as: \"%s\"\n", THIS_MODULE->name,
+                        input_buffer);
+            }
+            else
+            {
+                pr_info("%s: not enough space in input buffer to copy from raw input buffer!", THIS_MODULE->name);
+            }
+        }
     }
+}
 
-    result =
-        (ssize_t)strlen(temp); // the total number of chars provided by user (not the trimmed one) needs to be returned
+static void write_to_data_buffer(void)
+{
+    const size_t chars_count = strlen(input_buffer);
 
-    pr_info("%s: user wrote: %s\n", THIS_MODULE->name, temp);
-
-    if (settings & TRIM_USER_INPUT_ENABLED)
+    if (settings & USER_INPUT_APPENDING_ENABLED)
     {
-        trim_and_copy_string(buffer, temp, BUFFER_SIZE, THIS_MODULE->name);
-        pr_info("%s: after trimming the user provided string was stored as: \"%s\"\n", THIS_MODULE->name, buffer);
+        const size_t used_chars_count = strlen(buffer);
+        const size_t available_chars_count =
+            BUFFER_SIZE - 1 - used_chars_count; // last char position in buffer reserved for terminating '\0'
+
+        // do not append string when buffer capacity is exceeded
+        if (available_chars_count >= chars_count)
+        {
+            strncpy(buffer + used_chars_count, input_buffer, chars_count);
+            pr_info("%s: the input has been appended to the driver buffer\n", THIS_MODULE->name);
+        }
+        else
+        {
+            pr_err("%s: the input could not be appended to the driver buffer. There is not enough space.\n",
+                   THIS_MODULE->name);
+        }
     }
     else
     {
         memset(buffer, '\0', BUFFER_SIZE);
-        strncpy(buffer, temp, result);
-        pr_info("%s: no trimming applied, the user provided string was stored as: \"%s\"\n", THIS_MODULE->name, buffer);
+        strncpy(buffer, input_buffer, chars_count);
+    }
+}
+
+ssize_t device_write_impl(struct file* filp, const char* buf, size_t length, loff_t* offset)
+{
+    ssize_t result = -EINVAL;
+
+    do
+    {
+        char* raw_input_buffer = kzalloc(BUFFER_SIZE, GFP_KERNEL);
+
+        if (!raw_input_buffer)
+        {
+            pr_err("%s: device_write_impl: memory could not be allocated!\n", THIS_MODULE->name);
+            result = -ENOMEM;
+            break;
+        }
+
+        memset(raw_input_buffer, '\0', BUFFER_SIZE);
+
+        const size_t max_bytes_to_copy_count = BUFFER_SIZE - 1;
+
+        // bytes count to copy into raw input buffer are capped no matter the subsequent operation (trim, append, etc)
+        const size_t bytes_to_copy_count = length > max_bytes_to_copy_count ? max_bytes_to_copy_count : length;
+        const size_t bytes_not_copied_count = copy_from_user(raw_input_buffer, buf, bytes_to_copy_count);
+
+        if (bytes_not_copied_count > 0)
+        {
+            pr_warn("%s: %ld bytes could not be copied from user\n", THIS_MODULE->name, bytes_not_copied_count);
+        }
+
+        pr_info("%s: user wrote: %s\n", THIS_MODULE->name, raw_input_buffer);
+
+        write_to_input_buffer(raw_input_buffer);
+        write_to_data_buffer();
+
+        result = (ssize_t)strlen(
+            raw_input_buffer); // the total number of chars provided by user (not the trimmed one) needs to be returned
+
+        kfree(raw_input_buffer);
+    } while (false);
+
+    return result;
+}
+
+long ioctl_do_module_reset()
+{
+    reset_buffers();
+    settings = DEFAULT_SETTINGS;
+
+    return 0;
+}
+
+long ioctl_is_module_reset(uint8_t* is_module_reset)
+{
+    long result = -1;
+
+    if (is_module_reset)
+    {
+        const uint8_t is_reset = (settings == DEFAULT_SETTINGS && strlen(buffer) == 0);
+        const size_t bytes_not_copied_count = copy_to_user(is_module_reset, &is_reset, sizeof(is_reset));
+
+        if (bytes_not_copied_count == 0)
+        {
+            result = 0;
+        }
+        else
+        {
+            pr_err("%s: IOCTL: failed checking if the module is reset!\n", THIS_MODULE->name);
+        }
     }
 
     return result;
@@ -95,7 +193,7 @@ long ioctl_trim_user_input(const uint8_t* should_trim)
 {
     long result = -1;
 
-    for (;;)
+    do
     {
         if (!should_trim)
         {
@@ -121,8 +219,7 @@ long ioctl_trim_user_input(const uint8_t* should_trim)
         }
 
         result = 0;
-        break;
-    }
+    } while (false);
 
     return result;
 }
@@ -153,7 +250,7 @@ long ioctl_set_output_prefix(const void* output_prefix_data)
 {
     uint8_t success = 0;
 
-    for (;;)
+    do
     {
         if (!output_prefix_data)
         {
@@ -192,8 +289,7 @@ long ioctl_set_output_prefix(const void* output_prefix_data)
         strncpy(output_prefix, temp, prefix_size);
         settings |= OUTPUT_PREFIX_ENABLED;
         success = 1;
-        break;
-    }
+    } while (false);
 
     if (!success)
     {
@@ -226,22 +322,49 @@ long ioctl_get_output_prefix_size(size_t* output_prefix_size)
     return result;
 }
 
-long ioctl_do_module_reset()
-{
-    reset_buffers();
-    settings = DEFAULT_SETTINGS;
-
-    return 0;
-}
-
-long ioctl_is_module_reset(uint8_t* is_module_reset)
+long ioctl_enable_input_append_mode(uint8_t* should_append)
 {
     long result = -1;
 
-    if (is_module_reset)
+    do
     {
-        const uint8_t is_reset = (settings == DEFAULT_SETTINGS && strlen(buffer) == 0);
-        const size_t bytes_not_copied_count = copy_to_user(is_module_reset, &is_reset, sizeof(is_reset));
+        if (!should_append)
+        {
+            break;
+        }
+
+        uint8_t should_append_user_input;
+        const size_t bytes_not_copied_count = copy_from_user(&should_append_user_input, should_append, sizeof(uint8_t));
+
+        if (bytes_not_copied_count > 0)
+        {
+            pr_err("%s: IOCTL: failed updating the \"input mode\" setting!\n", THIS_MODULE->name);
+            break;
+        }
+
+        if (should_append_user_input)
+        {
+            settings |= USER_INPUT_APPENDING_ENABLED;
+        }
+        else
+        {
+            settings &= ~USER_INPUT_APPENDING_ENABLED;
+        }
+
+        result = 0;
+    } while (false);
+
+    return result;
+}
+
+long ioctl_is_input_append_mode_enabled(uint8_t* is_append_enabled)
+{
+    long result = -1;
+
+    if (is_append_enabled)
+    {
+        const uint8_t is_enabled = settings & USER_INPUT_APPENDING_ENABLED;
+        const size_t bytes_not_copied_count = copy_to_user(is_append_enabled, &is_enabled, sizeof(is_enabled));
 
         if (bytes_not_copied_count == 0)
         {
@@ -249,7 +372,7 @@ long ioctl_is_module_reset(uint8_t* is_module_reset)
         }
         else
         {
-            pr_err("%s: IOCTL: failed checking if the module is reset!\n", THIS_MODULE->name);
+            pr_err("%s: IOCTL: failed checking if the user input append mode is enabled!\n", THIS_MODULE->name);
         }
     }
 
