@@ -7,7 +7,7 @@ static int divided = 0;
 static int divider = 1;
 static int quotient = 0;
 static int remainder = 0;
-static uint8_t is_synced = 1;
+static bool is_synced = true;
 
 long ioctl_store_divided_value(const int* divided_value)
 {
@@ -171,13 +171,13 @@ long ioctl_reset(void)
     return 0;
 }
 
-long ioctl_get_synced_status(uint8_t* is_synced_value)
+long ioctl_get_synced_status(bool* is_synced_value)
 {
     long result = -1;
 
     if (is_synced_value)
     {
-        const size_t bytes_not_copied_count = copy_to_user(is_synced_value, &is_synced, sizeof(uint8_t));
+        const size_t bytes_not_copied_count = copy_to_user(is_synced_value, &is_synced, sizeof(bool));
 
         if (bytes_not_copied_count == 0)
         {

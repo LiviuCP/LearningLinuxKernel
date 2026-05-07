@@ -8,13 +8,13 @@
 #include "utils.h"
 
 #define IOCTL_DO_MODULE_RESET _IOW(9999, 'a', void*)
-#define IOCTL_IS_MODULE_RESET _IOR(9999, 'b', uint8_t*)
-#define IOCTL_TRIM_USER_INPUT _IOW(9999, 'c', uint8_t*)
+#define IOCTL_IS_MODULE_RESET _IOR(9999, 'b', bool*)
+#define IOCTL_TRIM_USER_INPUT _IOW(9999, 'c', bool*)
 #define IOCTL_GET_CHARS_COUNT_FROM_BUFFER _IOR(9999, 'd', size_t*)
 #define IOCTL_SET_OUTPUT_PREFIX _IOW(9999, 'e', void*)
 #define IOCTL_GET_OUTPUT_PREFIX_SIZE _IOR(9999, 'f', size_t*)
-#define IOCTL_ENABLE_INPUT_APPEND_MODE _IOW(9999, 'g', uint8_t*)
-#define IOCTL_IS_INPUT_APPEND_MODE_ENABLED _IOR(9999, 'h', uint8_t*)
+#define IOCTL_ENABLE_INPUT_APPEND_MODE _IOW(9999, 'g', bool*)
+#define IOCTL_IS_INPUT_APPEND_MODE_ENABLED _IOR(9999, 'h', bool*)
 
 static constexpr std::string_view stringOpsModuleName{"ioctl_string_ops"};
 static constexpr std::string_view utilitiesModuleName{"kernelutilities"};
@@ -469,7 +469,7 @@ bool IoctlStringOpsModuleTests::ioctlIsInputAppendModeEnabled()
 
     if (fd > 0)
     {
-        uint8_t isAppendingEnabled;
+        bool isAppendingEnabled;
         const long retVal{ioctl(fd, IOCTL_IS_INPUT_APPEND_MODE_ENABLED, &isAppendingEnabled)};
 
         if (retVal == 0)

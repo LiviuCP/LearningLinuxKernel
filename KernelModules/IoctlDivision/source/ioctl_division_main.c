@@ -144,7 +144,7 @@ static long device_ioctl(struct file* file, unsigned int command, unsigned long 
         result = ioctl_reset();
         break;
     case IOCTL_GET_SYNCED_STATUS:
-        result = ioctl_get_synced_status((uint8_t*)arg);
+        result = ioctl_get_synced_status((bool*)arg);
         break;
     default:
         break;

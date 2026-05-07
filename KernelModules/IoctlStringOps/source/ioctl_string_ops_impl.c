@@ -167,13 +167,13 @@ long ioctl_do_module_reset()
     return 0;
 }
 
-long ioctl_is_module_reset(uint8_t* is_module_reset)
+long ioctl_is_module_reset(bool* is_module_reset)
 {
     long result = -1;
 
     if (is_module_reset)
     {
-        const uint8_t is_reset = (settings == DEFAULT_SETTINGS && strlen(buffer) == 0);
+        const bool is_reset = (settings == DEFAULT_SETTINGS && strlen(buffer) == 0);
         const size_t bytes_not_copied_count = copy_to_user(is_module_reset, &is_reset, sizeof(is_reset));
 
         if (bytes_not_copied_count == 0)
@@ -189,7 +189,7 @@ long ioctl_is_module_reset(uint8_t* is_module_reset)
     return result;
 }
 
-long ioctl_trim_user_input(const uint8_t* should_trim)
+long ioctl_trim_user_input(const bool* should_trim)
 {
     long result = -1;
 
@@ -200,8 +200,8 @@ long ioctl_trim_user_input(const uint8_t* should_trim)
             break;
         }
 
-        uint8_t should_trim_user_input;
-        const size_t bytes_not_copied_count = copy_from_user(&should_trim_user_input, should_trim, sizeof(uint8_t));
+        bool should_trim_user_input;
+        const size_t bytes_not_copied_count = copy_from_user(&should_trim_user_input, should_trim, sizeof(bool));
 
         if (bytes_not_copied_count > 0)
         {
@@ -248,7 +248,7 @@ long ioctl_get_chars_count_from_buffer(size_t* buffer_size)
 
 long ioctl_set_output_prefix(const void* output_prefix_data)
 {
-    uint8_t success = 0;
+    bool success = false;
 
     do
     {
@@ -269,7 +269,7 @@ long ioctl_set_output_prefix(const void* output_prefix_data)
         {
             memset(output_prefix, '\0', PREFIX_BUFFER_SIZE);
             settings &= ~OUTPUT_PREFIX_ENABLED;
-            success = 1;
+            success = true;
             break;
         }
 
@@ -288,7 +288,7 @@ long ioctl_set_output_prefix(const void* output_prefix_data)
         memset(output_prefix, '\0', PREFIX_BUFFER_SIZE);
         strncpy(output_prefix, temp, prefix_size);
         settings |= OUTPUT_PREFIX_ENABLED;
-        success = 1;
+        success = true;
     } while (false);
 
     if (!success)
@@ -322,7 +322,7 @@ long ioctl_get_output_prefix_size(size_t* output_prefix_size)
     return result;
 }
 
-long ioctl_enable_input_append_mode(uint8_t* should_append)
+long ioctl_enable_input_append_mode(const bool* should_append)
 {
     long result = -1;
 
@@ -333,8 +333,8 @@ long ioctl_enable_input_append_mode(uint8_t* should_append)
             break;
         }
 
-        uint8_t should_append_user_input;
-        const size_t bytes_not_copied_count = copy_from_user(&should_append_user_input, should_append, sizeof(uint8_t));
+        bool should_append_user_input;
+        const size_t bytes_not_copied_count = copy_from_user(&should_append_user_input, should_append, sizeof(bool));
 
         if (bytes_not_copied_count > 0)
         {
@@ -357,13 +357,13 @@ long ioctl_enable_input_append_mode(uint8_t* should_append)
     return result;
 }
 
-long ioctl_is_input_append_mode_enabled(uint8_t* is_append_enabled)
+long ioctl_is_input_append_mode_enabled(bool* is_append_enabled)
 {
     long result = -1;
 
     if (is_append_enabled)
     {
-        const uint8_t is_enabled = settings & USER_INPUT_APPENDING_ENABLED;
+        const bool is_enabled = (bool)(settings & USER_INPUT_APPENDING_ENABLED);
         const size_t bytes_not_copied_count = copy_to_user(is_append_enabled, &is_enabled, sizeof(is_enabled));
 
         if (bytes_not_copied_count == 0)

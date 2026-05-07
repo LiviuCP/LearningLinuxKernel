@@ -15,7 +15,7 @@
 #define IOCTL_SHOW_QUOTIENT_VALUE _IOR(9999, 'e', int*)
 #define IOCTL_SHOW_REMAINDER_VALUE _IOR(9999, 'f', int*)
 #define IOCTL_DIVIDE _IOW(9999, 'g', void*)
-#define IOCTL_GET_SYNCED_STATUS _IOR(9999, 'i', uint8_t*)
+#define IOCTL_GET_SYNCED_STATUS _IOR(9999, 'i', bool*)
 
 static constexpr std::string_view deviceDirPath{"/dev"};
 static constexpr std::string_view baseDeviceFileName{"ioctldivision"};

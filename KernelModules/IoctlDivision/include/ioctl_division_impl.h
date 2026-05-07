@@ -13,7 +13,7 @@
 #define IOCTL_SHOW_REMAINDER_VALUE _IOR(9999, 'f', int*)
 #define IOCTL_DIVIDE _IOW(9999, 'g', void*)
 #define IOCTL_RESET _IOW(9999, 'h', void*)
-#define IOCTL_GET_SYNCED_STATUS _IOR(9999, 'i', uint8_t*)
+#define IOCTL_GET_SYNCED_STATUS _IOR(9999, 'i', bool*)
 
 long ioctl_store_divided_value(const int* divided_value);
 long ioctl_show_divided_value(int* divided_value);
@@ -23,4 +23,4 @@ long ioctl_show_quotient_value(int* quotient_value);
 long ioctl_show_remainder_value(int* remainder_value);
 long ioctl_divide(void);
 long ioctl_reset(void);
-long ioctl_get_synced_status(uint8_t* is_synced_value);
+long ioctl_get_synced_status(bool* is_synced_value);
