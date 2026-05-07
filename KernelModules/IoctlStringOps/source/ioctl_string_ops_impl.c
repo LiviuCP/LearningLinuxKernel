@@ -8,7 +8,7 @@
 
 #define TRIM_USER_INPUT_ENABLED 0b00000001
 #define OUTPUT_PREFIX_ENABLED 0b00000010
-#define USER_INPUT_APPENDING_ENABLED 0b00100000
+#define USER_INPUT_APPENDING_ENABLED 0b00000100
 #define DEFAULT_SETTINGS 0b00000001
 
 static char input_buffer[BUFFER_SIZE]; // buffer where trimmed/untrimmed input is stored before writing to data buffer
