@@ -16,6 +16,7 @@
 #define IOCTL_GET_OUTPUT_PREFIX_SIZE _IOR(9999, 'f', size_t*)
 #define IOCTL_ENABLE_INPUT_APPEND_MODE _IOW(9999, 'g', bool*)
 #define IOCTL_IS_INPUT_APPEND_MODE_ENABLED _IOR(9999, 'h', bool*)
+#define IOCTL_SET_MAX_SIZE_OUTPUT _IOWR(9999, 'i', size_t*)
 
 MODULE_LICENSE("GPL");
 
@@ -89,7 +90,7 @@ static int ioctl_string_ops_init(void)
         }
 
         result = SUCCESS;
-        reset_buffers();
+        reset_module_data();
         pr_info("%s: device registered, major number %d successfully assigned\n", THIS_MODULE->name, major_number);
     } while (false);
 
@@ -178,6 +179,10 @@ static long device_ioctl(struct file* file, unsigned int command, unsigned long 
     }
     case IOCTL_IS_INPUT_APPEND_MODE_ENABLED: {
         result = ioctl_is_input_append_mode_enabled((bool*)arg);
+        break;
+    }
+    case IOCTL_SET_MAX_SIZE_OUTPUT: {
+        result = ioctl_set_max_size_output((size_t*)arg);
         break;
     }
     default:

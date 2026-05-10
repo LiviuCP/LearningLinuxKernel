@@ -16,47 +16,129 @@ static char buffer[BUFFER_SIZE];       // data buffer
 static char
     output_prefix[PREFIX_BUFFER_SIZE]; // prefix to be prepended to data read from data buffer before sending to user
 
+static size_t max_output_size = 0;
+static size_t chars_left_to_read_count = 0;
+
 /* 0: trim user input
    1: enable output prefix
-   2: input mode
+   2: enable appending user input
    3-7: reserved for future use
 */
 static uint8_t settings = DEFAULT_SETTINGS;
 
 extern void trim_and_copy_string(char* dest, const char* src, size_t max_str_length, const char* calling_module_name);
 
+static void reset_max_output_size(void)
+{
+    max_output_size = 0;
+    chars_left_to_read_count = strlen(buffer);
+}
+
+static char* compute_data_buffer_current_read_address(void)
+{
+    const size_t buffer_length = strlen(buffer);
+    char* buffer_ptr = buffer;
+
+    if (max_output_size > 0)
+    {
+        if (chars_left_to_read_count == 0 || chars_left_to_read_count > buffer_length)
+        {
+            reset_max_output_size();
+            pr_err("%s: invalid chars left to read value, should have been positive and not exceed buffer length",
+                   THIS_MODULE->name);
+        }
+
+        const size_t index = buffer_length - chars_left_to_read_count;
+        buffer_ptr += index;
+    }
+
+    return buffer_ptr;
+}
+
+// consolidates output prefix and chars to be read from data buffer in the current read operation
+// the resulting buffer should be freed manually once no longer needed
+char* create_consolidated_buffer(const char* buffer_ptr)
+{
+    char* consolidated_buffer_ptr = NULL;
+
+    if (buffer_ptr)
+    {
+        const size_t buffer_size = strlen(buffer_ptr);
+        const size_t output_prefix_size = strlen(output_prefix);
+        const size_t consolidated_size = buffer_size + output_prefix_size + 1; // + terminating '\0'
+
+        consolidated_buffer_ptr = kzalloc(consolidated_size, GFP_KERNEL);
+
+        if (consolidated_buffer_ptr)
+        {
+            memset(consolidated_buffer_ptr, '\0', consolidated_size);
+
+            strncpy(consolidated_buffer_ptr, output_prefix, output_prefix_size);
+            strncpy(consolidated_buffer_ptr + output_prefix_size, buffer_ptr, buffer_size);
+        }
+        else
+        {
+            pr_err("%s: unable to allocate memory for consolidated output buffer!\n", THIS_MODULE->name);
+        }
+    }
+
+    return consolidated_buffer_ptr;
+}
+
 ssize_t device_read_impl(struct file* filp, char* buf, size_t length, loff_t* offset)
 {
-    ssize_t bytes_read = 0;
-    char* output_buffer_ptr = buffer;
+    const bool is_output_prefix_required = settings & OUTPUT_PREFIX_ENABLED;
 
-    if (settings & OUTPUT_PREFIX_ENABLED)
+    char* buffer_ptr = compute_data_buffer_current_read_address();
+    char* consolidated_buffer_ptr = is_output_prefix_required ? create_consolidated_buffer(buffer_ptr) : NULL;
+    char* output_buffer_ptr = is_output_prefix_required ? consolidated_buffer_ptr : buffer_ptr;
+
+    ssize_t read_bytes_count = 0;
+
+    if (output_buffer_ptr)
     {
-        char consolidated_output_buffer[PREFIX_BUFFER_SIZE + BUFFER_SIZE];
-
-        output_buffer_ptr = consolidated_output_buffer;
-        memset(output_buffer_ptr, '\0', PREFIX_BUFFER_SIZE + BUFFER_SIZE);
-
         const size_t output_prefix_size = strlen(output_prefix);
-        const size_t buffer_size = strlen(buffer);
+        size_t bytes_to_read_count =
+            max_output_size > 0 ? max_output_size + output_prefix_size : strlen(output_buffer_ptr);
 
-        strncpy(output_buffer_ptr, output_prefix, output_prefix_size);
-        strncpy(output_buffer_ptr + output_prefix_size, buffer, buffer_size);
+        while (bytes_to_read_count && *output_buffer_ptr)
+        {
+            put_user(*(output_buffer_ptr++), buf++);
+            ++read_bytes_count;
+            --bytes_to_read_count;
+        }
+
+        // defensive programming, read_bytes_count should never be lower than output_prefix_size
+        const size_t read_non_prefix_chars_count =
+            read_bytes_count > output_prefix_size ? read_bytes_count - output_prefix_size : 0;
+
+        // same here
+        chars_left_to_read_count = read_non_prefix_chars_count < chars_left_to_read_count
+                                       ? chars_left_to_read_count - read_non_prefix_chars_count
+                                       : 0;
     }
-
-    while (length && *output_buffer_ptr)
+    else
     {
-        put_user(*(output_buffer_ptr++), buf++);
-        --length;
-        bytes_read++;
+        read_bytes_count = -ENOMEM;
     }
 
-    if (bytes_read > 0)
+    if (read_bytes_count > 0)
     {
         pr_info("%s: user read: %s", THIS_MODULE->name, buffer);
     }
 
-    return bytes_read;
+    if (chars_left_to_read_count == 0)
+    {
+        // maximum output size to be reset to the buffer length (0 - read whole content)
+        reset_max_output_size();
+    }
+
+    if (consolidated_buffer_ptr)
+    {
+        kfree(consolidated_buffer_ptr);
+    }
+
+    return read_bytes_count;
 }
 
 static void write_to_input_buffer(char* raw_input_buffer)
@@ -115,6 +197,8 @@ static void write_to_data_buffer(void)
         memset(buffer, '\0', BUFFER_SIZE);
         strncpy(buffer, input_buffer, chars_count);
     }
+
+    reset_max_output_size();
 }
 
 ssize_t device_write_impl(struct file* filp, const char* buf, size_t length, loff_t* offset)
@@ -161,9 +245,7 @@ ssize_t device_write_impl(struct file* filp, const char* buf, size_t length, lof
 
 long ioctl_do_module_reset()
 {
-    reset_buffers();
-    settings = DEFAULT_SETTINGS;
-
+    reset_module_data();
     return 0;
 }
 
@@ -379,8 +461,57 @@ long ioctl_is_input_append_mode_enabled(bool* is_append_enabled)
     return result;
 }
 
-void reset_buffers(void)
+long ioctl_set_max_size_output(size_t* value)
 {
+    long result = -1;
+
+    do
+    {
+        if (!value)
+        {
+            break;
+        }
+
+        size_t max_chars_to_read_count;
+        size_t bytes_not_copied_count =
+            copy_from_user(&max_chars_to_read_count, value, sizeof(max_chars_to_read_count));
+
+        if (bytes_not_copied_count > 0)
+        {
+            pr_err("%s: IOCTL: failed updating the \"max output size\"!\n", THIS_MODULE->name);
+            break;
+        }
+
+        size_t remaining_chars_count = chars_left_to_read_count;
+
+        if (max_chars_to_read_count == 0)
+        {
+            remaining_chars_count = strlen(buffer);
+        }
+
+        bytes_not_copied_count = copy_to_user(value, &remaining_chars_count, sizeof(remaining_chars_count));
+
+        if (bytes_not_copied_count > 0)
+        {
+            pr_err("%s: IOCTL: failed returning the \"chars left to read count\"!\n", THIS_MODULE->name);
+            break;
+        }
+
+        max_output_size = max_chars_to_read_count;
+        chars_left_to_read_count = remaining_chars_count;
+        result = 0;
+    } while (false);
+
+    return result;
+}
+
+void reset_module_data(void)
+{
+    memset(input_buffer, '\0', BUFFER_SIZE);
     memset(buffer, '\0', BUFFER_SIZE);
     memset(output_prefix, '\0', PREFIX_BUFFER_SIZE);
+
+    reset_max_output_size();
+
+    settings = DEFAULT_SETTINGS;
 }
