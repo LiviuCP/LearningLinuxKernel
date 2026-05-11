@@ -7,8 +7,7 @@
 #define PREFIX_BUFFER_SIZE 128
 
 #define TRIM_USER_INPUT_ENABLED 0b00000001
-#define OUTPUT_PREFIX_ENABLED 0b00000010
-#define USER_INPUT_APPENDING_ENABLED 0b00000100
+#define USER_INPUT_APPENDING_ENABLED 0b00000010
 #define DEFAULT_SETTINGS 0b00000001
 
 static char input_buffer[BUFFER_SIZE]; // buffer where trimmed/untrimmed input is stored before writing to data buffer
@@ -20,13 +19,14 @@ static size_t max_output_size = 0;
 static size_t chars_left_to_read_count = 0;
 
 /* 0: trim user input
-   1: enable output prefix
-   2: enable appending user input
-   3-7: reserved for future use
+   1: enable appending user input
+   2-7: reserved for future use
 */
 static uint8_t settings = DEFAULT_SETTINGS;
 
 extern void trim_and_copy_string(char* dest, const char* src, size_t max_str_length, const char* calling_module_name);
+
+/***** HELPER FUNCTIONS *****/
 
 static void reset_max_output_size(void)
 {
@@ -44,7 +44,7 @@ static char* compute_data_buffer_current_read_address(void)
         if (chars_left_to_read_count == 0 || chars_left_to_read_count > buffer_length)
         {
             reset_max_output_size();
-            pr_err("%s: invalid chars left to read value, should have been positive and not exceed buffer length",
+            pr_err("%s: invalid chars left to read count, should have been positive and not exceed buffer length",
                    THIS_MODULE->name);
         }
 
@@ -85,9 +85,72 @@ char* create_consolidated_buffer(const char* buffer_ptr)
     return consolidated_buffer_ptr;
 }
 
+static void write_to_input_buffer(char* raw_input_buffer)
+{
+    if (raw_input_buffer)
+    {
+        if (settings & TRIM_USER_INPUT_ENABLED)
+        {
+            trim_and_copy_string(input_buffer, raw_input_buffer, BUFFER_SIZE, THIS_MODULE->name);
+            pr_info("%s: after trimming the user provided string was stored as: \"%s\"\n", THIS_MODULE->name,
+                    input_buffer);
+        }
+        else
+        {
+            const size_t chars_count = strlen(raw_input_buffer);
+
+            if (chars_count < BUFFER_SIZE)
+            {
+                memset(input_buffer, '\0', BUFFER_SIZE);
+                strncpy(input_buffer, raw_input_buffer, chars_count);
+                pr_info("%s: no trimming applied, the user provided string was stored as: \"%s\"\n", THIS_MODULE->name,
+                        input_buffer);
+            }
+            else
+            {
+                // defensive programming
+                pr_err("%s: not enough space in input buffer to copy from raw input buffer!", THIS_MODULE->name);
+            }
+        }
+    }
+}
+
+static void write_to_data_buffer(void)
+{
+    const size_t chars_count = strlen(input_buffer);
+
+    if (settings & USER_INPUT_APPENDING_ENABLED)
+    {
+        const size_t used_chars_count = strlen(buffer);
+        const size_t available_chars_count =
+            BUFFER_SIZE - 1 - used_chars_count; // last char position in buffer reserved for terminating '\0'
+
+        // do not append string when buffer capacity is exceeded
+        if (available_chars_count >= chars_count)
+        {
+            strncpy(buffer + used_chars_count, input_buffer, chars_count);
+            pr_info("%s: the input has been appended to the driver buffer\n", THIS_MODULE->name);
+        }
+        else
+        {
+            pr_warn("%s: the input could not be appended to the driver buffer. There is not enough space.\n",
+                    THIS_MODULE->name);
+        }
+    }
+    else
+    {
+        memset(buffer, '\0', BUFFER_SIZE);
+        strncpy(buffer, input_buffer, chars_count);
+    }
+
+    reset_max_output_size();
+}
+
+/***** READ/WRITE IMPLEMENTATION FUNCTIONS *****/
+
 ssize_t device_read_impl(struct file* filp, char* buf, size_t length, loff_t* offset)
 {
-    const bool is_output_prefix_required = settings & OUTPUT_PREFIX_ENABLED;
+    const bool is_output_prefix_required = strlen(output_prefix) > 0;
 
     char* buffer_ptr = compute_data_buffer_current_read_address();
     char* consolidated_buffer_ptr = is_output_prefix_required ? create_consolidated_buffer(buffer_ptr) : NULL;
@@ -141,66 +204,6 @@ ssize_t device_read_impl(struct file* filp, char* buf, size_t length, loff_t* of
     return read_bytes_count;
 }
 
-static void write_to_input_buffer(char* raw_input_buffer)
-{
-    if (raw_input_buffer)
-    {
-        if (settings & TRIM_USER_INPUT_ENABLED)
-        {
-            trim_and_copy_string(input_buffer, raw_input_buffer, BUFFER_SIZE, THIS_MODULE->name);
-            pr_info("%s: after trimming the user provided string was stored as: \"%s\"\n", THIS_MODULE->name,
-                    input_buffer);
-        }
-        else
-        {
-            const size_t chars_count = strlen(raw_input_buffer);
-
-            if (chars_count < BUFFER_SIZE)
-            {
-                memset(input_buffer, '\0', BUFFER_SIZE);
-                strncpy(input_buffer, raw_input_buffer, chars_count);
-                pr_info("%s: no trimming applied, the user provided string was stored as: \"%s\"\n", THIS_MODULE->name,
-                        input_buffer);
-            }
-            else
-            {
-                pr_info("%s: not enough space in input buffer to copy from raw input buffer!", THIS_MODULE->name);
-            }
-        }
-    }
-}
-
-static void write_to_data_buffer(void)
-{
-    const size_t chars_count = strlen(input_buffer);
-
-    if (settings & USER_INPUT_APPENDING_ENABLED)
-    {
-        const size_t used_chars_count = strlen(buffer);
-        const size_t available_chars_count =
-            BUFFER_SIZE - 1 - used_chars_count; // last char position in buffer reserved for terminating '\0'
-
-        // do not append string when buffer capacity is exceeded
-        if (available_chars_count >= chars_count)
-        {
-            strncpy(buffer + used_chars_count, input_buffer, chars_count);
-            pr_info("%s: the input has been appended to the driver buffer\n", THIS_MODULE->name);
-        }
-        else
-        {
-            pr_err("%s: the input could not be appended to the driver buffer. There is not enough space.\n",
-                   THIS_MODULE->name);
-        }
-    }
-    else
-    {
-        memset(buffer, '\0', BUFFER_SIZE);
-        strncpy(buffer, input_buffer, chars_count);
-    }
-
-    reset_max_output_size();
-}
-
 ssize_t device_write_impl(struct file* filp, const char* buf, size_t length, loff_t* offset)
 {
     ssize_t result = -EINVAL;
@@ -243,6 +246,8 @@ ssize_t device_write_impl(struct file* filp, const char* buf, size_t length, lof
     return result;
 }
 
+/***** IOCTL FUNCTIONS *****/
+
 long ioctl_do_module_reset()
 {
     reset_module_data();
@@ -271,7 +276,7 @@ long ioctl_is_module_reset(bool* is_module_reset)
     return result;
 }
 
-long ioctl_trim_user_input(const bool* should_trim)
+long ioctl_enable_user_input_trimming(const bool* should_trim)
 {
     long result = -1;
 
@@ -306,7 +311,7 @@ long ioctl_trim_user_input(const bool* should_trim)
     return result;
 }
 
-long ioctl_get_chars_count_from_buffer(size_t* buffer_size)
+long ioctl_get_buffer_size(size_t* buffer_size)
 {
     long result = -1;
 
@@ -350,7 +355,6 @@ long ioctl_set_output_prefix(const void* output_prefix_data)
         if (prefix_size == 0)
         {
             memset(output_prefix, '\0', PREFIX_BUFFER_SIZE);
-            settings &= ~OUTPUT_PREFIX_ENABLED;
             success = true;
             break;
         }
@@ -369,7 +373,6 @@ long ioctl_set_output_prefix(const void* output_prefix_data)
 
         memset(output_prefix, '\0', PREFIX_BUFFER_SIZE);
         strncpy(output_prefix, temp, prefix_size);
-        settings |= OUTPUT_PREFIX_ENABLED;
         success = true;
     } while (false);
 
@@ -461,7 +464,7 @@ long ioctl_is_input_append_mode_enabled(bool* is_append_enabled)
     return result;
 }
 
-long ioctl_set_max_size_output(size_t* value)
+long ioctl_set_max_output_size(size_t* value)
 {
     long result = -1;
 

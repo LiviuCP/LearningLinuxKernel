@@ -9,13 +9,13 @@
 
 #define IOCTL_DO_MODULE_RESET _IOW(9999, 'a', void*)
 #define IOCTL_IS_MODULE_RESET _IOR(9999, 'b', bool*)
-#define IOCTL_TRIM_USER_INPUT _IOW(9999, 'c', bool*)
-#define IOCTL_GET_CHARS_COUNT_FROM_BUFFER _IOR(9999, 'd', size_t*)
+#define IOCTL_ENABLE_USER_INPUT_TRIMMING _IOW(9999, 'c', bool*)
+#define IOCTL_GET_BUFFER_SIZE _IOR(9999, 'd', size_t*)
 #define IOCTL_SET_OUTPUT_PREFIX _IOW(9999, 'e', void*)
 #define IOCTL_GET_OUTPUT_PREFIX_SIZE _IOR(9999, 'f', size_t*)
 #define IOCTL_ENABLE_INPUT_APPEND_MODE _IOW(9999, 'g', bool*)
 #define IOCTL_IS_INPUT_APPEND_MODE_ENABLED _IOR(9999, 'h', bool*)
-#define IOCTL_SET_MAX_SIZE_OUTPUT _IOWR(9999, 'i', size_t*)
+#define IOCTL_SET_MAX_OUTPUT_SIZE _IOWR(9999, 'i', size_t*)
 
 static constexpr std::string_view stringOpsModuleName{"ioctl_string_ops"};
 static constexpr std::string_view utilitiesModuleName{"kernelutilities"};
@@ -49,7 +49,7 @@ private slots:
 
     void testEnableUserInputTrimming();
     void testSetOutputPrefix();
-    void testSetAppendMode();
+    void testEnableInputAppendMode();
     void testSetMaxOutputSize_FullBufferTraverseWithFixedOutputSize();
     void testSetMaxOutputSize_FullBufferTraverseWithVariableOutputSize();
     void testSetMaxOutputSize_UseOutputPrefix();
@@ -62,9 +62,9 @@ private:
     std::optional<std::string> readFromDeviceFile(const std::filesystem::path& deviceFile);
 
     void ioctlEnableUserInputTrimming(bool enabled);
-    std::optional<size_t> ioctlReadCharsCountFromBuffer();
+    std::optional<size_t> ioctlGetBufferSize();
     void ioctlSetOutputPrefix(const std::string& outputPrefix);
-    std::optional<size_t> ioctlReadOutputPrefixSize();
+    std::optional<size_t> ioctlGetOutputPrefixSize();
     void ioctlEnableInputAppendMode(bool enabled);
     bool ioctlIsInputAppendModeEnabled();
 
@@ -160,45 +160,45 @@ void IoctlStringOpsModuleTests::testEnableUserInputTrimming()
     writeToDeviceFile(m_DeviceFile, "  This is the test of my life! ");
 
     QVERIFY(readFromDeviceFile(m_DeviceFile) == "This is the test of my life!");
-    QVERIFY(ioctlReadCharsCountFromBuffer() == 28);
+    QVERIFY(ioctlGetBufferSize() == 28);
 
     ioctlEnableUserInputTrimming(false);
     writeToDeviceFile(m_DeviceFile, "  This is another good test! ");
 
     QVERIFY(readFromDeviceFile(m_DeviceFile) == "  This is another good test! ");
-    QVERIFY(ioctlReadCharsCountFromBuffer() == 29);
+    QVERIFY(ioctlGetBufferSize() == 29);
 
     writeToDeviceFile(m_DeviceFile, "     This is the final test!  ");
 
     QVERIFY(readFromDeviceFile(m_DeviceFile) == "     This is the final test!  ");
-    QVERIFY(ioctlReadCharsCountFromBuffer() == 30);
+    QVERIFY(ioctlGetBufferSize() == 30);
 
     writeToDeviceFile(m_DeviceFile, " ");
 
     QVERIFY(readFromDeviceFile(m_DeviceFile) == " ");
-    QVERIFY(ioctlReadCharsCountFromBuffer() == 1);
+    QVERIFY(ioctlGetBufferSize() == 1);
 
     writeToDeviceFile(m_DeviceFile, "");
 
     QVERIFY(readFromDeviceFile(m_DeviceFile) == "");
-    QVERIFY(ioctlReadCharsCountFromBuffer() == 0);
+    QVERIFY(ioctlGetBufferSize() == 0);
 
     ioctlEnableUserInputTrimming(true);
 
     writeToDeviceFile(m_DeviceFile, "   The end of story!\n");
 
     QVERIFY(readFromDeviceFile(m_DeviceFile) == "The end of story!");
-    QVERIFY(ioctlReadCharsCountFromBuffer() == 17);
+    QVERIFY(ioctlGetBufferSize() == 17);
 
     writeToDeviceFile(m_DeviceFile, " ");
 
     QVERIFY(readFromDeviceFile(m_DeviceFile) == "");
-    QVERIFY(ioctlReadCharsCountFromBuffer() == 0);
+    QVERIFY(ioctlGetBufferSize() == 0);
 
     writeToDeviceFile(m_DeviceFile, "");
 
     QVERIFY(readFromDeviceFile(m_DeviceFile) == "");
-    QVERIFY(ioctlReadCharsCountFromBuffer() == 0);
+    QVERIFY(ioctlGetBufferSize() == 0);
 }
 
 void IoctlStringOpsModuleTests::testSetOutputPrefix()
@@ -206,37 +206,37 @@ void IoctlStringOpsModuleTests::testSetOutputPrefix()
     writeToDeviceFile(m_DeviceFile, "This Is just a TEST!");
 
     QVERIFY(readFromDeviceFile(m_DeviceFile) == "This Is just a TEST!");
-    QVERIFY(ioctlReadOutputPrefixSize() == 0);
+    QVERIFY(ioctlGetOutputPrefixSize() == 0);
 
     ioctlSetOutputPrefix("My take: ");
 
     QVERIFY(readFromDeviceFile(m_DeviceFile) == "My take: This Is just a TEST!");
-    QVERIFY(ioctlReadOutputPrefixSize() == 9);
+    QVERIFY(ioctlGetOutputPrefixSize() == 9);
 
     writeToDeviceFile(m_DeviceFile, "This Is just another TEST!");
 
     QVERIFY(readFromDeviceFile(m_DeviceFile) == "My take: This Is just another TEST!");
-    QVERIFY(ioctlReadOutputPrefixSize() == 9);
+    QVERIFY(ioctlGetOutputPrefixSize() == 9);
 
     ioctlSetOutputPrefix("My hot take: ");
 
     QVERIFY(readFromDeviceFile(m_DeviceFile) == "My hot take: This Is just another TEST!");
-    QVERIFY(ioctlReadOutputPrefixSize() == 13);
+    QVERIFY(ioctlGetOutputPrefixSize() == 13);
 
     ioctlSetOutputPrefix("aprefix");
 
     QVERIFY(readFromDeviceFile(m_DeviceFile) == "aprefixThis Is just another TEST!");
-    QVERIFY(ioctlReadOutputPrefixSize() == 7);
+    QVERIFY(ioctlGetOutputPrefixSize() == 7);
 
     ioctlSetOutputPrefix(" ");
 
     QVERIFY(readFromDeviceFile(m_DeviceFile) == " This Is just another TEST!");
-    QVERIFY(ioctlReadOutputPrefixSize() == 1);
+    QVERIFY(ioctlGetOutputPrefixSize() == 1);
 
     ioctlSetOutputPrefix("");
 
     QVERIFY(readFromDeviceFile(m_DeviceFile) == "This Is just another TEST!");
-    QVERIFY(ioctlReadOutputPrefixSize() == 0);
+    QVERIFY(ioctlGetOutputPrefixSize() == 0);
 
     ioctlEnableUserInputTrimming(false);
 
@@ -244,24 +244,24 @@ void IoctlStringOpsModuleTests::testSetOutputPrefix()
     ioctlSetOutputPrefix("A prefix: ");
 
     QVERIFY(readFromDeviceFile(m_DeviceFile) == "A prefix:   This is just another TEST! ");
-    QVERIFY(ioctlReadOutputPrefixSize() == 10);
-    QVERIFY(ioctlReadCharsCountFromBuffer() == 29);
+    QVERIFY(ioctlGetOutputPrefixSize() == 10);
+    QVERIFY(ioctlGetBufferSize() == 29);
 
     resetKernelModule();
 
     QVERIFY(readFromDeviceFile(m_DeviceFile) == "");
-    QVERIFY(ioctlReadOutputPrefixSize() == 0);
-    QVERIFY(ioctlReadCharsCountFromBuffer() == 0);
+    QVERIFY(ioctlGetOutputPrefixSize() == 0);
+    QVERIFY(ioctlGetBufferSize() == 0);
 
     writeToDeviceFile(m_DeviceFile, "  This is just another TEST! ");
     ioctlSetOutputPrefix("A prefix: ");
 
     QVERIFY(readFromDeviceFile(m_DeviceFile) == "A prefix: This is just another TEST!");
-    QVERIFY(ioctlReadOutputPrefixSize() == 10);
-    QVERIFY(ioctlReadCharsCountFromBuffer() == 26);
+    QVERIFY(ioctlGetOutputPrefixSize() == 10);
+    QVERIFY(ioctlGetBufferSize() == 26);
 }
 
-void IoctlStringOpsModuleTests::testSetAppendMode()
+void IoctlStringOpsModuleTests::testEnableInputAppendMode()
 {
     ioctlEnableUserInputTrimming(false);
 
@@ -842,7 +842,7 @@ void IoctlStringOpsModuleTests::ioctlEnableUserInputTrimming(bool enabled)
 
     if (fd > 0)
     {
-        const long retVal{ioctl(fd, IOCTL_TRIM_USER_INPUT, &enabled)};
+        const long retVal{ioctl(fd, IOCTL_ENABLE_USER_INPUT_TRIMMING, &enabled)};
         close(fd);
 
         if (retVal != 0)
@@ -852,7 +852,7 @@ void IoctlStringOpsModuleTests::ioctlEnableUserInputTrimming(bool enabled)
     }
 }
 
-std::optional<size_t> IoctlStringOpsModuleTests::ioctlReadCharsCountFromBuffer()
+std::optional<size_t> IoctlStringOpsModuleTests::ioctlGetBufferSize()
 {
     std::optional<size_t> result{0};
     const int fd{open(m_DeviceFile.c_str(), O_RDONLY)};
@@ -861,7 +861,7 @@ std::optional<size_t> IoctlStringOpsModuleTests::ioctlReadCharsCountFromBuffer()
     {
         size_t charsCountFromBuffer;
 
-        const long retVal{ioctl(fd, IOCTL_GET_CHARS_COUNT_FROM_BUFFER, (size_t*)&charsCountFromBuffer)};
+        const long retVal{ioctl(fd, IOCTL_GET_BUFFER_SIZE, (size_t*)&charsCountFromBuffer)};
 
         if (retVal == 0)
         {
@@ -904,7 +904,7 @@ void IoctlStringOpsModuleTests::ioctlSetOutputPrefix(const std::string& outputPr
     }
 }
 
-std::optional<size_t> IoctlStringOpsModuleTests::ioctlReadOutputPrefixSize()
+std::optional<size_t> IoctlStringOpsModuleTests::ioctlGetOutputPrefixSize()
 {
     std::optional<size_t> result;
     const int fd{open(m_DeviceFile.c_str(), O_RDONLY)};
@@ -970,7 +970,7 @@ bool IoctlStringOpsModuleTests::ioctlSetMaxOutputSize(size_t& value)
     if (fd > 0)
     {
         size_t val{value};
-        const long retVal{ioctl(fd, IOCTL_SET_MAX_SIZE_OUTPUT, &val)};
+        const long retVal{ioctl(fd, IOCTL_SET_MAX_OUTPUT_SIZE, &val)};
 
         if (retVal == 0)
         {
