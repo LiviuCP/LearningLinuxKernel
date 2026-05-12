@@ -11,12 +11,13 @@
 #define IOCTL_DO_MODULE_RESET _IOW(9999, 'a', void*)
 #define IOCTL_IS_MODULE_RESET _IOR(9999, 'b', bool*)
 #define IOCTL_ENABLE_USER_INPUT_TRIMMING _IOW(9999, 'c', bool*)
-#define IOCTL_GET_BUFFER_SIZE _IOR(9999, 'd', size_t*)
-#define IOCTL_SET_OUTPUT_PREFIX _IOW(9999, 'e', void*)
-#define IOCTL_GET_OUTPUT_PREFIX_SIZE _IOR(9999, 'f', size_t*)
-#define IOCTL_ENABLE_INPUT_APPEND_MODE _IOW(9999, 'g', bool*)
-#define IOCTL_IS_INPUT_APPEND_MODE_ENABLED _IOR(9999, 'h', bool*)
-#define IOCTL_SET_MAX_OUTPUT_SIZE _IOWR(9999, 'i', size_t*)
+#define IOCTL_IS_USER_INPUT_TRIMMING_ENABLED _IOR(9999, 'd', bool*)
+#define IOCTL_GET_BUFFER_SIZE _IOR(9999, 'e', size_t*)
+#define IOCTL_SET_OUTPUT_PREFIX _IOW(9999, 'f', void*)
+#define IOCTL_GET_OUTPUT_PREFIX_SIZE _IOR(9999, 'g', size_t*)
+#define IOCTL_ENABLE_INPUT_APPEND_MODE _IOW(9999, 'h', bool*)
+#define IOCTL_IS_INPUT_APPEND_MODE_ENABLED _IOR(9999, 'i', bool*)
+#define IOCTL_SET_MAX_OUTPUT_SIZE _IOWR(9999, 'j', size_t*)
 
 MODULE_LICENSE("GPL");
 
@@ -159,6 +160,10 @@ static long device_ioctl(struct file* file, unsigned int command, unsigned long 
     }
     case IOCTL_ENABLE_USER_INPUT_TRIMMING: {
         result = ioctl_enable_user_input_trimming((bool*)arg);
+        break;
+    }
+    case IOCTL_IS_USER_INPUT_TRIMMING_ENABLED: {
+        result = ioctl_is_user_input_trimming_enabled((bool*)arg);
         break;
     }
     case IOCTL_GET_BUFFER_SIZE: {

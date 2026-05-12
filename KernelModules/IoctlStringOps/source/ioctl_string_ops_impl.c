@@ -311,6 +311,28 @@ long ioctl_enable_user_input_trimming(const bool* should_trim)
     return result;
 }
 
+long ioctl_is_user_input_trimming_enabled(bool* is_trimming_enabled)
+{
+    long result = -1;
+
+    if (is_trimming_enabled)
+    {
+        const bool is_enabled = (bool)(settings & TRIM_USER_INPUT_ENABLED);
+        const size_t bytes_not_copied_count = copy_to_user(is_trimming_enabled, &is_enabled, sizeof(is_enabled));
+
+        if (bytes_not_copied_count == 0)
+        {
+            result = 0;
+        }
+        else
+        {
+            pr_err("%s: IOCTL: failed checking if the user input trimming is enabled!\n", THIS_MODULE->name);
+        }
+    }
+
+    return result;
+}
+
 long ioctl_get_buffer_size(size_t* buffer_size)
 {
     long result = -1;

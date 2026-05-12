@@ -6,6 +6,7 @@ ssize_t device_write_impl(struct file* filp, const char* buf, size_t length, lof
 long ioctl_do_module_reset(void);
 long ioctl_is_module_reset(bool* is_module_reset);
 long ioctl_enable_user_input_trimming(const bool* should_trim);
+long ioctl_is_user_input_trimming_enabled(bool* is_trimming_enabled);
 long ioctl_get_buffer_size(size_t* buffer_size);
 long ioctl_set_output_prefix(const void* output_prefix_data);
 long ioctl_get_output_prefix_size(size_t* output_prefix_size);
