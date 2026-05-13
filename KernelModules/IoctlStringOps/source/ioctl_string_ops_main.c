@@ -18,6 +18,7 @@
 #define IOCTL_ENABLE_INPUT_APPEND_MODE _IOW(9999, 'h', bool*)
 #define IOCTL_IS_INPUT_APPEND_MODE_ENABLED _IOR(9999, 'i', bool*)
 #define IOCTL_SET_MAX_OUTPUT_SIZE _IOWR(9999, 'j', size_t*)
+#define IOCTL_GET_MAX_OUTPUT_SIZE _IOR(9999, 'k', size_t*)
 
 MODULE_LICENSE("GPL");
 
@@ -188,6 +189,10 @@ static long device_ioctl(struct file* file, unsigned int command, unsigned long 
     }
     case IOCTL_SET_MAX_OUTPUT_SIZE: {
         result = ioctl_set_max_output_size((size_t*)arg);
+        break;
+    }
+    case IOCTL_GET_MAX_OUTPUT_SIZE: {
+        result = ioctl_get_max_output_size((size_t*)arg);
         break;
     }
     default:

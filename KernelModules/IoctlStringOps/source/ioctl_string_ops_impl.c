@@ -535,6 +535,28 @@ long ioctl_set_max_output_size(size_t* value)
     return result;
 }
 
+long ioctl_get_max_output_size(size_t* max_output_length)
+{
+    long result = -1;
+
+    if (max_output_length)
+    {
+        const size_t bytes_not_copied_count =
+            copy_to_user(max_output_length, &max_output_size, sizeof(max_output_size));
+
+        if (bytes_not_copied_count == 0)
+        {
+            result = 0;
+        }
+        else
+        {
+            pr_err("%s: IOCTL: failed reading max output size!\n", THIS_MODULE->name);
+        }
+    }
+
+    return result;
+}
+
 void reset_module_data(void)
 {
     memset(input_buffer, '\0', BUFFER_SIZE);

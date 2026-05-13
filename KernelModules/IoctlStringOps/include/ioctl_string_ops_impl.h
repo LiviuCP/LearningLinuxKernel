@@ -19,4 +19,6 @@ long ioctl_is_input_append_mode_enabled(bool* is_append_enabled);
 */
 long ioctl_set_max_output_size(size_t* value);
 
+long ioctl_get_max_output_size(size_t* max_output_length);
+
 void reset_module_data(void);

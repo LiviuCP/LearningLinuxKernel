@@ -17,6 +17,7 @@
 #define IOCTL_ENABLE_INPUT_APPEND_MODE _IOW(9999, 'h', bool*)
 #define IOCTL_IS_INPUT_APPEND_MODE_ENABLED _IOR(9999, 'i', bool*)
 #define IOCTL_SET_MAX_OUTPUT_SIZE _IOWR(9999, 'j', size_t*)
+#define IOCTL_GET_MAX_OUTPUT_SIZE _IOR(9999, 'k', size_t*)
 
 static constexpr std::string_view stringOpsModuleName{"ioctl_string_ops"};
 static constexpr std::string_view utilitiesModuleName{"kernelutilities"};
@@ -74,6 +75,8 @@ private:
     // - input: maximum output size to be set
     // - output: remaining chars to be read from data buffer (excluding output prefix)
     bool ioctlSetMaxOutputSize(size_t& value);
+
+    std::optional<size_t> ioctlGetMaxOutputSize();
 
     void resetKernelModule();
     bool isKernelModuleReset();
@@ -149,6 +152,10 @@ void IoctlStringOpsModuleTests::cleanupTestCase()
 
 void IoctlStringOpsModuleTests::init()
 {
+    QVERIFY(ioctlGetBufferSize() == 0);
+    QVERIFY(ioctlGetOutputPrefixSize() == 0);
+    QVERIFY(ioctlGetMaxOutputSize() == 0);
+
     QVERIFY(isKernelModuleReset());
 }
 
@@ -373,6 +380,7 @@ void IoctlStringOpsModuleTests::testSetMaxOutputSize_FullBufferTraverseWithFixed
         maxOutputSize = 20;
         ioctlSetMaxOutputSize(maxOutputSize);
 
+        QVERIFY(ioctlGetMaxOutputSize() == 20);
         QVERIFY(remainingCharsToReadCount == 109);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "The biggest problem ");
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "of socialism is that");
@@ -382,17 +390,20 @@ void IoctlStringOpsModuleTests::testSetMaxOutputSize_FullBufferTraverseWithFixed
         maxOutputSize = 20;
         ioctlSetMaxOutputSize(maxOutputSize);
 
+        QVERIFY(ioctlGetMaxOutputSize() == 20);
         QVERIFY(remainingCharsToReadCount == 49);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == " out of other people");
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "'s money! (Margaret ");
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "Thatcher)");
 
         // test auto-resetting
+        QVERIFY(ioctlGetMaxOutputSize() == 0);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == quoteFromMargaretThatcher);
 
         maxOutputSize = 1;
         ioctlSetMaxOutputSize(maxOutputSize);
 
+        QVERIFY(ioctlGetMaxOutputSize() == 1);
         QVERIFY(remainingCharsToReadCount == 109);
 
         std::string reconstructedString;
@@ -407,7 +418,9 @@ void IoctlStringOpsModuleTests::testSetMaxOutputSize_FullBufferTraverseWithFixed
         }
 
         QVERIFY(reconstructedString == quoteFromMargaretThatcher);
-        QVERIFY(readFromDeviceFile(m_DeviceFile) == quoteFromMargaretThatcher);
+
+        // test auto-resetting
+        QVERIFY(ioctlGetMaxOutputSize() == 0);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == quoteFromMargaretThatcher);
     }
 
@@ -417,6 +430,7 @@ void IoctlStringOpsModuleTests::testSetMaxOutputSize_FullBufferTraverseWithFixed
         maxOutputSize = 4;
         ioctlSetMaxOutputSize(maxOutputSize);
 
+        QVERIFY(ioctlGetMaxOutputSize() == 4);
         QVERIFY(remainingCharsToReadCount == 16);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "1a2b");
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "3c4d");
@@ -425,16 +439,19 @@ void IoctlStringOpsModuleTests::testSetMaxOutputSize_FullBufferTraverseWithFixed
         maxOutputSize = 4;
         ioctlSetMaxOutputSize(maxOutputSize);
 
+        QVERIFY(ioctlGetMaxOutputSize() == 4);
         QVERIFY(remainingCharsToReadCount == 8);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "5e6f");
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "7g8h");
 
         // test auto-resetting
+        QVERIFY(ioctlGetMaxOutputSize() == 0);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "1a2b3c4d5e6f7g8h");
 
         maxOutputSize = 16;
         ioctlSetMaxOutputSize(maxOutputSize);
 
+        QVERIFY(ioctlGetMaxOutputSize() == 16);
         QVERIFY(remainingCharsToReadCount == 16);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "1a2b3c4d5e6f7g8h");
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "1a2b3c4d5e6f7g8h");
@@ -442,15 +459,18 @@ void IoctlStringOpsModuleTests::testSetMaxOutputSize_FullBufferTraverseWithFixed
         maxOutputSize = 17;
         ioctlSetMaxOutputSize(maxOutputSize);
 
+        QVERIFY(ioctlGetMaxOutputSize() == 16);
         QVERIFY(remainingCharsToReadCount == 16);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "1a2b3c4d5e6f7g8h");
 
         // test auto-resetting
+        QVERIFY(ioctlGetMaxOutputSize() == 0);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "1a2b3c4d5e6f7g8h");
 
         maxOutputSize = 4;
         ioctlSetMaxOutputSize(maxOutputSize);
 
+        QVERIFY(ioctlGetMaxOutputSize() == 4);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "1a2b");
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "3c4d");
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "5e6f");
@@ -459,10 +479,12 @@ void IoctlStringOpsModuleTests::testSetMaxOutputSize_FullBufferTraverseWithFixed
         maxOutputSize = 4;
         ioctlSetMaxOutputSize(maxOutputSize);
 
+        QVERIFY(ioctlGetMaxOutputSize() == 4);
         QVERIFY(remainingCharsToReadCount == 4);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "7g8h");
 
         // test auto-resetting
+        QVERIFY(ioctlGetMaxOutputSize() == 0);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "1a2b3c4d5e6f7g8h");
     }
 
@@ -472,12 +494,14 @@ void IoctlStringOpsModuleTests::testSetMaxOutputSize_FullBufferTraverseWithFixed
         maxOutputSize = 1;
         ioctlSetMaxOutputSize(maxOutputSize);
 
+        QVERIFY(ioctlGetMaxOutputSize() == 0);
         QVERIFY(remainingCharsToReadCount == 0);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "");
 
         maxOutputSize = 0;
         ioctlSetMaxOutputSize(maxOutputSize);
 
+        QVERIFY(ioctlGetMaxOutputSize() == 0);
         QVERIFY(remainingCharsToReadCount == 0);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "");
     }
@@ -500,24 +524,28 @@ void IoctlStringOpsModuleTests::testSetMaxOutputSize_FullBufferTraverseWithVaria
         maxOutputSize = 20;
         ioctlSetMaxOutputSize(maxOutputSize);
 
+        QVERIFY(ioctlGetMaxOutputSize() == 20);
         QVERIFY(remainingCharsToReadCount == 109);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "The biggest problem ");
 
         maxOutputSize = 25;
         ioctlSetMaxOutputSize(maxOutputSize);
 
+        QVERIFY(ioctlGetMaxOutputSize() == 25);
         QVERIFY(remainingCharsToReadCount == 89);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "of socialism is that they");
 
         maxOutputSize = 15;
         ioctlSetMaxOutputSize(maxOutputSize);
 
+        QVERIFY(ioctlGetMaxOutputSize() == 15);
         QVERIFY(remainingCharsToReadCount == 64);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == " eventually run");
 
         maxOutputSize = 20;
         ioctlSetMaxOutputSize(maxOutputSize);
 
+        QVERIFY(ioctlGetMaxOutputSize() == 20);
         QVERIFY(remainingCharsToReadCount == 49);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == " out of other people");
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "'s money! (Margaret ");
@@ -526,10 +554,12 @@ void IoctlStringOpsModuleTests::testSetMaxOutputSize_FullBufferTraverseWithVaria
         maxOutputSize = 20;
         ioctlSetMaxOutputSize(maxOutputSize);
 
+        QVERIFY(ioctlGetMaxOutputSize() == 20);
         QVERIFY(remainingCharsToReadCount == 9);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "Thatcher)");
 
         // test auto-resetting
+        QVERIFY(ioctlGetMaxOutputSize() == 0);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == quoteFromMargaretThatcher);
     }
 
@@ -539,12 +569,14 @@ void IoctlStringOpsModuleTests::testSetMaxOutputSize_FullBufferTraverseWithVaria
         maxOutputSize = 16;
         ioctlSetMaxOutputSize(maxOutputSize);
 
+        QVERIFY(ioctlGetMaxOutputSize() == 16);
         QVERIFY(remainingCharsToReadCount == 16);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "1a2b3c4d5e6f7g8h");
 
         maxOutputSize = 4;
         ioctlSetMaxOutputSize(maxOutputSize);
 
+        QVERIFY(ioctlGetMaxOutputSize() == 4);
         QVERIFY(remainingCharsToReadCount == 16);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "1a2b");
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "3c4d");
@@ -552,28 +584,33 @@ void IoctlStringOpsModuleTests::testSetMaxOutputSize_FullBufferTraverseWithVaria
         maxOutputSize = 8;
         ioctlSetMaxOutputSize(maxOutputSize);
 
+        QVERIFY(ioctlGetMaxOutputSize() == 8);
         QVERIFY(remainingCharsToReadCount == 8);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "5e6f7g8h");
 
         maxOutputSize = 17;
         ioctlSetMaxOutputSize(maxOutputSize);
 
+        QVERIFY(ioctlGetMaxOutputSize() == 16);
         QVERIFY(remainingCharsToReadCount == 16);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "1a2b3c4d5e6f7g8h");
 
         maxOutputSize = 5;
         ioctlSetMaxOutputSize(maxOutputSize);
 
+        QVERIFY(ioctlGetMaxOutputSize() == 5);
         QVERIFY(remainingCharsToReadCount == 16);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "1a2b3");
 
         maxOutputSize = 12;
         ioctlSetMaxOutputSize(maxOutputSize);
 
+        QVERIFY(ioctlGetMaxOutputSize() == 12);
         QVERIFY(remainingCharsToReadCount == 11);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "c4d5e6f7g8h");
 
         // test auto-resetting
+        QVERIFY(ioctlGetMaxOutputSize() == 0);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "1a2b3c4d5e6f7g8h");
     }
 }
@@ -595,6 +632,7 @@ void IoctlStringOpsModuleTests::testSetMaxOutputSize_UseOutputPrefix()
         maxOutputSize = 20;
         ioctlSetMaxOutputSize(maxOutputSize);
 
+        QVERIFY(ioctlGetMaxOutputSize() == 20);
         QVERIFY(remainingCharsToReadCount == 109);
 
         ioctlSetOutputPrefix("Quote: ");
@@ -607,6 +645,7 @@ void IoctlStringOpsModuleTests::testSetMaxOutputSize_UseOutputPrefix()
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "Quote: Thatcher)");
 
         // test auto-resetting (prefix stays the same)
+        QVERIFY(ioctlGetMaxOutputSize() == 0);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "Quote: " + quoteFromMargaretThatcher);
 
         /* start over and continue with variable prefix */
@@ -614,6 +653,7 @@ void IoctlStringOpsModuleTests::testSetMaxOutputSize_UseOutputPrefix()
         maxOutputSize = 20;
         ioctlSetMaxOutputSize(maxOutputSize);
 
+        QVERIFY(ioctlGetMaxOutputSize() == 20);
         QVERIFY(remainingCharsToReadCount == 109);
 
         ioctlSetOutputPrefix("Part 1: ");
@@ -635,10 +675,13 @@ void IoctlStringOpsModuleTests::testSetMaxOutputSize_UseOutputPrefix()
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "End part: Thatcher)");
 
         // test auto-resetting (prefix stays the same)
+        QVERIFY(ioctlGetMaxOutputSize() == 0);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "End part: " + quoteFromMargaretThatcher);
 
         // test again with changed prefix
         ioctlSetOutputPrefix("Starting again: ");
+
+        QVERIFY(ioctlGetMaxOutputSize() == 0);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "Starting again: " + quoteFromMargaretThatcher);
     }
 
@@ -650,6 +693,7 @@ void IoctlStringOpsModuleTests::testSetMaxOutputSize_UseOutputPrefix()
         ioctlSetMaxOutputSize(maxOutputSize);
         ioctlSetOutputPrefix("Initial: ");
 
+        QVERIFY(ioctlGetMaxOutputSize() == 4);
         QVERIFY(remainingCharsToReadCount == 16);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "Initial: 1a2b");
 
@@ -658,6 +702,7 @@ void IoctlStringOpsModuleTests::testSetMaxOutputSize_UseOutputPrefix()
         ioctlSetMaxOutputSize(maxOutputSize);
         ioctlSetOutputPrefix("Subsequent: ");
 
+        QVERIFY(ioctlGetMaxOutputSize() == 5);
         QVERIFY(remainingCharsToReadCount == 12);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "Subsequent: 3c4d5");
 
@@ -666,6 +711,7 @@ void IoctlStringOpsModuleTests::testSetMaxOutputSize_UseOutputPrefix()
         ioctlSetMaxOutputSize(maxOutputSize);
         ioctlSetOutputPrefix("To continue: ");
 
+        QVERIFY(ioctlGetMaxOutputSize() == 3);
         QVERIFY(remainingCharsToReadCount == 7);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "To continue: e6f");
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "To continue: 7g8");
@@ -675,6 +721,7 @@ void IoctlStringOpsModuleTests::testSetMaxOutputSize_UseOutputPrefix()
         ioctlSetMaxOutputSize(maxOutputSize);
         ioctlSetOutputPrefix("Ending: ");
 
+        QVERIFY(ioctlGetMaxOutputSize() == 2);
         QVERIFY(remainingCharsToReadCount == 1);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "Ending: h");
 
@@ -688,6 +735,7 @@ void IoctlStringOpsModuleTests::testSetMaxOutputSize_UseOutputPrefix()
 
         ioctlSetMaxOutputSize(maxOutputSize);
 
+        QVERIFY(ioctlGetMaxOutputSize() == 2);
         QVERIFY(remainingCharsToReadCount == 16);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "1a");
 
@@ -696,6 +744,7 @@ void IoctlStringOpsModuleTests::testSetMaxOutputSize_UseOutputPrefix()
         ioctlSetMaxOutputSize(maxOutputSize);
         ioctlSetOutputPrefix("A new prefix: ");
 
+        QVERIFY(ioctlGetMaxOutputSize() == 4);
         QVERIFY(remainingCharsToReadCount == 14);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "A new prefix: 2b3c");
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "A new prefix: 4d5e");
@@ -705,6 +754,7 @@ void IoctlStringOpsModuleTests::testSetMaxOutputSize_UseOutputPrefix()
         ioctlSetMaxOutputSize(maxOutputSize);
         ioctlSetOutputPrefix("");
 
+        QVERIFY(ioctlGetMaxOutputSize() == 3);
         QVERIFY(remainingCharsToReadCount == 6);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "6f7");
 
@@ -712,10 +762,13 @@ void IoctlStringOpsModuleTests::testSetMaxOutputSize_UseOutputPrefix()
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "Another new prefix: g8h");
 
         // test auto-resetting
+        QVERIFY(ioctlGetMaxOutputSize() == 0);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "Another new prefix: 1a2b3c4d5e6f7g8h");
 
         // test again with changed prefix
         ioctlSetOutputPrefix("To conclude: ");
+
+        QVERIFY(ioctlGetMaxOutputSize() == 0);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "To conclude: 1a2b3c4d5e6f7g8h");
     }
 }
@@ -737,12 +790,14 @@ void IoctlStringOpsModuleTests::testSetMaxOutputSize_UseManualOutputSizeReset()
         maxOutputSize = 0;
         ioctlSetMaxOutputSize(maxOutputSize);
 
+        QVERIFY(ioctlGetMaxOutputSize() == 0);
         QVERIFY(remainingCharsToReadCount == 109);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == quoteFromMargaretThatcher);
 
         maxOutputSize = 20;
         ioctlSetMaxOutputSize(maxOutputSize);
 
+        QVERIFY(ioctlGetMaxOutputSize() == 20);
         QVERIFY(remainingCharsToReadCount == 109);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "The biggest problem ");
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "of socialism is that");
@@ -750,25 +805,33 @@ void IoctlStringOpsModuleTests::testSetMaxOutputSize_UseManualOutputSizeReset()
         maxOutputSize = 5;
         ioctlSetMaxOutputSize(maxOutputSize);
 
+        QVERIFY(ioctlGetMaxOutputSize() == 5);
         QVERIFY(remainingCharsToReadCount == 69);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == " they");
+
+        QVERIFY(ioctlGetMaxOutputSize() == 5);
 
         maxOutputSize = 0;
         ioctlSetMaxOutputSize(maxOutputSize);
 
+        QVERIFY(ioctlGetMaxOutputSize() == 0);
         QVERIFY(remainingCharsToReadCount == 109);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == quoteFromMargaretThatcher);
 
         maxOutputSize = 110;
         ioctlSetMaxOutputSize(maxOutputSize);
 
+        QVERIFY(ioctlGetMaxOutputSize() == 109);
         QVERIFY(remainingCharsToReadCount == 109);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == quoteFromMargaretThatcher);
 
         // test manual reset after auto-reset
+        QVERIFY(ioctlGetMaxOutputSize() == 0);
+
         maxOutputSize = 0;
         ioctlSetMaxOutputSize(maxOutputSize);
 
+        QVERIFY(ioctlGetMaxOutputSize() == 0);
         QVERIFY(remainingCharsToReadCount == 109);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == quoteFromMargaretThatcher);
     }
@@ -780,6 +843,7 @@ void IoctlStringOpsModuleTests::testSetMaxOutputSize_UseManualOutputSizeReset()
         maxOutputSize = 0;
         ioctlSetMaxOutputSize(maxOutputSize);
 
+        QVERIFY(ioctlGetMaxOutputSize() == 0);
         QVERIFY(remainingCharsToReadCount == 16);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "Just a prefix: 1a2b3c4d5e6f7g8h");
 
@@ -788,6 +852,7 @@ void IoctlStringOpsModuleTests::testSetMaxOutputSize_UseManualOutputSizeReset()
         ioctlSetMaxOutputSize(maxOutputSize);
         ioctlSetOutputPrefix("Just a prefix: ");
 
+        QVERIFY(ioctlGetMaxOutputSize() == 4);
         QVERIFY(remainingCharsToReadCount == 16);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "Just a prefix: 1a2b");
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "Just a prefix: 3c4d");
@@ -796,32 +861,42 @@ void IoctlStringOpsModuleTests::testSetMaxOutputSize_UseManualOutputSizeReset()
 
         ioctlSetMaxOutputSize(maxOutputSize);
 
+        QVERIFY(ioctlGetMaxOutputSize() == 2);
         QVERIFY(remainingCharsToReadCount == 8);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "Just a prefix: 5e");
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "Just a prefix: 6f");
 
+        QVERIFY(ioctlGetMaxOutputSize() == 2);
+
         maxOutputSize = 0;
         ioctlSetMaxOutputSize(maxOutputSize);
 
+        QVERIFY(ioctlGetMaxOutputSize() == 0);
         QVERIFY(remainingCharsToReadCount == 16);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "Just a prefix: 1a2b3c4d5e6f7g8h");
 
         maxOutputSize = 8;
         ioctlSetMaxOutputSize(maxOutputSize);
 
+        QVERIFY(ioctlGetMaxOutputSize() == 8);
         QVERIFY(remainingCharsToReadCount == 16);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "Just a prefix: 1a2b3c4d");
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "Just a prefix: 5e6f7g8h");
 
         // test manual reset after auto-reset
+        QVERIFY(ioctlGetMaxOutputSize() == 0);
+
         maxOutputSize = 0;
         ioctlSetMaxOutputSize(maxOutputSize);
 
+        QVERIFY(ioctlGetMaxOutputSize() == 0);
         QVERIFY(remainingCharsToReadCount == 16);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "Just a prefix: 1a2b3c4d5e6f7g8h");
 
         // test again with reset prefix
         ioctlSetOutputPrefix("");
+
+        QVERIFY(ioctlGetMaxOutputSize() == 0);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "1a2b3c4d5e6f7g8h");
 
         // final test with the ioctl reset command
@@ -830,18 +905,23 @@ void IoctlStringOpsModuleTests::testSetMaxOutputSize_UseManualOutputSizeReset()
         ioctlSetMaxOutputSize(maxOutputSize);
         ioctlSetOutputPrefix("Just another prefix: ");
 
+        QVERIFY(ioctlGetMaxOutputSize() == 4);
         QVERIFY(remainingCharsToReadCount == 16);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "Just another prefix: 1a2b");
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "Just another prefix: 3c4d");
 
+        QVERIFY(ioctlGetMaxOutputSize() == 4);
+
         resetKernelModule();
 
+        QVERIFY(ioctlGetMaxOutputSize() == 0);
         QVERIFY(isKernelModuleReset());
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "");
 
         maxOutputSize = 1;
         ioctlSetMaxOutputSize(maxOutputSize);
 
+        QVERIFY(ioctlGetMaxOutputSize() == 0);
         QVERIFY(remainingCharsToReadCount == 0);
         QVERIFY(isKernelModuleReset());
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "");
@@ -1033,6 +1113,27 @@ bool IoctlStringOpsModuleTests::ioctlSetMaxOutputSize(size_t& value)
     }
 
     return success;
+}
+
+std::optional<size_t> IoctlStringOpsModuleTests::ioctlGetMaxOutputSize()
+{
+    std::optional<size_t> result;
+    const int fd{open(m_DeviceFile.c_str(), O_RDONLY)};
+
+    if (fd > 0)
+    {
+        size_t maxOutputSize;
+        const auto retVal{ioctl(fd, IOCTL_GET_MAX_OUTPUT_SIZE, (size_t*)&maxOutputSize)};
+
+        if (retVal == 0)
+        {
+            result = maxOutputSize;
+        }
+
+        close(fd);
+    }
+
+    return result;
 }
 
 void IoctlStringOpsModuleTests::resetKernelModule()
