@@ -823,6 +823,21 @@ void IoctlStringOpsModuleTests::testSetMaxOutputSize_UseManualOutputSizeReset()
         // test again with reset prefix
         ioctlSetOutputPrefix("");
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "1a2b3c4d5e6f7g8h");
+
+        // final test with the ioctl reset command
+        maxOutputSize = 4;
+
+        ioctlSetMaxOutputSize(maxOutputSize);
+        ioctlSetOutputPrefix("Just another prefix: ");
+
+        QVERIFY(remainingCharsToReadCount == 16);
+        QVERIFY(readFromDeviceFile(m_DeviceFile) == "Just another prefix: 1a2b");
+        QVERIFY(readFromDeviceFile(m_DeviceFile) == "Just another prefix: 3c4d");
+
+        resetKernelModule();
+
+        QVERIFY(isKernelModuleReset());
+        QVERIFY(readFromDeviceFile(m_DeviceFile) == "");
     }
 }
 
