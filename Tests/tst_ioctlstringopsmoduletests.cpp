@@ -838,6 +838,13 @@ void IoctlStringOpsModuleTests::testSetMaxOutputSize_UseManualOutputSizeReset()
 
         QVERIFY(isKernelModuleReset());
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "");
+
+        maxOutputSize = 1;
+        ioctlSetMaxOutputSize(maxOutputSize);
+
+        QVERIFY(remainingCharsToReadCount == 0);
+        QVERIFY(isKernelModuleReset());
+        QVERIFY(readFromDeviceFile(m_DeviceFile) == "");
     }
 }
 

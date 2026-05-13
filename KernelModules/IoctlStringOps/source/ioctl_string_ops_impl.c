@@ -507,11 +507,16 @@ long ioctl_set_max_output_size(size_t* value)
             break;
         }
 
+        const size_t buffer_size = strlen(buffer);
         size_t remaining_chars_count = chars_left_to_read_count;
 
         if (max_chars_to_read_count == 0)
         {
-            remaining_chars_count = strlen(buffer);
+            remaining_chars_count = buffer_size;
+        }
+        else if (max_chars_to_read_count > buffer_size)
+        {
+            max_chars_to_read_count = buffer_size;
         }
 
         bytes_not_copied_count = copy_to_user(value, &remaining_chars_count, sizeof(remaining_chars_count));
