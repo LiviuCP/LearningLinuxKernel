@@ -554,7 +554,7 @@ void IoctlStringOpsModuleTests::testSetMaxOutputSize_FullBufferTraverseWithVaria
         maxOutputSize = 20;
         ioctlSetMaxOutputSize(maxOutputSize);
 
-        QVERIFY(ioctlGetMaxOutputSize() == 20);
+        QVERIFY(ioctlGetMaxOutputSize() == 9);
         QVERIFY(remainingCharsToReadCount == 9);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "Thatcher)");
 
@@ -605,7 +605,7 @@ void IoctlStringOpsModuleTests::testSetMaxOutputSize_FullBufferTraverseWithVaria
         maxOutputSize = 12;
         ioctlSetMaxOutputSize(maxOutputSize);
 
-        QVERIFY(ioctlGetMaxOutputSize() == 12);
+        QVERIFY(ioctlGetMaxOutputSize() == 11);
         QVERIFY(remainingCharsToReadCount == 11);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "c4d5e6f7g8h");
 
@@ -721,7 +721,7 @@ void IoctlStringOpsModuleTests::testSetMaxOutputSize_UseOutputPrefix()
         ioctlSetMaxOutputSize(maxOutputSize);
         ioctlSetOutputPrefix("Ending: ");
 
-        QVERIFY(ioctlGetMaxOutputSize() == 2);
+        QVERIFY(ioctlGetMaxOutputSize() == 1);
         QVERIFY(remainingCharsToReadCount == 1);
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "Ending: h");
 

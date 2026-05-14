@@ -512,11 +512,12 @@ long ioctl_set_max_output_size(size_t* value)
 
         if (max_chars_to_read_count == 0)
         {
-            remaining_chars_count = buffer_size;
+            remaining_chars_count = buffer_size; // move reading to the beginning of the buffer
         }
-        else if (max_chars_to_read_count > buffer_size)
+        else if (max_chars_to_read_count > remaining_chars_count)
         {
-            max_chars_to_read_count = buffer_size;
+            max_chars_to_read_count =
+                remaining_chars_count; // cap maximum output size to the count of chars that are left to read
         }
 
         bytes_not_copied_count = copy_to_user(value, &remaining_chars_count, sizeof(remaining_chars_count));
