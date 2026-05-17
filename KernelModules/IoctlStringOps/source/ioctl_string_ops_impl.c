@@ -125,16 +125,20 @@ static void write_to_data_buffer(void)
         const size_t available_chars_count =
             BUFFER_SIZE - 1 - used_chars_count; // last char position in buffer reserved for terminating '\0'
 
-        // do not append string when buffer capacity is exceeded
-        if (available_chars_count >= chars_count)
+        // limit the number of chars to append to the available space
+        const size_t chars_to_append_count = chars_count < available_chars_count ? chars_count : available_chars_count;
+
+        strncpy(buffer + used_chars_count, input_buffer, chars_to_append_count);
+
+        if (chars_to_append_count < chars_count)
         {
-            strncpy(buffer + used_chars_count, input_buffer, chars_count);
-            pr_info("%s: the input has been appended to the driver buffer\n", THIS_MODULE->name);
+            pr_warn("%s: not all input could be appended to the driver buffer. There is not enough space. %lu "
+                    "characters got appended out of %lu.\n",
+                    THIS_MODULE->name, chars_to_append_count, chars_count);
         }
         else
         {
-            pr_warn("%s: the input could not be appended to the driver buffer. There is not enough space.\n",
-                    THIS_MODULE->name);
+            pr_info("%s: the input has been appended to the driver buffer\n", THIS_MODULE->name);
         }
     }
     else

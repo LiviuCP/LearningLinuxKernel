@@ -336,20 +336,17 @@ void IoctlStringOpsModuleTests::testEnableInputAppendMode()
     QVERIFY(readFromDeviceFile(m_DeviceFile) == str);
 
     writeToDeviceFile(m_DeviceFile, "bc");
-    QVERIFY(readFromDeviceFile(m_DeviceFile) == str);
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == str + "b");
 
     writeToDeviceFile(m_DeviceFile, "d");
-    QVERIFY(readFromDeviceFile(m_DeviceFile) == str + "d");
-
-    writeToDeviceFile(m_DeviceFile, "e");
-    QVERIFY(readFromDeviceFile(m_DeviceFile) == str + "d");
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == str + "b");
 
     QVERIFY(ioctlIsInputAppendModeEnabled());
 
     ioctlEnableInputAppendMode(false);
 
-    writeToDeviceFile(m_DeviceFile, "e");
-    QVERIFY(readFromDeviceFile(m_DeviceFile) == "e");
+    writeToDeviceFile(m_DeviceFile, "d");
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == "d");
 
     writeToDeviceFile(m_DeviceFile, str);
     QVERIFY(readFromDeviceFile(m_DeviceFile) == str);
