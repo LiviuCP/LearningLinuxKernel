@@ -115,7 +115,7 @@ void trim_and_copy_string(char* dest, const char* src, size_t max_chars_count, c
     } while (false);
 }
 
-void convert_to_same_case_and_copy_string(char* dest, const char* src, size_t max_chars_count, int to_lower_case,
+void convert_to_same_case_and_copy_string(char* dest, const char* src, size_t max_chars_count, bool to_lower_case,
                                           const char* calling_module_name)
 {
     const char* module_name = calling_module_name ? calling_module_name : "INVALID MODULE NAME";

@@ -154,19 +154,19 @@ ssize_t device_read_impl(struct file* filp, char* buf, size_t length, loff_t* of
 
     char* buffer_ptr = compute_data_buffer_current_read_address();
     char* consolidated_buffer_ptr = is_output_prefix_required ? create_consolidated_buffer(buffer_ptr) : NULL;
-    char* output_buffer_ptr = is_output_prefix_required ? consolidated_buffer_ptr : buffer_ptr;
+    char* current_buffer_ptr = is_output_prefix_required ? consolidated_buffer_ptr : buffer_ptr;
 
     ssize_t read_bytes_count = 0;
 
-    if (output_buffer_ptr)
+    if (current_buffer_ptr)
     {
         const size_t output_prefix_size = strlen(output_prefix);
         size_t bytes_to_read_count =
-            max_output_size > 0 ? max_output_size + output_prefix_size : strlen(output_buffer_ptr);
+            max_output_size > 0 ? max_output_size + output_prefix_size : strlen(current_buffer_ptr);
 
-        while (bytes_to_read_count && *output_buffer_ptr)
+        while (bytes_to_read_count && *current_buffer_ptr)
         {
-            put_user(*(output_buffer_ptr++), buf++);
+            put_user(*(current_buffer_ptr++), buf++);
             ++read_bytes_count;
             --bytes_to_read_count;
         }
