@@ -20,7 +20,7 @@
 #define IOCTL_GET_MAX_OUTPUT_SIZE _IOR(9999, 'k', size_t*)
 
 static constexpr std::string_view stringOpsModuleName{"ioctl_string_ops"};
-static constexpr std::string_view utilitiesModuleName{"kernelutilities"};
+static constexpr std::string_view utilitiesModuleName{"kernel_utilities"};
 static constexpr std::string_view deviceDirPath{"/dev"};
 static constexpr std::string_view baseDeviceFileName{"ioctlstringops"};
 

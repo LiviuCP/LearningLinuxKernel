@@ -31,7 +31,7 @@ static constexpr std::string_view syncedStatusStr{"synced"};
 static constexpr std::string_view dirtyStatusStr{"dirty"};
 
 static constexpr std::string_view mappingModuleName{"mapping"};
-static constexpr std::string_view utilitiesModuleName{"kernelutilities"};
+static constexpr std::string_view utilitiesModuleName{"kernel_utilities"};
 
 using ElementsMap = std::map<std::string, int>;
 using ElementsList = std::list<std::pair<std::string, int>>;

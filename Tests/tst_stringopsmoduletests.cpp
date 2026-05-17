@@ -4,7 +4,7 @@
 #include "utils.h"
 
 static constexpr std::string_view stringOpsModuleName{"string_ops"};
-static constexpr std::string_view utilitiesModuleName{"kernelutilities"};
+static constexpr std::string_view utilitiesModuleName{"kernel_utilities"};
 static constexpr std::string_view deviceDirPath{"/dev"};
 static constexpr std::string_view baseDeviceFileName{"stringops"};
 

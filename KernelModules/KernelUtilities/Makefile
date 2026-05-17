@@ -1,4 +1,4 @@
-obj-m += kernelutilities.o
+obj-m += kernel_utilities.o
 
 ifndef BUILD_DIR
 	BUILD_DIR := $(PWD)/build
