@@ -8,6 +8,7 @@ set(KERNEL_MODULES_CONSOLIDATED_OUTPUT_DIR ${KERNEL_MODULES_BUILD_DIR}/Consolida
 add_custom_target(${KERNEL_MODULES_PROJECT_NAME}_clean)
 
 add_subdirectory(Average)
+add_subdirectory(BlinkingLED)
 add_subdirectory(Division)
 add_subdirectory(IoctlDivision)
 add_subdirectory(IoctlStringOps)
