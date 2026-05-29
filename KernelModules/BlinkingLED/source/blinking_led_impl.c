@@ -3,10 +3,10 @@
 #include "blinking_led_impl.h"
 
 #define DOT_TURNED_ON_PERIOD HZ / 6   // LED turned on for a "dot" ('S')
-#define DOT_TURNED_OFF_PERIOD HZ / 12 // LED turned off after a "dot"
+#define DOT_TURNED_OFF_PERIOD HZ / 9  // LED turned off after a "dot"
 #define LINE_TURNED_ON_PERIOD HZ / 2  // LED turned on for a "line" ('O')
-#define LINE_TURNED_OFF_PERIOD HZ / 4 // LED turned off after a "line"
-#define IDLE_PERIOD 2 * HZ            // LED turned off (break) between two "S.O.S" sequences
+#define LINE_TURNED_OFF_PERIOD HZ / 3 // LED turned off after a "line"
+#define IDLE_PERIOD HZ                // LED turned off (break) between two "S.O.S" sequences
 
 #define SHOULD_TURN_OFF_CAPS_LOCK_MASK 0b00000001
 
@@ -25,6 +25,7 @@ enum SequenceState
 };
 
 // the status consists of sequence state and the on/off flag for the CAPS-LOCK LED
+// initial status: idle period with CAPS-LOCK led turned off so the user can easily observe the first "S.O.S." sequence
 static unsigned char status = (IDLE << 1) | SHOULD_TURN_OFF_CAPS_LOCK_MASK;
 
 static unsigned char compose_status(unsigned char sequence_state, bool should_turn_led_off)
@@ -48,8 +49,8 @@ uint64_t compute_timeout_period(void)
     const bool should_turn_caps_lock_off = should_turn_caps_lock_led_off();
     const unsigned char sequence_state = get_sequence_state();
 
-    pr_info("%s: current sequence state: %d, CAPS-LOCK led on: %d", THIS_MODULE->name, sequence_state,
-            !should_turn_caps_lock_off);
+    pr_debug("%s: current sequence state: %d, CAPS-LOCK led on: %d", THIS_MODULE->name, sequence_state,
+             !should_turn_caps_lock_off);
 
     uint64_t timeout_period = IDLE_PERIOD;
 
@@ -62,13 +63,19 @@ uint64_t compute_timeout_period(void)
     }
     case DOT3: {
         // set a longer off period for third dot to better observe the lines
-        timeout_period = should_turn_caps_lock_off ? DOT_TURNED_OFF_PERIOD : LINE_TURNED_ON_PERIOD;
+        timeout_period =
+            should_turn_caps_lock_off ? DOT_TURNED_OFF_PERIOD + LINE_TURNED_OFF_PERIOD : DOT_TURNED_ON_PERIOD;
         break;
     }
     case LINE1:
-    case LINE2:
-    case LINE3: {
+    case LINE2: {
         timeout_period = should_turn_caps_lock_off ? LINE_TURNED_OFF_PERIOD : LINE_TURNED_ON_PERIOD;
+        break;
+    }
+    case LINE3: {
+        // set a longer off period for third line to better observe the next dots
+        timeout_period =
+            should_turn_caps_lock_off ? LINE_TURNED_OFF_PERIOD + DOT_TURNED_OFF_PERIOD : LINE_TURNED_ON_PERIOD;
         break;
     }
     case DOT4:
@@ -84,7 +91,7 @@ uint64_t compute_timeout_period(void)
     return timeout_period;
 }
 
-void compute_next_status(void)
+void update_status(void)
 {
     if (get_sequence_state() == IDLE)
     {

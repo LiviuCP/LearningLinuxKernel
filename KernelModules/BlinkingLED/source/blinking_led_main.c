@@ -28,14 +28,14 @@ static void handle_timeout(struct timer_list* timer)
     const unsigned char new_leds_value = should_turn_caps_lock_led_off() ? LEDS_OFF : CAPS_LOCK_LED_ON;
     ((console_driver->ops)->ioctl)(vc_cons[fg_console].d->port.tty, KDSETLED, new_leds_value);
 
-    // schedule the next call (compute timeout period of current status)
+    // schedule the next function call (compute timeout period based on current status)
     const uint64_t timeout_period = compute_timeout_period();
     timer->expires = jiffies_64 + timeout_period;
 
-    // compute next status, will be used to update LEDs at next timeout
-    compute_next_status();
+    // move to next status, will be used to update LEDs at next function call
+    update_status();
 
-    // restart timer
+    // restart timer with previously computed timeout period
     add_timer(timer);
 }
 
