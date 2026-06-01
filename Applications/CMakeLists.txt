@@ -1,1 +1,2 @@
+add_subdirectory(CapsLockLED)
 add_subdirectory(GreatestCommonDivisor)
