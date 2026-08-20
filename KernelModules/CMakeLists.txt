@@ -16,6 +16,7 @@ add_subdirectory(Mapping)
 add_subdirectory(MinMax)
 add_subdirectory(StringOps)
 add_subdirectory(KernelMutex)
+add_subdirectory(KernelSpinlock)
 add_subdirectory(KernelUtilities)
 
 add_dependencies(Average KernelUtilities)
