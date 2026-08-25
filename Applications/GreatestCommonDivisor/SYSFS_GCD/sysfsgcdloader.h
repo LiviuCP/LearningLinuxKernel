@@ -2,15 +2,15 @@
 
 #include <string_view>
 
-constexpr std::string_view divisionModuleName{"division"};
-constexpr std::string_view utilitiesModuleName{"kernelutilities"};
+constexpr std::string_view divisionModuleName{"sysfs_division"};
+constexpr std::string_view utilitiesModuleName{"kernel_utilities"};
 
 namespace GCD::Loader
 {
-void loadKernelModuleDivision();
+void loadKernelModuleSysfsDivision();
 void loadKernelModuleUtilities();
 
-bool isKernelModuleDivisionLoaded();
+bool isKernelModuleSysfsDivisionLoaded();
 bool isKernelModuleUtilitiesLoaded();
 
 constexpr std::string_view getDivisionModuleName()

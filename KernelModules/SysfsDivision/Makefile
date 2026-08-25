@@ -1,8 +1,8 @@
-SRC := source/division_impl.c source/division_main.c
+SRC := source/sysfs_division_impl.c source/sysfs_division_main.c
 
-obj-m += division.o
+obj-m += sysfs_division.o
 
-division-objs := $(SRC:.c=.o)
+sysfs_division-objs := $(SRC:.c=.o)
 
 KERNEL_UTILITIES_BUILD_DIR := $(shell cd $(BUILD_DIR) && cd ../KernelUtilities && echo `pwd`)
 KBUILD_EXTRA_SYMBOLS += $(KERNEL_UTILITIES_BUILD_DIR)/Module.symvers

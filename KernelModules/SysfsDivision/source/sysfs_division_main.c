@@ -4,7 +4,7 @@
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 
-#include "division_impl.h"
+#include "sysfs_division_impl.h"
 
 #define SUCCESS 0
 

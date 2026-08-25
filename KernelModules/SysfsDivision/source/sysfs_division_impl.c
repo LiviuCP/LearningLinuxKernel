@@ -1,7 +1,7 @@
 #include <linux/ctype.h>
 #include <linux/module.h>
 
-#include "division_impl.h"
+#include "sysfs_division_impl.h"
 
 MODULE_LICENSE("GPL");
 

@@ -2,7 +2,7 @@
 #include "gcdloaderimpl.h"
 #include "utils.h"
 
-void GCD::Loader::loadKernelModuleDivision()
+void GCD::Loader::loadKernelModuleSysfsDivision()
 {
     loadKernelModule(getModulePath(getDivisionModuleName()));
 }
@@ -12,7 +12,7 @@ void GCD::Loader::loadKernelModuleUtilities()
     loadKernelModule(getModulePath(getUtilitiesModuleName()));
 }
 
-bool GCD::Loader::isKernelModuleDivisionLoaded()
+bool GCD::Loader::isKernelModuleSysfsDivisionLoaded()
 {
     return Utilities::isKernelModuleLoaded(getDivisionModuleName());
 }

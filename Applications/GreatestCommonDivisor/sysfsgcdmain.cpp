@@ -41,11 +41,11 @@ int main(int argc, char** argv)
                 GCD::Loader::loadKernelModuleUtilities();
             }
 
-            const bool isDivisionModuleInitiallyLoaded{GCD::Loader::isKernelModuleDivisionLoaded()};
+            const bool isDivisionModuleInitiallyLoaded{GCD::Loader::isKernelModuleSysfsDivisionLoaded()};
 
             if (!isDivisionModuleInitiallyLoaded)
             {
-                GCD::Loader::loadKernelModuleDivision();
+                GCD::Loader::loadKernelModuleSysfsDivision();
             }
 
             const int gcd{GCD::Core::retrieveGreatestCommonDivisor(parsedArguments->first, parsedArguments->second)};
