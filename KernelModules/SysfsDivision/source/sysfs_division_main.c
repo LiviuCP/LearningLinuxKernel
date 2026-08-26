@@ -1,7 +1,4 @@
-#include <linux/init.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/slab.h>
 #include <linux/sysfs.h>
 
 #include "sysfs_division_impl.h"
@@ -18,9 +15,6 @@ MODULE_AUTHOR("Liviu Popa");
 
 static int divided = 0;
 static int divider = 1;
-
-module_param(divided, int, S_IRUSR | S_IWUSR);
-module_param(divider, int, S_IRUSR | S_IWUSR);
 
 struct division_data* data = NULL;
 
