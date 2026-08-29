@@ -16,7 +16,7 @@ MODULE_AUTHOR("Liviu Popa");
 static int divided = 0;
 static int divider = 1;
 
-struct division_data* data = NULL;
+static struct division_data* data = NULL;
 
 /* SYSFS access methods for attributes */
 

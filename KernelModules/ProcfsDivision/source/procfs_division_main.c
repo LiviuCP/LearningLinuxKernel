@@ -16,7 +16,7 @@ MODULE_AUTHOR("Liviu Popa");
 static int divided = 0;
 static int divider = 1;
 
-struct division_data* data = NULL;
+static struct division_data* data = NULL;
 static struct proc_dir_entry* division_dir = NULL;
 
 // temporary buffer for storing data read from user buffer or data to be written to user buffer
