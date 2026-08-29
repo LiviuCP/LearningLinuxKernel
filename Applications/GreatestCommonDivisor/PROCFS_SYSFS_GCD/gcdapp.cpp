@@ -1,9 +1,11 @@
 #include <cmath>
 #include <iostream>
 
+#include "divisionmodulename.h"
+#include "gcdapp.h"
+#include "gcdcore.h"
+#include "gcdloader.h"
 #include "gcdparser.h"
-#include "procfsgcdcore.h"
-#include "procfsgcdloader.h"
 #include "utils.h"
 
 #define SUCCESS 0
@@ -12,18 +14,22 @@
 /* How to use:
     - build the whole LearningLinuxKernel project
     - run this application: sudo ./ProcfsGreatestCommonDivisor [integer1] [integer2] # g.c.d. is retrieved
-     (e.g. sudo ./GreatestCommonDivisor 6 10 # g.c.d. is 2)
+     (e.g. sudo ./ProcfsGreatestCommonDivisor 6 10 # g.c.d. is 2)
 
     Notes:
-    - the application requests loading of the Division and KernelUtilities kernel modules so no action is required from
-   user side other that running the app with "sudo" and providing the required arguments (divided and divider)
+    - the application requests loading of the ProcfsDivision and KernelUtilities kernel modules so no action is required
+   from user side other that running the app with "sudo" and providing the required arguments (divided and divider)
     - the kernel modules will be left in the same state that they had when the application got opened: if a module is
    open it will be left open, same for the closed state
-    - the KernelUtilities module is used by Division so it should be loaded beforehand; the two modules should be
+    - the KernelUtilities module is used by ProcfsDivision so it should be loaded beforehand; the two modules should be
    unloaded in reverse order
+    - same usage and notes for the sysfs implementation, only the app executable and division kernel module are
+   different: SysfsGreatestCommonDivisor and SysfsDivision
  */
 
-int main(int argc, char** argv)
+static constexpr std::string_view utilitiesModuleName{"kernel_utilities"};
+
+int GCD::App::run(int argc, char** argv)
 {
     int retVal{SUCCESS};
     const ParsedArguments parsedArguments{GCD::Parser::parseArguments(argc, argv)};
@@ -34,18 +40,18 @@ int main(int argc, char** argv)
         {
             Utilities::clearScreen();
 
-            const bool isUtilitiesModuleInitiallyLoaded{GCD::Loader::isKernelModuleUtilitiesLoaded()};
+            const bool isUtilitiesModuleInitiallyLoaded{Utilities::isKernelModuleLoaded(utilitiesModuleName)};
 
             if (!isUtilitiesModuleInitiallyLoaded)
             {
-                GCD::Loader::loadKernelModuleUtilities();
+                GCD::Loader::loadKernelModule(utilitiesModuleName);
             }
 
-            const bool isDivisionModuleInitiallyLoaded{GCD::Loader::isKernelModuleProcfsDivisionLoaded()};
+            const bool isDivisionModuleInitiallyLoaded{Utilities::isKernelModuleLoaded(divisionModuleName)};
 
             if (!isDivisionModuleInitiallyLoaded)
             {
-                GCD::Loader::loadKernelModuleProcfsDivision();
+                GCD::Loader::loadKernelModule(divisionModuleName);
             }
 
             const int gcd{GCD::Core::retrieveGreatestCommonDivisor(parsedArguments->first, parsedArguments->second)};
@@ -76,12 +82,12 @@ int main(int argc, char** argv)
 
             if (!isDivisionModuleInitiallyLoaded)
             {
-                Utilities::unloadKernelModule(GCD::Loader::getDivisionModuleName());
+                Utilities::unloadKernelModule(divisionModuleName);
             }
 
             if (!isUtilitiesModuleInitiallyLoaded)
             {
-                Utilities::unloadKernelModule(GCD::Loader::getUtilitiesModuleName());
+                Utilities::unloadKernelModule(utilitiesModuleName);
             }
         }
         catch (const std::runtime_error& err)

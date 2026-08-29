@@ -2,17 +2,28 @@
 #include <filesystem>
 #include <stdexcept>
 #include <string>
-#include <string_view>
 
-#include "procfsgcdcore.h"
+#include "divisionmodulename.h"
+#include "gcdcore.h"
 #include "utils.h"
 
+#if defined(PROCFS_GCD)
 static constexpr std::string_view dividedFilePath{"/proc/division/divided"};
 static constexpr std::string_view dividerFilePath{"/proc/division/divider"};
 static constexpr std::string_view quotientFilePath{"/proc/division/quotient"};
 static constexpr std::string_view remainderFilePath{"/proc/division/remainder"};
 static constexpr std::string_view commandFilePath{"/proc/division/command"};
 static constexpr std::string_view statusFilePath{"/proc/division/status"};
+#elif defined(SYSFS_GCD)
+static constexpr std::string_view dividedFilePath{"/sys/kernel/division/divided"};
+static constexpr std::string_view dividerFilePath{"/sys/kernel/division/divider"};
+static constexpr std::string_view quotientFilePath{"/sys/kernel/division/quotient"};
+static constexpr std::string_view remainderFilePath{"/sys/kernel/division/remainder"};
+static constexpr std::string_view commandFilePath{"/sys/kernel/division/command"};
+static constexpr std::string_view statusFilePath{"/sys/kernel/division/status"};
+#else
+static_assert(false && "Invalid implementation!");
+#endif
 
 static constexpr std::string_view divideCommandStr{"divide"};
 static constexpr std::string_view syncedStatusStr{"synced"};
@@ -37,8 +48,9 @@ void passDivisionOperandsToKernelModule(int divided, int divider)
 {
     if (!areDivisionProcfsFilesValid())
     {
-        throw std::runtime_error("At least one procfs file from kernel module \"division\" does not exist or is "
-                                 "invalid!\nPlease check that the module is loaded and generates correct files.");
+        throw std::runtime_error("At least one procfs file from kernel module " + std::string{divisionModuleName} +
+                                 " does not exist or is invalid!\n"
+                                 "Please check that the module is loaded and generates correct files.");
     }
 
     if (const bool success{

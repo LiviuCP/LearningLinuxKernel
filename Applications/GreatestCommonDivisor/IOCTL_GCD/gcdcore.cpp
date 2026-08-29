@@ -2,13 +2,13 @@
 #include <filesystem>
 #include <stdexcept>
 #include <string>
-#include <string_view>
 
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
 
-#include "ioctlgcdcore.h"
+#include "divisionmodulename.h"
+#include "gcdcore.h"
 
 #define IOCTL_STORE_DIVIDED_VALUE _IOW(9999, 'a', int*)
 #define IOCTL_STORE_DIVIDER_VALUE _IOW(9999, 'c', int*)
@@ -41,16 +41,18 @@ void passDivisionOperandsToKernelModule(int divided, int divider)
 {
     if (!isDeviceFileValid())
     {
-        throw std::runtime_error("The device file from kernel module \"ioctl_division\" does not exist or is "
-                                 "invalid!\nPlease check that the module is loaded and generates correct files.");
+        throw std::runtime_error("The device file from kernel module " + std::string{divisionModuleName} +
+                                 " does not exist or is invalid!\n"
+                                 "Please check that the module is loaded and generates correct files.");
     }
 
     const int fd{open(getDeviceFilePath().c_str(), O_WRONLY)};
 
     if (fd < 0)
     {
-        throw std::runtime_error("The device file from kernel module \"ioctl_division\" cannot be opened for "
-                                 "writing!\nPlease try again by running the app with sudo.");
+        throw std::runtime_error("The device file from kernel module " + std::string{divisionModuleName} +
+                                 " cannot be opened for writing!\n"
+                                 "Please try again by running the app with sudo.");
     }
 
     long retVal{ioctl(fd, IOCTL_STORE_DIVIDED_VALUE, &divided)};
@@ -87,8 +89,9 @@ int retrieveResultFromKernelModule(const unsigned int command)
 
     if (fd < 0)
     {
-        throw std::runtime_error("The device file from kernel module \"ioctl_division\" cannot be opened for "
-                                 "reading!\nPlease try again by running the app with sudo.");
+        throw std::runtime_error("The device file from kernel module " + std::string{divisionModuleName} +
+                                 " cannot be opened for reading!\n"
+                                 "Please try again by running the app with sudo.");
     }
 
     bool isSynced;
