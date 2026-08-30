@@ -41,7 +41,7 @@ static int compute_quotient_and_remainder(struct division_data* data)
 
         data->quotient = data->divided / data->divider;
         data->remainder = data->divided % data->divider;
-        memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
+        memset(data->status, '\0', STATUS_BYTES_COUNT);
         strncpy(data->status, synced_status_str, strlen(synced_status_str));
 
         pr_info("%s: divided: %d\n", THIS_MODULE->name, data->divided);
@@ -61,8 +61,8 @@ int init_data(struct division_data* data, int divided, int divider)
     {
         data->divided = divided;
         data->divider = divider;
-        memset(data->command, '\0', MAX_COMMAND_STR_LENGTH);
-        memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
+        memset(data->command, '\0', COMMAND_BYTES_COUNT);
+        memset(data->status, '\0', STATUS_BYTES_COUNT);
         strncpy(data->status, dirty_status_str, strlen(dirty_status_str));
 
         pr_info("%s: computing quotient and remainder\n", THIS_MODULE->name);
@@ -102,7 +102,7 @@ int store_divided_value(struct division_data* data, const char* divided_str)
 
         if (result >= 0)
         {
-            memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
+            memset(data->status, '\0', STATUS_BYTES_COUNT);
             strncpy(data->status, dirty_status_str, strlen(dirty_status_str));
             pr_info("%s: new divided value: %d\n", THIS_MODULE->name, data->divided);
         }
@@ -135,7 +135,7 @@ int store_divider_value(struct division_data* data, const char* divider_str)
 
         if (result >= 0)
         {
-            memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
+            memset(data->status, '\0', STATUS_BYTES_COUNT);
             strncpy(data->status, dirty_status_str, strlen(dirty_status_str));
             pr_info("%s: new divider value: %d\n", THIS_MODULE->name, data->divider);
         }
@@ -172,7 +172,7 @@ void store_command(struct division_data* data, const char* command_str)
             break;
         }
 
-        trim_and_copy_string(data->command, command_str, MAX_COMMAND_STR_LENGTH, THIS_MODULE->name);
+        trim_and_copy_string(data->command, command_str, COMMAND_BYTES_COUNT, THIS_MODULE->name);
         const size_t command_length = strlen(data->command);
 
         pr_info("%s: issued command: %s\n", THIS_MODULE->name, data->command);

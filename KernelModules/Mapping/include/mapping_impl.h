@@ -3,18 +3,18 @@
 #include <linux/kobject.h>
 
 #define SUCCESS 0
-#define MAX_COMMAND_STR_LENGTH 32
-#define MAX_STATUS_STR_LENGTH 16
-#define MAX_KEY_STR_LENGTH 64
+#define COMMAND_BYTES_COUNT 32
+#define STATUS_BYTES_COUNT 16
+#define KEY_BYTES_COUNT 64
 #define MAX_ELEMENTS_COUNT 256
 
 struct mapping_data
 {
     struct kobject mapping_kobj;
-    char key[MAX_KEY_STR_LENGTH];
+    char key[KEY_BYTES_COUNT];
     int value;
-    char command[MAX_COMMAND_STR_LENGTH];
-    char status[MAX_STATUS_STR_LENGTH];
+    char command[COMMAND_BYTES_COUNT];
+    char status[STATUS_BYTES_COUNT];
     struct map_element_data* map_elements[MAX_ELEMENTS_COUNT];
     size_t map_elements_count;
 };

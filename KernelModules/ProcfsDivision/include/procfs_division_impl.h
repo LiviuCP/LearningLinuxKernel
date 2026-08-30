@@ -1,7 +1,7 @@
 #pragma once
 
-#define MAX_COMMAND_STR_LENGTH 32
-#define MAX_STATUS_STR_LENGTH 16
+#define COMMAND_BYTES_COUNT 32
+#define STATUS_BYTES_COUNT 16
 
 struct division_data
 {
@@ -9,8 +9,8 @@ struct division_data
     int divider;
     int quotient;
     int remainder;
-    char command[MAX_COMMAND_STR_LENGTH];
-    char status[MAX_STATUS_STR_LENGTH];
+    char command[COMMAND_BYTES_COUNT];
+    char status[STATUS_BYTES_COUNT];
 };
 
 int init_data(struct division_data* data, int divided, int divider);

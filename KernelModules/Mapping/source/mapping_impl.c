@@ -31,9 +31,9 @@ static void reset_key_and_value(void)
 {
     if (data)
     {
-        memset(data->key, '\0', MAX_KEY_STR_LENGTH);
+        memset(data->key, '\0', KEY_BYTES_COUNT);
         data->value = 0;
-        memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
+        memset(data->status, '\0', STATUS_BYTES_COUNT);
         strncpy(data->status, synced_status_str, strlen(synced_status_str));
     }
 }
@@ -173,7 +173,7 @@ static void retrieve_map_element_value(void)
             data->value = 0;
         }
 
-        memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
+        memset(data->status, '\0', STATUS_BYTES_COUNT);
         strncpy(data->status, synced_status_str, strlen(synced_status_str));
     }
 }
@@ -212,7 +212,7 @@ int init_data(struct mapping_data* map_data, struct map_element_data* (*create_e
         data = map_data;
         data->map_elements_count = 0;
 
-        memset(data->command, '\0', MAX_COMMAND_STR_LENGTH);
+        memset(data->command, '\0', COMMAND_BYTES_COUNT);
         reset_key_and_value();
 
         create_map_element = create_element;
@@ -252,8 +252,8 @@ void store_key(const char* key_str)
 {
     if (data)
     {
-        trim_and_copy_string(data->key, key_str, MAX_KEY_STR_LENGTH, THIS_MODULE->name);
-        memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
+        trim_and_copy_string(data->key, key_str, KEY_BYTES_COUNT, THIS_MODULE->name);
+        memset(data->status, '\0', STATUS_BYTES_COUNT);
         strncpy(data->status, dirty_status_str, strlen(dirty_status_str));
         pr_info("%s: key entered: %s\n", THIS_MODULE->name, data->key);
     }
@@ -269,7 +269,7 @@ int store_value(const char* value_str)
 
     if (result >= 0)
     {
-        memset(data->status, '\0', MAX_STATUS_STR_LENGTH);
+        memset(data->status, '\0', STATUS_BYTES_COUNT);
         strncpy(data->status, dirty_status_str, strlen(dirty_status_str));
         pr_info("%s: value entered: %d\n", THIS_MODULE->name, data->value);
     }
@@ -285,7 +285,7 @@ void store_command(const char* command_str)
 {
     if (data && create_map_element && destroy_map_element)
     {
-        trim_and_copy_string(data->command, command_str, MAX_COMMAND_STR_LENGTH, THIS_MODULE->name);
+        trim_and_copy_string(data->command, command_str, COMMAND_BYTES_COUNT, THIS_MODULE->name);
         const size_t command_length = strlen(data->command);
 
         pr_info("%s: issued command: %s\n", THIS_MODULE->name, data->command);
