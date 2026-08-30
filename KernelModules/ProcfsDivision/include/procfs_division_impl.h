@@ -1,7 +1,8 @@
 #pragma once
 
-#define COMMAND_BYTES_COUNT 32
-#define STATUS_BYTES_COUNT 16
+#define MAX_CHARS_COUNT 31
+#define COMMAND_BYTES_COUNT (MAX_CHARS_COUNT + 1)
+#define STATUS_BYTES_COUNT (MAX_CHARS_COUNT / 2 + 1)
 
 struct division_data
 {

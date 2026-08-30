@@ -20,16 +20,16 @@ static struct division_data* data = NULL;
 static struct proc_dir_entry* division_dir = NULL;
 
 // temporary buffer for storing data read from user buffer or data to be written to user buffer
-static char temp_buffer[32];
+static char temp_buffer[MAX_CHARS_COUNT + 1];
 
 /* PROCFS access methods for files */
 
 static ssize_t divided_show(struct file* filp, char* buffer, size_t length, loff_t* offset)
 {
-    memset(temp_buffer, '\0', sizeof(temp_buffer) - 1);
+    memset(temp_buffer, '\0', sizeof(temp_buffer));
     sprintf(temp_buffer, "%d\n", data->divided);
 
-    const int result = copy_to_user(buffer, temp_buffer, sizeof(temp_buffer) - 1);
+    const int result = copy_to_user(buffer, temp_buffer, strlen(temp_buffer));
 
     if (result != SUCCESS)
     {
@@ -41,9 +41,10 @@ static ssize_t divided_show(struct file* filp, char* buffer, size_t length, loff
 
 static ssize_t divided_store(struct file* filp, const char* buffer, size_t length, loff_t* offset)
 {
-    memset(temp_buffer, '\0', sizeof(temp_buffer) - 1);
+    memset(temp_buffer, '\0', sizeof(temp_buffer));
 
-    const int result = copy_from_user(temp_buffer, buffer, length);
+    const size_t charsToCopyCount = length < MAX_CHARS_COUNT ? length : MAX_CHARS_COUNT;
+    const int result = copy_from_user(temp_buffer, buffer, charsToCopyCount);
 
     if (result == SUCCESS)
     {
@@ -59,10 +60,10 @@ static ssize_t divided_store(struct file* filp, const char* buffer, size_t lengt
 
 static ssize_t divider_show(struct file* filp, char* buffer, size_t length, loff_t* offset)
 {
-    memset(temp_buffer, '\0', sizeof(temp_buffer) - 1);
+    memset(temp_buffer, '\0', sizeof(temp_buffer));
     sprintf(temp_buffer, "%d\n", data->divider);
 
-    const int result = copy_to_user(buffer, temp_buffer, sizeof(temp_buffer) - 1);
+    const int result = copy_to_user(buffer, temp_buffer, strlen(temp_buffer));
 
     if (result != SUCCESS)
     {
@@ -74,9 +75,10 @@ static ssize_t divider_show(struct file* filp, char* buffer, size_t length, loff
 
 static ssize_t divider_store(struct file* filp, const char* buffer, size_t length, loff_t* offset)
 {
-    memset(temp_buffer, '\0', sizeof(temp_buffer) - 1);
+    memset(temp_buffer, '\0', sizeof(temp_buffer));
 
-    const int result = copy_from_user(temp_buffer, buffer, length);
+    const size_t charsToCopyCount = length < MAX_CHARS_COUNT ? length : MAX_CHARS_COUNT;
+    const int result = copy_from_user(temp_buffer, buffer, charsToCopyCount);
 
     if (result == SUCCESS)
     {
@@ -93,10 +95,10 @@ static ssize_t divider_store(struct file* filp, const char* buffer, size_t lengt
 // no store to be defined here as the quotient is read-only
 static ssize_t quotient_show(struct file* filp, char* buffer, size_t length, loff_t* offset)
 {
-    memset(temp_buffer, '\0', sizeof(temp_buffer) - 1);
+    memset(temp_buffer, '\0', sizeof(temp_buffer));
     sprintf(temp_buffer, "%d\n", data->quotient);
 
-    const int result = copy_to_user(buffer, temp_buffer, sizeof(temp_buffer) - 1);
+    const int result = copy_to_user(buffer, temp_buffer, strlen(temp_buffer));
 
     if (result != SUCCESS)
     {
@@ -109,10 +111,10 @@ static ssize_t quotient_show(struct file* filp, char* buffer, size_t length, lof
 // same here
 static ssize_t remainder_show(struct file* filp, char* buffer, size_t length, loff_t* offset)
 {
-    memset(temp_buffer, '\0', sizeof(temp_buffer) - 1);
+    memset(temp_buffer, '\0', sizeof(temp_buffer));
     sprintf(temp_buffer, "%d\n", data->remainder);
 
-    const int result = copy_to_user(buffer, temp_buffer, sizeof(temp_buffer) - 1);
+    const int result = copy_to_user(buffer, temp_buffer, strlen(temp_buffer));
 
     if (result != SUCCESS)
     {
@@ -125,9 +127,10 @@ static ssize_t remainder_show(struct file* filp, char* buffer, size_t length, lo
 // no show to be defined here as the command is write-only
 static ssize_t command_store(struct file* filp, const char* buffer, size_t length, loff_t* offset)
 {
-    memset(temp_buffer, '\0', sizeof(temp_buffer) - 1);
+    memset(temp_buffer, '\0', sizeof(temp_buffer));
 
-    const int result = copy_from_user(temp_buffer, buffer, length);
+    const size_t charsToCopyCount = length < MAX_CHARS_COUNT ? length : MAX_CHARS_COUNT;
+    const int result = copy_from_user(temp_buffer, buffer, charsToCopyCount);
 
     if (result == SUCCESS)
     {
@@ -144,10 +147,10 @@ static ssize_t command_store(struct file* filp, const char* buffer, size_t lengt
 // no store to be defined here as the status is read-only
 static ssize_t status_show(struct file* filp, char* buffer, size_t length, loff_t* offset)
 {
-    memset(temp_buffer, '\0', sizeof(temp_buffer) - 1);
+    memset(temp_buffer, '\0', sizeof(temp_buffer));
     sprintf(temp_buffer, "%s\n", data->status);
 
-    const int result = copy_to_user(buffer, temp_buffer, sizeof(temp_buffer) - 1);
+    const int result = copy_to_user(buffer, temp_buffer, strlen(temp_buffer));
 
     if (result != SUCCESS)
     {
