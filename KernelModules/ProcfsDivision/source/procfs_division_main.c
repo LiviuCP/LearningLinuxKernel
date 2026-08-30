@@ -22,7 +22,19 @@ static struct proc_dir_entry* division_dir = NULL;
 // temporary buffer for storing data read from user buffer or data to be written to user buffer
 static char temp_buffer[MAX_CHARS_COUNT + 1];
 
-/* PROCFS access methods for files */
+/* HELPER functions */
+
+static int copy_from_user_buffer(const char* user_buffer, size_t length)
+{
+    memset(temp_buffer, '\0', sizeof(temp_buffer));
+
+    const size_t charsToCopyCount = length < MAX_CHARS_COUNT ? length : MAX_CHARS_COUNT;
+    const int result = copy_from_user(temp_buffer, user_buffer, charsToCopyCount);
+
+    return result;
+}
+
+/* PROCFS access functions for files */
 
 static ssize_t divided_show(struct file* filp, char* buffer, size_t length, loff_t* offset)
 {
@@ -41,10 +53,7 @@ static ssize_t divided_show(struct file* filp, char* buffer, size_t length, loff
 
 static ssize_t divided_store(struct file* filp, const char* buffer, size_t length, loff_t* offset)
 {
-    memset(temp_buffer, '\0', sizeof(temp_buffer));
-
-    const size_t charsToCopyCount = length < MAX_CHARS_COUNT ? length : MAX_CHARS_COUNT;
-    const int result = copy_from_user(temp_buffer, buffer, charsToCopyCount);
+    const int result = copy_from_user_buffer(buffer, length);
 
     if (result == SUCCESS)
     {
@@ -75,10 +84,7 @@ static ssize_t divider_show(struct file* filp, char* buffer, size_t length, loff
 
 static ssize_t divider_store(struct file* filp, const char* buffer, size_t length, loff_t* offset)
 {
-    memset(temp_buffer, '\0', sizeof(temp_buffer));
-
-    const size_t charsToCopyCount = length < MAX_CHARS_COUNT ? length : MAX_CHARS_COUNT;
-    const int result = copy_from_user(temp_buffer, buffer, charsToCopyCount);
+    const int result = copy_from_user_buffer(buffer, length);
 
     if (result == SUCCESS)
     {
@@ -127,10 +133,7 @@ static ssize_t remainder_show(struct file* filp, char* buffer, size_t length, lo
 // no show to be defined here as the command is write-only
 static ssize_t command_store(struct file* filp, const char* buffer, size_t length, loff_t* offset)
 {
-    memset(temp_buffer, '\0', sizeof(temp_buffer));
-
-    const size_t charsToCopyCount = length < MAX_CHARS_COUNT ? length : MAX_CHARS_COUNT;
-    const int result = copy_from_user(temp_buffer, buffer, charsToCopyCount);
+    const int result = copy_from_user_buffer(buffer, length);
 
     if (result == SUCCESS)
     {

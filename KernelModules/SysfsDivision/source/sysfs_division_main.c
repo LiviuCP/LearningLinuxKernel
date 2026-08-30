@@ -18,7 +18,7 @@ static int divider = 1;
 
 static struct division_data* data = NULL;
 
-/* SYSFS access methods for attributes */
+/* SYSFS access functions for attributes */
 
 static ssize_t divided_show(struct kobject* kobj, struct kobj_attribute* attr, char* buf)
 {
