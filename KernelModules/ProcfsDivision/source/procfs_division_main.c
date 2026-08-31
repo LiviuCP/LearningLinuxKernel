@@ -53,18 +53,19 @@ static ssize_t divided_show(struct file* filp, char* buffer, size_t length, loff
 
 static ssize_t divided_store(struct file* filp, const char* buffer, size_t length, loff_t* offset)
 {
-    const int result = copy_from_user_buffer(buffer, length);
+    int result = -1;
+    const int copy_result = copy_from_user_buffer(buffer, length);
 
-    if (result == SUCCESS)
+    if (copy_result == SUCCESS)
     {
-        store_divided_value(data, temp_buffer);
+        result = store_divided_value(data, temp_buffer);
     }
     else
     {
         pr_err("%s: error writing divided value!\n", THIS_MODULE->name);
     }
 
-    return length;
+    return result < 0 ? 0 : length;
 }
 
 static ssize_t divider_show(struct file* filp, char* buffer, size_t length, loff_t* offset)
@@ -84,18 +85,19 @@ static ssize_t divider_show(struct file* filp, char* buffer, size_t length, loff
 
 static ssize_t divider_store(struct file* filp, const char* buffer, size_t length, loff_t* offset)
 {
-    const int result = copy_from_user_buffer(buffer, length);
+    int result = -1;
+    const int copy_result = copy_from_user_buffer(buffer, length);
 
-    if (result == SUCCESS)
+    if (copy_result == SUCCESS)
     {
-        store_divider_value(data, temp_buffer);
+        result = store_divider_value(data, temp_buffer);
     }
     else
     {
         pr_err("%s: error writing divided value!\n", THIS_MODULE->name);
     }
 
-    return length;
+    return result < 0 ? 0 : length;
 }
 
 // no store to be defined here as the quotient is read-only
