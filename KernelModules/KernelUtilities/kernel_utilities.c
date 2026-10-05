@@ -185,10 +185,42 @@ void format_and_copy_string(char* dest, const char* src, size_t max_chars_count,
 
     do
     {
-        if (!can_copy_to_destination(dest, src, max_chars_count, module_name, __func__))
+        // minimum requirements are related to "plain copy" operation (necessary, not sufficient, see below)
+        if (can_copy_to_destination(dest, src, max_chars_count, module_name, __func__))
         {
             break;
         }
+
+        size_t alnum_chars_count = 0;
+
+        for (size_t index = 0; index < strlen(src); ++index)
+        {
+            if (isalnum(src[index]))
+            {
+                ++alnum_chars_count;
+            }
+        }
+
+        const size_t group_size = 4;
+        const size_t whole_groups_count = alnum_chars_count / group_size;
+        const size_t residual_chars_count = alnum_chars_count % group_size;
+        const size_t underscores_count = whole_groups_count > 0 || residual_chars_count > 0
+                                             ? whole_groups_count + (residual_chars_count > 0 ? 1 : 0) - 1
+                                             : 0;
+        const size_t minus_chars_count = residual_chars_count == 1   ? (whole_groups_count > 0 ? 1 : 2)
+                                         : residual_chars_count == 2 ? (whole_groups_count > 0 ? 0 : 1)
+                                         : residual_chars_count == 3 ? (whole_groups_count > 0 ? 1 : 0)
+                                                                     : 0;
+
+        const size_t total_chars_count = alnum_chars_count + underscores_count + minus_chars_count;
+
+        if (total_chars_count >= max_chars_count)
+        {
+            pr_warn("%s: %s: src length exceeds maximum dest string length!\n", module_name, __func__);
+            break;
+        }
+
+        memset(dest, '\0', max_chars_count);
 
     } while (false);
 }
