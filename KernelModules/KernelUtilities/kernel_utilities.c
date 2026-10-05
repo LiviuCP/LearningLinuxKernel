@@ -210,6 +210,7 @@ void format_and_copy_string(char* dest, const char* src, size_t max_chars_count,
         const size_t minus_chars_count = residual_chars_count == 1   ? (whole_groups_count > 0 ? 1 : 2)
                                          : residual_chars_count == 2 ? (whole_groups_count > 0 ? 0 : 1)
                                          : residual_chars_count == 3 ? (whole_groups_count > 0 ? 1 : 0)
+                                         : alnum_chars_count == 0    ? 3
                                                                      : 0;
 
         const size_t total_chars_count = alnum_chars_count + underscores_count + minus_chars_count;
@@ -221,6 +222,51 @@ void format_and_copy_string(char* dest, const char* src, size_t max_chars_count,
         }
 
         memset(dest, '\0', max_chars_count);
+
+        const size_t src_length = strlen(src);
+
+        if (src_length == 0)
+        {
+            strncpy(dest, "---", 3);
+            break;
+        }
+
+        size_t current_src_index = 0;
+        size_t current_dest_index = 0;
+        size_t current_group_index = 0;
+
+        if (whole_groups_count > 1)
+        {
+            const size_t groups_to_fill_count = whole_groups_count - 1;
+            size_t filled_groups_count = 0;
+
+            while (current_src_index < src_length)
+            {
+                if (!isalnum(src[current_src_index]))
+                {
+                    ++current_src_index;
+                    continue;
+                }
+
+                dest[current_dest_index] = src[current_src_index];
+                ++current_dest_index;
+                ++current_src_index;
+                ++current_group_index;
+
+                if (current_group_index == 4)
+                {
+                    current_group_index = 0;
+                    dest[current_dest_index] = '_';
+                    ++current_dest_index;
+                    ++filled_groups_count;
+                }
+
+                if (groups_to_fill_count == filled_groups_count)
+                {
+                    break;
+                }
+            }
+        }
 
     } while (false);
 }
