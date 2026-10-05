@@ -158,6 +158,41 @@ void reverse_and_copy_string(char* dest, const char* src, size_t max_chars_count
     }
 }
 
+/* This function formats the source string and copies the resulting content into a destination string.
+   Formatting is performed as follows:
+   - clean up any character that is not alphabetic or digit
+   - split the remaining characters into groups of 4, add '_' between groups
+   - if the last group has less than 4 characters following corner cases apply:
+     a) 3 characters:
+        - if there is a preceding group a '-' character is appended at the end
+        - if there is no preceding group no character is appended
+     b) 2 characters:
+        - if there is a preceding group the last character is taken from it and prepended to the last group
+        - if there is no preceding group then a '-' character is appended
+     c) 1 character:
+        - if there is a preceding group the last character is taken from it and prepended to the last group; a '-'
+   character is also appended
+        - if there is no preceding group then two '-' characters are appended
+     d) 0 characters:
+        - if the input string has no characters then three '-' characters are added
+   - goal:
+        - there should be minimum 3 characters in the resulting sequence / each group
+        - last two groups (if existing) should have the same number of characters
+*/
+void format_and_copy_string(char* dest, const char* src, size_t max_chars_count, const char* calling_module_name)
+{
+    const char* module_name = calling_module_name ? calling_module_name : "INVALID MODULE NAME";
+
+    do
+    {
+        if (!can_copy_to_destination(dest, src, max_chars_count, module_name, __func__))
+        {
+            break;
+        }
+
+    } while (false);
+}
+
 int get_average(const int* array, size_t array_size)
 {
     int sum = 0;
@@ -175,6 +210,7 @@ int get_average(const int* array, size_t array_size)
 EXPORT_SYMBOL(trim_and_copy_string);
 EXPORT_SYMBOL(convert_to_same_case_and_copy_string);
 EXPORT_SYMBOL(reverse_and_copy_string);
+EXPORT_SYMBOL(format_and_copy_string);
 EXPORT_SYMBOL(get_average);
 
 static int utilities_init(void)
