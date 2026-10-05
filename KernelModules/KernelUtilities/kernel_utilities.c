@@ -235,6 +235,7 @@ void format_and_copy_string(char* dest, const char* src, size_t max_chars_count,
         size_t current_dest_index = 0;
         size_t current_group_index = 0;
 
+        // step 1: copy the groups that are not subject to change
         if (whole_groups_count > 1)
         {
             const size_t groups_to_fill_count = whole_groups_count - 1;
@@ -268,6 +269,63 @@ void format_and_copy_string(char* dest, const char* src, size_t max_chars_count,
             }
         }
 
+        const size_t chars_to_copy_from_last_full_group_count =
+            whole_groups_count > 0 ? residual_chars_count == 1 || residual_chars_count == 2 ? 3 : 4 : 0;
+
+        // step 2: copy the last full group (minus number of characters to be moved to residual group)
+        if (chars_to_copy_from_last_full_group_count > 0)
+        {
+            while (current_src_index < src_length)
+            {
+                if (!isalnum(src[current_src_index]))
+                {
+                    ++current_src_index;
+                    continue;
+                }
+
+                dest[current_dest_index] = src[current_src_index];
+                ++current_dest_index;
+                ++current_src_index;
+                ++current_group_index;
+
+                if (current_group_index == chars_to_copy_from_last_full_group_count)
+                {
+                    break;
+                }
+            }
+        }
+
+        if (residual_chars_count == 0)
+        {
+            break;
+        }
+
+        if (whole_groups_count > 0)
+        {
+            dest[current_dest_index] = '_';
+            ++current_dest_index;
+        }
+
+        // step 3: copy the residual group (including any moved characters from previous group)
+        while (current_src_index < src_length)
+        {
+            if (!isalnum(src[current_src_index]))
+            {
+                ++current_src_index;
+                continue;
+            }
+
+            dest[current_dest_index] = src[current_src_index];
+            ++current_dest_index;
+            ++current_src_index;
+        }
+
+        // step 4: add padding chars ('-')
+        for (size_t index = 0; index < minus_chars_count; ++index)
+        {
+            dest[current_dest_index] = '-';
+            ++current_dest_index;
+        }
     } while (false);
 }
 
