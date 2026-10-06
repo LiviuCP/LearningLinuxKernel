@@ -158,6 +158,24 @@ void reverse_and_copy_string(char* dest, const char* src, size_t max_chars_count
     }
 }
 
+static size_t get_alphanumeric_chars_count(const char* src)
+{
+    size_t alnum_chars_count = 0;
+
+    if (src)
+    {
+        for (size_t index = 0; index < strlen(src); ++index)
+        {
+            if (isalnum(src[index]))
+            {
+                ++alnum_chars_count;
+            }
+        }
+    }
+
+    return alnum_chars_count;
+}
+
 /* This function formats the source string and copies the resulting content into a destination string.
    Formatting is performed as follows:
    - clean up any character that is not alphabetic or digit
@@ -191,22 +209,13 @@ void format_and_copy_string(char* dest, const char* src, size_t max_chars_count,
             break;
         }
 
-        size_t alnum_chars_count = 0;
-
-        for (size_t index = 0; index < strlen(src); ++index)
-        {
-            if (isalnum(src[index]))
-            {
-                ++alnum_chars_count;
-            }
-        }
-
+        const size_t alnum_chars_count = get_alphanumeric_chars_count(src);
         const size_t group_size = 4;
         const size_t whole_groups_count = alnum_chars_count / group_size;
         const size_t residual_chars_count = alnum_chars_count % group_size;
-        const size_t underscores_count = whole_groups_count > 0 || residual_chars_count > 0
-                                             ? whole_groups_count + (residual_chars_count > 0 ? 1 : 0) - 1
-                                             : 0;
+        const bool has_residual_chars = residual_chars_count > 0;
+        const size_t underscores_count =
+            whole_groups_count > 0 || has_residual_chars ? whole_groups_count + (size_t)has_residual_chars - 1 : 0;
         const size_t minus_chars_count = residual_chars_count == 1   ? (whole_groups_count > 0 ? 1 : 2)
                                          : residual_chars_count == 2 ? (whole_groups_count > 0 ? 0 : 1)
                                          : residual_chars_count == 3 ? (whole_groups_count > 0 ? 1 : 0)
@@ -215,6 +224,7 @@ void format_and_copy_string(char* dest, const char* src, size_t max_chars_count,
 
         const size_t total_chars_count = alnum_chars_count + underscores_count + minus_chars_count;
 
+        // max_chars_count includes the terminating '\0' character
         if (total_chars_count >= max_chars_count)
         {
             pr_warn("%s: %s: src length exceeds maximum dest string length!\n", module_name, __func__);
@@ -233,15 +243,15 @@ void format_and_copy_string(char* dest, const char* src, size_t max_chars_count,
 
         size_t current_src_index = 0;
         size_t current_dest_index = 0;
-        size_t current_group_index = 0;
+        size_t current_group_index = 0; // relative index within group of chars
 
         // step 1: copy the groups that are not subject to change
         if (whole_groups_count > 1)
         {
-            const size_t groups_to_fill_count = whole_groups_count - 1;
-            size_t filled_groups_count = 0;
+            const size_t groups_to_copy_count = whole_groups_count - 1;
+            size_t copied_groups_count = 0;
 
-            while (current_src_index < src_length)
+            while (current_src_index < src_length && copied_groups_count < groups_to_copy_count)
             {
                 if (!isalnum(src[current_src_index]))
                 {
@@ -259,55 +269,18 @@ void format_and_copy_string(char* dest, const char* src, size_t max_chars_count,
                     current_group_index = 0;
                     dest[current_dest_index] = '_';
                     ++current_dest_index;
-                    ++filled_groups_count;
-                }
-
-                if (groups_to_fill_count == filled_groups_count)
-                {
-                    break;
+                    ++copied_groups_count;
                 }
             }
         }
 
-        const size_t chars_to_copy_from_last_full_group_count =
+        const size_t last_non_residual_chars_to_copy_count =
             whole_groups_count > 0 ? residual_chars_count == 1 || residual_chars_count == 2 ? 3 : 4 : 0;
 
+        current_group_index = 0; // defensive programming (should have already been set to 0, see above)
+
         // step 2: copy the last full group (minus number of characters to be moved to residual group)
-        if (chars_to_copy_from_last_full_group_count > 0)
-        {
-            while (current_src_index < src_length)
-            {
-                if (!isalnum(src[current_src_index]))
-                {
-                    ++current_src_index;
-                    continue;
-                }
-
-                dest[current_dest_index] = src[current_src_index];
-                ++current_dest_index;
-                ++current_src_index;
-                ++current_group_index;
-
-                if (current_group_index == chars_to_copy_from_last_full_group_count)
-                {
-                    break;
-                }
-            }
-        }
-
-        if (residual_chars_count == 0)
-        {
-            break;
-        }
-
-        if (whole_groups_count > 0)
-        {
-            dest[current_dest_index] = '_';
-            ++current_dest_index;
-        }
-
-        // step 3: copy the residual group (including any moved characters from previous group)
-        while (current_src_index < src_length)
+        while (current_src_index < src_length && current_group_index < last_non_residual_chars_to_copy_count)
         {
             if (!isalnum(src[current_src_index]))
             {
@@ -318,6 +291,35 @@ void format_and_copy_string(char* dest, const char* src, size_t max_chars_count,
             dest[current_dest_index] = src[current_src_index];
             ++current_dest_index;
             ++current_src_index;
+            ++current_group_index;
+        }
+
+        if (!has_residual_chars)
+        {
+            break;
+        }
+
+        if (whole_groups_count > 0)
+        {
+            dest[current_dest_index] = '_';
+            ++current_dest_index;
+        }
+
+        current_group_index = 0;
+
+        // step 3: copy the residual group (including any moved characters from previous group)
+        while (current_src_index < src_length && current_group_index < residual_chars_count)
+        {
+            if (!isalnum(src[current_src_index]))
+            {
+                ++current_src_index;
+                continue;
+            }
+
+            dest[current_dest_index] = src[current_src_index];
+            ++current_dest_index;
+            ++current_src_index;
+            ++current_group_index;
         }
 
         // step 4: add padding chars ('-')
