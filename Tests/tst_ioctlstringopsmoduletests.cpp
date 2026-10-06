@@ -16,8 +16,10 @@
 #define IOCTL_GET_OUTPUT_PREFIX_SIZE _IOR(9999, 'g', size_t*)
 #define IOCTL_ENABLE_INPUT_APPEND_MODE _IOW(9999, 'h', bool*)
 #define IOCTL_IS_INPUT_APPEND_MODE_ENABLED _IOR(9999, 'i', bool*)
-#define IOCTL_SET_MAX_OUTPUT_SIZE _IOWR(9999, 'j', size_t*)
-#define IOCTL_GET_MAX_OUTPUT_SIZE _IOR(9999, 'k', size_t*)
+#define IOCTL_ENABLE_INPUT_FORMATTING _IOW(9999, 'j', bool*)
+#define IOCTL_IS_INPUT_FORMATTING_ENABLED _IOR(9999, 'k', bool*)
+#define IOCTL_SET_MAX_OUTPUT_SIZE _IOWR(9999, 'l', size_t*)
+#define IOCTL_GET_MAX_OUTPUT_SIZE _IOR(9999, 'm', size_t*)
 
 static constexpr std::string_view stringOpsModuleName{"ioctl_string_ops"};
 static constexpr std::string_view utilitiesModuleName{"kernel_utilities"};
@@ -52,6 +54,8 @@ private slots:
     void testEnableUserInputTrimming();
     void testSetOutputPrefix();
     void testEnableInputAppendMode();
+    void testEnableInputFormatting();
+    void testAppendModeAndFormattingAreMutuallyExclusive();
     void testSetMaxOutputSize_FullBufferTraverseWithFixedOutputSize();
     void testSetMaxOutputSize_FullBufferTraverseWithVariableOutputSize();
     void testSetMaxOutputSize_UseOutputPrefix();
@@ -70,6 +74,8 @@ private:
     std::optional<size_t> ioctlGetOutputPrefixSize();
     void ioctlEnableInputAppendMode(bool enabled);
     bool ioctlIsInputAppendModeEnabled();
+    void ioctlEnableInputFormatting(bool enabled);
+    bool ioctlIsInputFormattingEnabled();
 
     // value has both input and output role:
     // - input: maximum output size to be set
@@ -358,6 +364,52 @@ void IoctlStringOpsModuleTests::testEnableInputAppendMode()
     QVERIFY(readFromDeviceFile(m_DeviceFile) == str + "d");
 
     QVERIFY(!ioctlIsInputAppendModeEnabled());
+}
+
+void IoctlStringOpsModuleTests::testEnableInputFormatting()
+{
+    // TODO: write concrete test
+
+    QVERIFY(!ioctlIsInputFormattingEnabled());
+
+    ioctlEnableInputFormatting(true);
+    QVERIFY(ioctlIsInputFormattingEnabled());
+
+    ioctlEnableInputFormatting(false);
+    QVERIFY(!ioctlIsInputFormattingEnabled());
+}
+
+void IoctlStringOpsModuleTests::testAppendModeAndFormattingAreMutuallyExclusive()
+{
+    QVERIFY(!ioctlIsInputAppendModeEnabled() && !ioctlIsInputFormattingEnabled());
+
+    ioctlEnableInputAppendMode(true);
+    QVERIFY(ioctlIsInputAppendModeEnabled() && !ioctlIsInputFormattingEnabled());
+
+    ioctlEnableInputFormatting(true);
+    QVERIFY(!ioctlIsInputAppendModeEnabled() && ioctlIsInputFormattingEnabled());
+
+    ioctlEnableInputAppendMode(true);
+    QVERIFY(ioctlIsInputAppendModeEnabled() && !ioctlIsInputFormattingEnabled());
+
+    ioctlEnableInputAppendMode(false);
+    QVERIFY(!ioctlIsInputAppendModeEnabled() && !ioctlIsInputFormattingEnabled());
+
+    resetKernelModule();
+
+    QVERIFY(!ioctlIsInputAppendModeEnabled() && !ioctlIsInputFormattingEnabled());
+
+    ioctlEnableInputFormatting(true);
+    QVERIFY(!ioctlIsInputAppendModeEnabled() && ioctlIsInputFormattingEnabled());
+
+    ioctlEnableInputAppendMode(true);
+    QVERIFY(ioctlIsInputAppendModeEnabled() && !ioctlIsInputFormattingEnabled());
+
+    ioctlEnableInputFormatting(true);
+    QVERIFY(!ioctlIsInputAppendModeEnabled() && ioctlIsInputFormattingEnabled());
+
+    ioctlEnableInputFormatting(false);
+    QVERIFY(!ioctlIsInputAppendModeEnabled() && !ioctlIsInputFormattingEnabled());
 }
 
 void IoctlStringOpsModuleTests::testSetMaxOutputSize_FullBufferTraverseWithFixedOutputSize()
@@ -1064,7 +1116,7 @@ void IoctlStringOpsModuleTests::ioctlEnableInputAppendMode(bool enabled)
 
         if (retVal != 0)
         {
-            QFAIL("Enabling/disabling trimming failed!");
+            QFAIL("Enabling/disabling input append mode failed!");
         }
     }
 }
@@ -1082,6 +1134,43 @@ bool IoctlStringOpsModuleTests::ioctlIsInputAppendModeEnabled()
         if (retVal == 0)
         {
             isEnabled = isAppendingEnabled;
+        }
+
+        close(fd);
+    }
+
+    return isEnabled;
+}
+
+void IoctlStringOpsModuleTests::ioctlEnableInputFormatting(bool enabled)
+{
+    const int fd{open(m_DeviceFile.c_str(), O_WRONLY)};
+
+    if (fd > 0)
+    {
+        const long retVal{ioctl(fd, IOCTL_ENABLE_INPUT_FORMATTING, &enabled)};
+        close(fd);
+
+        if (retVal != 0)
+        {
+            QFAIL("Enabling/disabling input formatting failed!");
+        }
+    }
+}
+
+bool IoctlStringOpsModuleTests::ioctlIsInputFormattingEnabled()
+{
+    bool isEnabled{false};
+    const int fd{open(m_DeviceFile.c_str(), O_RDONLY)};
+
+    if (fd > 0)
+    {
+        bool isFormattingEnabled;
+        const long retVal{ioctl(fd, IOCTL_IS_INPUT_FORMATTING_ENABLED, &isFormattingEnabled)};
+
+        if (retVal == 0)
+        {
+            isEnabled = isFormattingEnabled;
         }
 
         close(fd);

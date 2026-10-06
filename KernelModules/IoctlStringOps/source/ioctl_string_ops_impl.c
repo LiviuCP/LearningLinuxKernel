@@ -6,8 +6,10 @@
 #define BUFFER_SIZE 1024
 #define PREFIX_BUFFER_SIZE 128
 
+// appending and formatting would be mutually exclusive in order not to overcomplicate logic
 #define TRIM_USER_INPUT_ENABLED 0b00000001
 #define USER_INPUT_APPENDING_ENABLED 0b00000010
+#define USER_INPUT_FORMATTING_ENABLED 0b00000100
 #define DEFAULT_SETTINGS 0b00000001
 
 static char input_buffer[BUFFER_SIZE]; // buffer where trimmed/untrimmed input is stored before writing to data buffer
@@ -456,6 +458,9 @@ long ioctl_enable_input_append_mode(const bool* should_append)
         if (should_append_user_input)
         {
             settings |= USER_INPUT_APPENDING_ENABLED;
+
+            // for avoiding overcomplicating the logic formatting would be disabled when appending gets enabled
+            settings &= ~USER_INPUT_FORMATTING_ENABLED;
         }
         else
         {
@@ -484,6 +489,66 @@ long ioctl_is_input_append_mode_enabled(bool* is_append_enabled)
         else
         {
             pr_err("%s: IOCTL: failed checking if the user input append mode is enabled!\n", THIS_MODULE->name);
+        }
+    }
+
+    return result;
+}
+
+long ioctl_enable_input_formatting(const bool* should_format)
+{
+    long result = -1;
+
+    do
+    {
+        if (!should_format)
+        {
+            break;
+        }
+
+        bool should_format_user_input;
+        const size_t bytes_not_copied_count = copy_from_user(&should_format_user_input, should_format, sizeof(bool));
+
+        if (bytes_not_copied_count > 0)
+        {
+            pr_err("%s: IOCTL: failed updating the \"input formatting\" setting!\n", THIS_MODULE->name);
+            break;
+        }
+
+        if (should_format_user_input)
+        {
+            settings |= USER_INPUT_FORMATTING_ENABLED;
+
+            // for avoiding overcomplicating the logic appending would be disabled when formatting gets enabled
+            settings &= ~USER_INPUT_APPENDING_ENABLED;
+        }
+        else
+        {
+            settings &= ~USER_INPUT_FORMATTING_ENABLED;
+        }
+
+        result = 0;
+    } while (false);
+
+    return result;
+}
+
+long ioctl_is_input_formatting_enabled(bool* is_formatting_enabled)
+{
+    long result = -1;
+
+    if (is_formatting_enabled)
+    {
+        const bool is_enabled = (bool)(settings & USER_INPUT_FORMATTING_ENABLED);
+        const size_t bytes_not_copied_count = copy_to_user(is_formatting_enabled, &is_enabled, sizeof(is_enabled));
+
+        if (bytes_not_copied_count == 0)
+        {
+            result = 0;
+        }
+        else
+        {
+            pr_err("%s: IOCTL: failed checking if the user input formatting is enabled!\n", THIS_MODULE->name);
         }
     }
 
