@@ -277,6 +277,9 @@ void format_and_copy_string(char* dest, const char* src, size_t max_chars_count,
         const size_t last_non_residual_chars_to_copy_count =
             whole_groups_count > 0 ? residual_chars_count == 1 || residual_chars_count == 2 ? 3 : 4 : 0;
 
+        const size_t chars_to_take_from_last_whole_group_count =
+            whole_groups_count > 0 ? residual_chars_count == 1 || residual_chars_count == 2 ? 1 : 0 : 0;
+
         current_group_index = 0; // defensive programming (should have already been set to 0, see above)
 
         // step 2: copy the last full group (minus number of characters to be moved to residual group)
@@ -308,7 +311,8 @@ void format_and_copy_string(char* dest, const char* src, size_t max_chars_count,
         current_group_index = 0;
 
         // step 3: copy the residual group (including any moved characters from previous group)
-        while (current_src_index < src_length && current_group_index < residual_chars_count)
+        while (current_src_index < src_length &&
+               current_group_index < chars_to_take_from_last_whole_group_count + residual_chars_count)
         {
             if (!isalnum(src[current_src_index]))
             {

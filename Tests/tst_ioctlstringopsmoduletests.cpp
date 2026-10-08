@@ -373,8 +373,32 @@ void IoctlStringOpsModuleTests::testEnableInputFormatting()
     ioctlEnableInputFormatting(true);
     QVERIFY(ioctlIsInputFormattingEnabled());
 
+    writeToDeviceFile(m_DeviceFile, "abcdefgh12345678");
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == "abcd_efgh_1234_5678");
+
     writeToDeviceFile(m_DeviceFile, "abcdefgh1234567");
     QVERIFY(readFromDeviceFile(m_DeviceFile) == "abcd_efgh_1234_567-");
+
+    writeToDeviceFile(m_DeviceFile, "abcdefgh123456");
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == "abcd_efgh_123_456");
+
+    writeToDeviceFile(m_DeviceFile, "abcdefgh12345");
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == "abcd_efgh_123_45-");
+
+    writeToDeviceFile(m_DeviceFile, "5678");
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == "5678");
+
+    writeToDeviceFile(m_DeviceFile, "567");
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == "567");
+
+    writeToDeviceFile(m_DeviceFile, "56");
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == "56-");
+
+    writeToDeviceFile(m_DeviceFile, "5");
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == "5--");
+
+    writeToDeviceFile(m_DeviceFile, "");
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == "---");
 }
 
 void IoctlStringOpsModuleTests::testAppendModeAndFormattingAreMutuallyExclusive()
