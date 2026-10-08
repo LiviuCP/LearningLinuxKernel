@@ -27,6 +27,8 @@ static size_t chars_left_to_read_count = 0;
 static uint8_t settings = DEFAULT_SETTINGS;
 
 extern void trim_and_copy_string(char* dest, const char* src, size_t max_str_length, const char* calling_module_name);
+extern void format_and_copy_string(char* dest, const char* src, size_t max_chars_count,
+                                   const char* calling_module_name);
 
 /***** HELPER FUNCTIONS *****/
 
@@ -142,6 +144,10 @@ static void write_to_data_buffer(void)
         {
             pr_info("%s: the input has been appended to the driver buffer\n", THIS_MODULE->name);
         }
+    }
+    else if (settings & USER_INPUT_FORMATTING_ENABLED)
+    {
+        format_and_copy_string(buffer, input_buffer, BUFFER_SIZE, THIS_MODULE->name);
     }
     else
     {

@@ -204,7 +204,7 @@ void format_and_copy_string(char* dest, const char* src, size_t max_chars_count,
     do
     {
         // minimum requirements are related to "plain copy" operation (necessary, not sufficient, see below)
-        if (can_copy_to_destination(dest, src, max_chars_count, module_name, __func__))
+        if (!can_copy_to_destination(dest, src, max_chars_count, module_name, __func__))
         {
             break;
         }

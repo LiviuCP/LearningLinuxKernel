@@ -368,15 +368,13 @@ void IoctlStringOpsModuleTests::testEnableInputAppendMode()
 
 void IoctlStringOpsModuleTests::testEnableInputFormatting()
 {
-    // TODO: write concrete test
-
     QVERIFY(!ioctlIsInputFormattingEnabled());
 
     ioctlEnableInputFormatting(true);
     QVERIFY(ioctlIsInputFormattingEnabled());
 
-    ioctlEnableInputFormatting(false);
-    QVERIFY(!ioctlIsInputFormattingEnabled());
+    writeToDeviceFile(m_DeviceFile, "abcdefgh1234567");
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == "abcd_efgh_1234_567-");
 }
 
 void IoctlStringOpsModuleTests::testAppendModeAndFormattingAreMutuallyExclusive()
