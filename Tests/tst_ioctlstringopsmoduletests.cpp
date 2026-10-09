@@ -997,25 +997,37 @@ void IoctlStringOpsModuleTests::testEnableInputFormatting_data()
     QTest::newRow("2") << std::string{"abcdefgh1234567"} << std::string{"abcd_efgh_1234_567-"};
     QTest::newRow("3") << std::string{"abcdefgh123456"} << std::string{"abcd_efgh_123_456"};
     QTest::newRow("4") << std::string{"abcdefgh12345"} << std::string{"abcd_efgh_123_45-"};
-
-    QTest::newRow("5") << std::string{"5678"} << std::string{"5678"};
-    QTest::newRow("6") << std::string{"567"} << std::string{"567"};
-    QTest::newRow("7") << std::string{"56"} << std::string{"56-"};
-    QTest::newRow("8") << std::string{"5"} << std::string{"5--"};
-
-    QTest::newRow("9") << std::string{"ab_cdefgh__12345678"} << std::string{"abcd_efgh_1234_5678"};
-    QTest::newRow("10") << std::string{"abcde_fgh_12-345_67"} << std::string{"abcd_efgh_1234_567-"};
-    QTest::newRow("11") << std::string{"_abcd_efgh_123456"} << std::string{"abcd_efgh_123_456"};
-    QTest::newRow("12") << std::string{"-abcde_fgh_123_45"} << std::string{"abcd_efgh_123_45-"};
-    QTest::newRow("13") << std::string{"-56"} << std::string{"56-"};
-    QTest::newRow("14") << std::string{"-5-"} << std::string{"5--"};
-
-    QTest::newRow("15") << std::string{""} << std::string{"---"};
-    QTest::newRow("16") << std::string{" "} << std::string{"---"};
-    QTest::newRow("17") << std::string{"-"} << std::string{"---"};
-    QTest::newRow("18") << std::string{"_"} << std::string{"---"};
-    QTest::newRow("19") << std::string{"_ -"} << std::string{"---"};
-
+    QTest::newRow("5") << std::string{"efgh1234"} << std::string{"efgh_1234"};
+    QTest::newRow("6") << std::string{"efgh123"} << std::string{"efgh_123-"};
+    QTest::newRow("7") << std::string{"efgh12"} << std::string{"efg_h12"};
+    QTest::newRow("8") << std::string{"efgh1"} << std::string{"efg_h1-"};
+    QTest::newRow("9") << std::string{"5678"} << std::string{"5678"};
+    QTest::newRow("10") << std::string{"567"} << std::string{"567"};
+    QTest::newRow("11") << std::string{"56"} << std::string{"56-"};
+    QTest::newRow("12") << std::string{"5"} << std::string{"5--"};
+    QTest::newRow("13") << std::string{"ab///cdef gh12 345678"} << std::string{"abcd_efgh_1234_5678"};
+    QTest::newRow("14") << std::string{"abcdef+gh123\b4567"} << std::string{"abcd_efgh_1234_567-"};
+    QTest::newRow("15") << std::string{"\tabcd_efg/h123456"} << std::string{"abcd_efgh_123_456"};
+    QTest::newRow("16") << std::string{" abcdef+_=gh1-2345"} << std::string{"abcd_efgh_123_45-"};
+    QTest::newRow("17") << std::string{"efg+=h1234 "} << std::string{"efgh_1234"};
+    QTest::newRow("18") << std::string{"*=efgh123"} << std::string{"efgh_123-"};
+    QTest::newRow("19") << std::string{"efg  h12*="} << std::string{"efg_h12"};
+    QTest::newRow("20") << std::string{"e+ =fgh/1"} << std::string{"efg_h1-"};
+    QTest::newRow("21") << std::string{"+5*678+="} << std::string{"5678"};
+    QTest::newRow("22") << std::string{"**56 7  "} << std::string{"567"};
+    QTest::newRow("23") << std::string{"*5+6="} << std::string{"56-"};
+    QTest::newRow("24") << std::string{"/5\n"} << std::string{"5--"};
+    QTest::newRow("25") << std::string{"ab_cdefgh__12345678"} << std::string{"abcd_efgh_1234_5678"};
+    QTest::newRow("26") << std::string{"abcde_fgh_12-345_67"} << std::string{"abcd_efgh_1234_567-"};
+    QTest::newRow("27") << std::string{"_abcd_efgh_123456"} << std::string{"abcd_efgh_123_456"};
+    QTest::newRow("28") << std::string{"-abcde_fgh_123_45"} << std::string{"abcd_efgh_123_45-"};
+    QTest::newRow("29") << std::string{"-56"} << std::string{"56-"};
+    QTest::newRow("30") << std::string{"-5-"} << std::string{"5--"};
+    QTest::newRow("31") << std::string{""} << std::string{"---"};
+    QTest::newRow("32") << std::string{" "} << std::string{"---"};
+    QTest::newRow("33") << std::string{"-"} << std::string{"---"};
+    QTest::newRow("34") << std::string{"_"} << std::string{"---"};
+    QTest::newRow("35") << std::string{"_ -"} << std::string{"---"};
 }
 
 void IoctlStringOpsModuleTests::initializeDeviceFile()
