@@ -61,6 +61,8 @@ private slots:
     void testSetMaxOutputSize_UseOutputPrefix();
     void testSetMaxOutputSize_UseManualOutputSizeReset();
 
+    void testEnableInputFormatting_data();
+
 private:
     void initializeDeviceFile();
 
@@ -373,32 +375,14 @@ void IoctlStringOpsModuleTests::testEnableInputFormatting()
     ioctlEnableInputFormatting(true);
     QVERIFY(ioctlIsInputFormattingEnabled());
 
-    writeToDeviceFile(m_DeviceFile, "abcdefgh12345678");
-    QVERIFY(readFromDeviceFile(m_DeviceFile) == "abcd_efgh_1234_5678");
+    QFETCH(std::string, inputString);
+    QFETCH(std::string, formattedString);
 
-    writeToDeviceFile(m_DeviceFile, "abcdefgh1234567");
-    QVERIFY(readFromDeviceFile(m_DeviceFile) == "abcd_efgh_1234_567-");
+    writeToDeviceFile(m_DeviceFile, inputString);
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == formattedString);
 
-    writeToDeviceFile(m_DeviceFile, "abcdefgh123456");
-    QVERIFY(readFromDeviceFile(m_DeviceFile) == "abcd_efgh_123_456");
-
-    writeToDeviceFile(m_DeviceFile, "abcdefgh12345");
-    QVERIFY(readFromDeviceFile(m_DeviceFile) == "abcd_efgh_123_45-");
-
-    writeToDeviceFile(m_DeviceFile, "5678");
-    QVERIFY(readFromDeviceFile(m_DeviceFile) == "5678");
-
-    writeToDeviceFile(m_DeviceFile, "567");
-    QVERIFY(readFromDeviceFile(m_DeviceFile) == "567");
-
-    writeToDeviceFile(m_DeviceFile, "56");
-    QVERIFY(readFromDeviceFile(m_DeviceFile) == "56-");
-
-    writeToDeviceFile(m_DeviceFile, "5");
-    QVERIFY(readFromDeviceFile(m_DeviceFile) == "5--");
-
-    writeToDeviceFile(m_DeviceFile, "");
-    QVERIFY(readFromDeviceFile(m_DeviceFile) == "---");
+    ioctlEnableInputFormatting(false);
+    QVERIFY(!ioctlIsInputFormattingEnabled());
 }
 
 void IoctlStringOpsModuleTests::testAppendModeAndFormattingAreMutuallyExclusive()
@@ -997,6 +981,22 @@ void IoctlStringOpsModuleTests::testSetMaxOutputSize_UseManualOutputSizeReset()
         QVERIFY(isKernelModuleReset());
         QVERIFY(readFromDeviceFile(m_DeviceFile) == "");
     }
+}
+
+void IoctlStringOpsModuleTests::testEnableInputFormatting_data()
+{
+    QTest::addColumn<std::string>("inputString");
+    QTest::addColumn<std::string>("formattedString");
+
+    QTest::newRow("1") << std::string{"abcdefgh12345678"} << std::string{"abcd_efgh_1234_5678"};
+    QTest::newRow("2") << std::string{"abcdefgh1234567"} << std::string{"abcd_efgh_1234_567-"};
+    QTest::newRow("3") << std::string{"abcdefgh123456"} << std::string{"abcd_efgh_123_456"};
+    QTest::newRow("4") << std::string{"abcdefgh12345"} << std::string{"abcd_efgh_123_45-"};
+    QTest::newRow("5") << std::string{"5678"} << std::string{"5678"};
+    QTest::newRow("6") << std::string{"567"} << std::string{"567"};
+    QTest::newRow("7") << std::string{"56"} << std::string{"56-"};
+    QTest::newRow("8") << std::string{"5"} << std::string{"5--"};
+    QTest::newRow("9") << std::string{""} << std::string{"---"};
 }
 
 void IoctlStringOpsModuleTests::initializeDeviceFile()
