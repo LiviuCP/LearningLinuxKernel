@@ -381,6 +381,11 @@ void IoctlStringOpsModuleTests::testEnableInputFormatting()
     writeToDeviceFile(m_DeviceFile, inputString);
     QVERIFY(readFromDeviceFile(m_DeviceFile) == formattedString);
 
+    // formatted string input should result in the same formatted string
+    // as the formatting chars are filtered out and then restored
+    writeToDeviceFile(m_DeviceFile, formattedString);
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == formattedString);
+
     ioctlEnableInputFormatting(false);
     QVERIFY(!ioctlIsInputFormattingEnabled());
 }
