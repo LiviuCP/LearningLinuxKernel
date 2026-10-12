@@ -63,6 +63,24 @@ static bool can_copy_to_destination(const char* dest, const char* src, size_t ma
     return can_copy;
 }
 
+static size_t get_alphanumeric_chars_count(const char* src)
+{
+    size_t alnum_chars_count = 0;
+
+    if (src)
+    {
+        for (size_t index = 0; index < strlen(src); ++index)
+        {
+            if (isalnum(src[index]))
+            {
+                ++alnum_chars_count;
+            }
+        }
+    }
+
+    return alnum_chars_count;
+}
+
 void trim_and_copy_string(char* dest, const char* src, size_t max_chars_count, const char* calling_module_name)
 {
     const char* module_name = calling_module_name ? calling_module_name : "INVALID MODULE NAME";
@@ -158,6 +176,145 @@ void reverse_and_copy_string(char* dest, const char* src, size_t max_chars_count
     }
 }
 
+/* This function formats the source string and copies the resulting content into a destination string.
+   Formatting is performed as follows:
+   - clean up any character that is not alphabetic or digit
+   - split the remaining characters into groups of 4, add '_' between groups
+   - if the last group has less than 4 characters following corner cases apply:
+     a) 3 characters:
+        - if there is a preceding group a '-' character is appended at the end
+        - if there is no preceding group no character is appended
+     b) 2 characters:
+        - if there is a preceding group the last character is taken from it and prepended to the last group
+        - if there is no preceding group then a '-' character is appended
+     c) 1 character:
+        - if there is a preceding group the last character is taken from it and prepended to the last group; a '-'
+   character is also appended
+        - if there is no preceding group then two '-' characters are appended
+     d) 0 characters:
+        - if the input string has no characters then three '-' characters are added
+   - goal:
+        - there should be minimum 3 characters in the resulting sequence / each group
+        - last two groups (if existing) should have the same number of characters
+*/
+void format_and_copy_string(char* dest, const char* src, size_t max_chars_count, const char* calling_module_name)
+{
+    const char* module_name = calling_module_name ? calling_module_name : "INVALID MODULE NAME";
+
+    do
+    {
+        // minimum requirements are related to "plain copy" operation (necessary, not sufficient, see below)
+        if (!can_copy_to_destination(dest, src, max_chars_count, module_name, __func__))
+        {
+            break;
+        }
+
+        const size_t alnum_chars_count = get_alphanumeric_chars_count(src);
+        const size_t full_group_size = 4;
+        const size_t full_groups_count = alnum_chars_count / full_group_size;
+        const size_t residual_chars_count = alnum_chars_count % full_group_size;
+        const size_t required_underscores_count =
+            full_groups_count > 0 ? residual_chars_count > 0 ? full_groups_count : full_groups_count - 1 : 0;
+
+        const size_t required_minus_chars_count = residual_chars_count == 3   ? (full_groups_count > 0 ? 1 : 0)
+                                                  : residual_chars_count == 2 ? (full_groups_count > 0 ? 0 : 1)
+                                                  : residual_chars_count == 1 ? (full_groups_count > 0 ? 1 : 2)
+                                                                              : (full_groups_count > 0 ? 0 : 3);
+
+        const size_t output_chars_count = alnum_chars_count + required_underscores_count + required_minus_chars_count;
+
+        // max_chars_count includes the terminating '\0' character
+        if (output_chars_count >= max_chars_count)
+        {
+            pr_warn("%s: %s: src length exceeds maximum dest string length!\n", module_name, __func__);
+            break;
+        }
+
+        memset(dest, '\0', max_chars_count);
+
+        size_t current_src_index = 0;
+        size_t current_dest_index = 0;
+
+        // step 1: copy the "full" groups that are not subject to change
+        if (full_groups_count > 1)
+        {
+            const size_t groups_to_copy_count = full_groups_count - 1;
+            size_t copied_groups_count = 0;
+            size_t relative_char_index = 0; // relative index within group of chars
+
+            while (copied_groups_count < groups_to_copy_count)
+            {
+                if (!isalnum(src[current_src_index]))
+                {
+                    ++current_src_index;
+                    continue;
+                }
+
+                dest[current_dest_index++] = src[current_src_index++];
+                relative_char_index = (relative_char_index + 1) % full_group_size;
+
+                if (relative_char_index == 0)
+                {
+                    dest[current_dest_index++] = '_';
+                    ++copied_groups_count;
+                }
+            }
+        }
+
+        // step 2: copy the last "full" group (minus number of characters to be moved to residual group)
+        {
+            const size_t chars_to_keep_in_last_full_group_count =
+                full_groups_count > 0 ? residual_chars_count == 1 || residual_chars_count == 2 ? 3 : 4 : 0;
+
+            size_t relative_char_index = 0;
+
+            while (relative_char_index < chars_to_keep_in_last_full_group_count)
+            {
+                if (!isalnum(src[current_src_index]))
+                {
+                    ++current_src_index;
+                    continue;
+                }
+
+                dest[current_dest_index++] = src[current_src_index++];
+                ++relative_char_index;
+            }
+        }
+
+        // step 3: copy the "residual" group (including any moved characters from previous group)
+        {
+            if (full_groups_count > 0 && residual_chars_count > 0)
+            {
+                dest[current_dest_index++] = '_'; // last (optional) underscore
+            }
+
+            const size_t chars_to_move_to_residual_group_count =
+                full_groups_count > 0 ? residual_chars_count == 1 || residual_chars_count == 2 ? 1 : 0 : 0;
+
+            size_t relative_char_index = 0;
+
+            while (relative_char_index < chars_to_move_to_residual_group_count + residual_chars_count)
+            {
+                if (!isalnum(src[current_src_index]))
+                {
+                    ++current_src_index;
+                    continue;
+                }
+
+                dest[current_dest_index++] = src[current_src_index++];
+                ++relative_char_index;
+            }
+        }
+
+        // step 4: add padding chars ('-') if needed
+        for (size_t filled_minus_chars_count = 0; filled_minus_chars_count < required_minus_chars_count;
+             ++filled_minus_chars_count)
+        {
+            dest[current_dest_index++] = '-';
+        }
+    } while (false);
+}
+
 int get_average(const int* array, size_t array_size)
 {
     int sum = 0;
@@ -175,6 +332,7 @@ int get_average(const int* array, size_t array_size)
 EXPORT_SYMBOL(trim_and_copy_string);
 EXPORT_SYMBOL(convert_to_same_case_and_copy_string);
 EXPORT_SYMBOL(reverse_and_copy_string);
+EXPORT_SYMBOL(format_and_copy_string);
 EXPORT_SYMBOL(get_average);
 
 static int utilities_init(void)

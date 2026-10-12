@@ -16,8 +16,10 @@
 #define IOCTL_GET_OUTPUT_PREFIX_SIZE _IOR(9999, 'g', size_t*)
 #define IOCTL_ENABLE_INPUT_APPEND_MODE _IOW(9999, 'h', bool*)
 #define IOCTL_IS_INPUT_APPEND_MODE_ENABLED _IOR(9999, 'i', bool*)
-#define IOCTL_SET_MAX_OUTPUT_SIZE _IOWR(9999, 'j', size_t*)
-#define IOCTL_GET_MAX_OUTPUT_SIZE _IOR(9999, 'k', size_t*)
+#define IOCTL_ENABLE_INPUT_FORMATTING _IOW(9999, 'j', bool*)
+#define IOCTL_IS_INPUT_FORMATTING_ENABLED _IOR(9999, 'k', bool*)
+#define IOCTL_SET_MAX_OUTPUT_SIZE _IOWR(9999, 'l', size_t*)
+#define IOCTL_GET_MAX_OUTPUT_SIZE _IOR(9999, 'm', size_t*)
 
 static constexpr std::string_view stringOpsModuleName{"ioctl_string_ops"};
 static constexpr std::string_view utilitiesModuleName{"kernel_utilities"};
@@ -52,10 +54,14 @@ private slots:
     void testEnableUserInputTrimming();
     void testSetOutputPrefix();
     void testEnableInputAppendMode();
+    void testEnableInputFormatting();
+    void testAppendModeAndFormattingAreMutuallyExclusive();
     void testSetMaxOutputSize_FullBufferTraverseWithFixedOutputSize();
     void testSetMaxOutputSize_FullBufferTraverseWithVariableOutputSize();
     void testSetMaxOutputSize_UseOutputPrefix();
     void testSetMaxOutputSize_UseManualOutputSizeReset();
+
+    void testEnableInputFormatting_data();
 
 private:
     void initializeDeviceFile();
@@ -70,6 +76,8 @@ private:
     std::optional<size_t> ioctlGetOutputPrefixSize();
     void ioctlEnableInputAppendMode(bool enabled);
     bool ioctlIsInputAppendModeEnabled();
+    void ioctlEnableInputFormatting(bool enabled);
+    bool ioctlIsInputFormattingEnabled();
 
     // value has both input and output role:
     // - input: maximum output size to be set
@@ -358,6 +366,82 @@ void IoctlStringOpsModuleTests::testEnableInputAppendMode()
     QVERIFY(readFromDeviceFile(m_DeviceFile) == str + "d");
 
     QVERIFY(!ioctlIsInputAppendModeEnabled());
+}
+
+void IoctlStringOpsModuleTests::testEnableInputFormatting()
+{
+    QFETCH(std::string, inputString);
+    QFETCH(std::string, formattedString);
+
+    QVERIFY(!ioctlIsInputFormattingEnabled());
+
+    ioctlEnableInputFormatting(true);
+
+    QVERIFY(ioctlIsInputFormattingEnabled());
+    QVERIFY(ioctlIsUserInputTrimmingEnabled());
+
+    writeToDeviceFile(m_DeviceFile, inputString);
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == formattedString);
+
+    // formatted string input should result in the same formatted string
+    // as the formatting chars are filtered out and then restored
+    writeToDeviceFile(m_DeviceFile, formattedString);
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == formattedString);
+
+    resetKernelModule();
+
+    QVERIFY(!ioctlIsInputFormattingEnabled());
+
+    ioctlEnableUserInputTrimming(false);
+    ioctlEnableInputFormatting(true);
+
+    QVERIFY(!ioctlIsUserInputTrimmingEnabled());
+    QVERIFY(ioctlIsInputFormattingEnabled());
+
+    writeToDeviceFile(m_DeviceFile, inputString);
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == formattedString);
+
+    // same here
+    writeToDeviceFile(m_DeviceFile, formattedString);
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == formattedString);
+
+    ioctlEnableInputFormatting(false);
+
+    QVERIFY(!ioctlIsUserInputTrimmingEnabled());
+    QVERIFY(!ioctlIsInputFormattingEnabled());
+}
+
+void IoctlStringOpsModuleTests::testAppendModeAndFormattingAreMutuallyExclusive()
+{
+    QVERIFY(!ioctlIsInputAppendModeEnabled() && !ioctlIsInputFormattingEnabled());
+
+    ioctlEnableInputAppendMode(true);
+    QVERIFY(ioctlIsInputAppendModeEnabled() && !ioctlIsInputFormattingEnabled());
+
+    ioctlEnableInputFormatting(true);
+    QVERIFY(!ioctlIsInputAppendModeEnabled() && ioctlIsInputFormattingEnabled());
+
+    ioctlEnableInputAppendMode(true);
+    QVERIFY(ioctlIsInputAppendModeEnabled() && !ioctlIsInputFormattingEnabled());
+
+    ioctlEnableInputAppendMode(false);
+    QVERIFY(!ioctlIsInputAppendModeEnabled() && !ioctlIsInputFormattingEnabled());
+
+    resetKernelModule();
+
+    QVERIFY(!ioctlIsInputAppendModeEnabled() && !ioctlIsInputFormattingEnabled());
+
+    ioctlEnableInputFormatting(true);
+    QVERIFY(!ioctlIsInputAppendModeEnabled() && ioctlIsInputFormattingEnabled());
+
+    ioctlEnableInputAppendMode(true);
+    QVERIFY(ioctlIsInputAppendModeEnabled() && !ioctlIsInputFormattingEnabled());
+
+    ioctlEnableInputFormatting(true);
+    QVERIFY(!ioctlIsInputAppendModeEnabled() && ioctlIsInputFormattingEnabled());
+
+    ioctlEnableInputFormatting(false);
+    QVERIFY(!ioctlIsInputAppendModeEnabled() && !ioctlIsInputFormattingEnabled());
 }
 
 void IoctlStringOpsModuleTests::testSetMaxOutputSize_FullBufferTraverseWithFixedOutputSize()
@@ -925,6 +1009,58 @@ void IoctlStringOpsModuleTests::testSetMaxOutputSize_UseManualOutputSizeReset()
     }
 }
 
+void IoctlStringOpsModuleTests::testEnableInputFormatting_data()
+{
+    QTest::addColumn<std::string>("inputString");
+    QTest::addColumn<std::string>("formattedString");
+
+    QTest::newRow("1") << std::string{"abcdefgh12345678"} << std::string{"abcd_efgh_1234_5678"};
+    QTest::newRow("2") << std::string{"abcdefgh1234567"} << std::string{"abcd_efgh_1234_567-"};
+    QTest::newRow("3") << std::string{"abcdefgh123456"} << std::string{"abcd_efgh_123_456"};
+    QTest::newRow("4") << std::string{"abcdefgh12345"} << std::string{"abcd_efgh_123_45-"};
+    QTest::newRow("5") << std::string{"efgh1234"} << std::string{"efgh_1234"};
+    QTest::newRow("6") << std::string{"efgh123"} << std::string{"efgh_123-"};
+    QTest::newRow("7") << std::string{"efgh12"} << std::string{"efg_h12"};
+    QTest::newRow("8") << std::string{"efgh1"} << std::string{"efg_h1-"};
+    QTest::newRow("9") << std::string{"5678"} << std::string{"5678"};
+    QTest::newRow("10") << std::string{"567"} << std::string{"567"};
+    QTest::newRow("11") << std::string{"56"} << std::string{"56-"};
+    QTest::newRow("12") << std::string{"5"} << std::string{"5--"};
+    QTest::newRow("13") << std::string{"ab///cdef gh12 345678"} << std::string{"abcd_efgh_1234_5678"};
+    QTest::newRow("14") << std::string{"abcdef+gh123\b4567"} << std::string{"abcd_efgh_1234_567-"};
+    QTest::newRow("15") << std::string{"\tabcd_efg/h123456"} << std::string{"abcd_efgh_123_456"};
+    QTest::newRow("16") << std::string{" abcdef+_=gh1-2345"} << std::string{"abcd_efgh_123_45-"};
+    QTest::newRow("17") << std::string{"efg+=h1234 "} << std::string{"efgh_1234"};
+    QTest::newRow("18") << std::string{"*=efgh123"} << std::string{"efgh_123-"};
+    QTest::newRow("19") << std::string{"efg  h12*="} << std::string{"efg_h12"};
+    QTest::newRow("20") << std::string{"e+ =fgh/1"} << std::string{"efg_h1-"};
+    QTest::newRow("21") << std::string{"+5*678+="} << std::string{"5678"};
+    QTest::newRow("22") << std::string{"**56 7  "} << std::string{"567"};
+    QTest::newRow("23") << std::string{"*5+6="} << std::string{"56-"};
+    QTest::newRow("24") << std::string{"/5\n"} << std::string{"5--"};
+    QTest::newRow("25") << std::string{"+/ABCDEFGH12345678"} << std::string{"ABCD_EFGH_1234_5678"};
+    QTest::newRow("26") << std::string{"ABCDEFGH1234567/+"} << std::string{"ABCD_EFGH_1234_567-"};
+    QTest::newRow("27") << std::string{"//+ABCDEFGH123456_//"} << std::string{"ABCD_EFGH_123_456"};
+    QTest::newRow("28") << std::string{"**//ABCDEF/_GH12345\n"} << std::string{"ABCD_EFGH_123_45-"};
+    QTest::newRow("29") << std::string{"EfGh*/*1234"} << std::string{"EfGh_1234"};
+    QTest::newRow("30") << std::string{"_EfGh12-3"} << std::string{"EfGh_123-"};
+    QTest::newRow("31") << std::string{"EfGh_12"} << std::string{"EfG_h12"};
+    QTest::newRow("32") << std::string{"-_EfGh1"} << std::string{"EfG_h1-"};
+    QTest::newRow("33") << std::string{"ab_cdefgh__12345678"} << std::string{"abcd_efgh_1234_5678"};
+    QTest::newRow("34") << std::string{"abcde_fgh_12-345_67"} << std::string{"abcd_efgh_1234_567-"};
+    QTest::newRow("35") << std::string{"_abcd_efgh_123456"} << std::string{"abcd_efgh_123_456"};
+    QTest::newRow("36") << std::string{"-abcde_fgh_123_45"} << std::string{"abcd_efgh_123_45-"};
+    QTest::newRow("37") << std::string{"-56"} << std::string{"56-"};
+    QTest::newRow("38") << std::string{"-5-"} << std::string{"5--"};
+    QTest::newRow("39") << std::string{""} << std::string{"---"};
+    QTest::newRow("40") << std::string{" "} << std::string{"---"};
+    QTest::newRow("41") << std::string{"-"} << std::string{"---"};
+    QTest::newRow("42") << std::string{"_"} << std::string{"---"};
+    QTest::newRow("43") << std::string{"_ -"} << std::string{"---"};
+    QTest::newRow("44") << std::string{"--"} << std::string{"---"};
+    QTest::newRow("45") << std::string{"----"} << std::string{"---"};
+}
+
 void IoctlStringOpsModuleTests::initializeDeviceFile()
 {
     m_DeviceFile = deviceDirPath;
@@ -1064,7 +1200,7 @@ void IoctlStringOpsModuleTests::ioctlEnableInputAppendMode(bool enabled)
 
         if (retVal != 0)
         {
-            QFAIL("Enabling/disabling trimming failed!");
+            QFAIL("Enabling/disabling input append mode failed!");
         }
     }
 }
@@ -1082,6 +1218,43 @@ bool IoctlStringOpsModuleTests::ioctlIsInputAppendModeEnabled()
         if (retVal == 0)
         {
             isEnabled = isAppendingEnabled;
+        }
+
+        close(fd);
+    }
+
+    return isEnabled;
+}
+
+void IoctlStringOpsModuleTests::ioctlEnableInputFormatting(bool enabled)
+{
+    const int fd{open(m_DeviceFile.c_str(), O_WRONLY)};
+
+    if (fd > 0)
+    {
+        const long retVal{ioctl(fd, IOCTL_ENABLE_INPUT_FORMATTING, &enabled)};
+        close(fd);
+
+        if (retVal != 0)
+        {
+            QFAIL("Enabling/disabling input formatting failed!");
+        }
+    }
+}
+
+bool IoctlStringOpsModuleTests::ioctlIsInputFormattingEnabled()
+{
+    bool isEnabled{false};
+    const int fd{open(m_DeviceFile.c_str(), O_RDONLY)};
+
+    if (fd > 0)
+    {
+        bool isFormattingEnabled;
+        const long retVal{ioctl(fd, IOCTL_IS_INPUT_FORMATTING_ENABLED, &isFormattingEnabled)};
+
+        if (retVal == 0)
+        {
+            isEnabled = isFormattingEnabled;
         }
 
         close(fd);

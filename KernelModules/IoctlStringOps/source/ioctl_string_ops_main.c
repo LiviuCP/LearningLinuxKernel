@@ -17,8 +17,10 @@
 #define IOCTL_GET_OUTPUT_PREFIX_SIZE _IOR(9999, 'g', size_t*)
 #define IOCTL_ENABLE_INPUT_APPEND_MODE _IOW(9999, 'h', bool*)
 #define IOCTL_IS_INPUT_APPEND_MODE_ENABLED _IOR(9999, 'i', bool*)
-#define IOCTL_SET_MAX_OUTPUT_SIZE _IOWR(9999, 'j', size_t*)
-#define IOCTL_GET_MAX_OUTPUT_SIZE _IOR(9999, 'k', size_t*)
+#define IOCTL_ENABLE_INPUT_FORMATTING _IOW(9999, 'j', bool*)
+#define IOCTL_IS_INPUT_FORMATTING_ENABLED _IOR(9999, 'k', bool*)
+#define IOCTL_SET_MAX_OUTPUT_SIZE _IOWR(9999, 'l', size_t*)
+#define IOCTL_GET_MAX_OUTPUT_SIZE _IOR(9999, 'm', size_t*)
 
 MODULE_LICENSE("GPL");
 
@@ -185,6 +187,14 @@ static long device_ioctl(struct file* file, unsigned int command, unsigned long 
     }
     case IOCTL_IS_INPUT_APPEND_MODE_ENABLED: {
         result = ioctl_is_input_append_mode_enabled((bool*)arg);
+        break;
+    }
+    case IOCTL_ENABLE_INPUT_FORMATTING: {
+        result = ioctl_enable_input_formatting((bool*)arg);
+        break;
+    }
+    case IOCTL_IS_INPUT_FORMATTING_ENABLED: {
+        result = ioctl_is_input_formatting_enabled((bool*)arg);
         break;
     }
     case IOCTL_SET_MAX_OUTPUT_SIZE: {

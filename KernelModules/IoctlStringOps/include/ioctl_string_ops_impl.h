@@ -12,6 +12,8 @@ long ioctl_set_output_prefix(const void* output_prefix_data);
 long ioctl_get_output_prefix_size(size_t* output_prefix_size);
 long ioctl_enable_input_append_mode(const bool* should_append);
 long ioctl_is_input_append_mode_enabled(bool* is_append_enabled);
+long ioctl_enable_input_formatting(const bool* should_format);
+long ioctl_is_input_formatting_enabled(bool* is_formatting_enabled);
 
 /* The value input by user is the maximum number of bytes to read from data buffer
    The value written back by module is the number of characters left to read from data buffer
