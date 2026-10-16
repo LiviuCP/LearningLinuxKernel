@@ -219,6 +219,8 @@ ssize_t device_read_impl(struct file* filp, char* buf, size_t length, loff_t* of
 
 ssize_t device_write_impl(struct file* filp, const char* buf, size_t length, loff_t* offset)
 {
+    ssize_t result = -EINVAL;
+
     do
     {
         char* raw_input_buffer = kzalloc(BUFFER_SIZE, GFP_KERNEL);
@@ -226,6 +228,7 @@ ssize_t device_write_impl(struct file* filp, const char* buf, size_t length, lof
         if (!raw_input_buffer)
         {
             pr_err("%s: device_write_impl: memory could not be allocated!\n", THIS_MODULE->name);
+            result = -ENOMEM;
             break;
         }
 
@@ -247,12 +250,13 @@ ssize_t device_write_impl(struct file* filp, const char* buf, size_t length, lof
         write_to_input_buffer(raw_input_buffer);
         write_to_data_buffer();
 
+        result = (ssize_t)strlen(
+            raw_input_buffer); // the total number of chars provided by user (not the trimmed one) needs to be returned
+
         kfree(raw_input_buffer);
     } while (false);
 
-    // the total number of chars provided from user space needs to be returned
-    // otherwise the function might get called again (possibly indefinitely)
-    return (ssize_t)length;
+    return result;
 }
 
 /***** IOCTL FUNCTIONS *****/
