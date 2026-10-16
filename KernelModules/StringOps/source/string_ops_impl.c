@@ -111,8 +111,9 @@ ssize_t device_write_impl(struct file* filp, const char* buffer, size_t length, 
             pr_warn("%s: %ld bytes could not be copied from user\n", THIS_MODULE->name, bytes_not_copied_count);
         }
 
-        result = (ssize_t)strlen(
-            raw_input_buffer); // the total number of chars provided by user (not the trimmed one) needs to be returned
+        // the total number of chars provided from user space needs to be returned
+        // otherwise the function might get called again (possibly indefinitely) when buffer size is exceeded
+        result = (ssize_t)length;
 
         pr_info("%s: user wrote to minor number %d: %s\n", THIS_MODULE->name, minor_number, raw_input_buffer);
 
