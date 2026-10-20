@@ -3,7 +3,11 @@
 
 #include "ioctl_string_ops_impl.h"
 
+#define INPUT_BUFFER_SIZE 512
+
+// a larger size than the one of the input buffer is needed to ensure conversion operations (formatting) are accomodated
 #define BUFFER_SIZE 1024
+
 #define PREFIX_BUFFER_SIZE 128
 
 // appending and formatting would be mutually exclusive in order not to overcomplicate logic
@@ -12,8 +16,9 @@
 #define USER_INPUT_FORMATTING_ENABLED 0b00000100
 #define DEFAULT_SETTINGS 0b00000001
 
-static char input_buffer[BUFFER_SIZE]; // buffer where trimmed/untrimmed input is stored before writing to data buffer
-static char buffer[BUFFER_SIZE];       // data buffer
+static char
+    input_buffer[INPUT_BUFFER_SIZE]; // buffer where trimmed/untrimmed input is stored before writing to data buffer
+static char buffer[BUFFER_SIZE];     // data buffer
 static char
     output_prefix[PREFIX_BUFFER_SIZE]; // prefix to be prepended to data read from data buffer before sending to user
 
@@ -96,7 +101,7 @@ static void write_to_input_buffer(char* raw_input_buffer)
     {
         if (settings & TRIM_USER_INPUT_ENABLED)
         {
-            trim_and_copy_string(input_buffer, raw_input_buffer, BUFFER_SIZE, THIS_MODULE->name);
+            trim_and_copy_string(input_buffer, raw_input_buffer, INPUT_BUFFER_SIZE, THIS_MODULE->name);
             pr_info("%s: after trimming the user provided string was stored as: \"%s\"\n", THIS_MODULE->name,
                     input_buffer);
         }
@@ -104,9 +109,9 @@ static void write_to_input_buffer(char* raw_input_buffer)
         {
             const size_t chars_count = strlen(raw_input_buffer);
 
-            if (chars_count < BUFFER_SIZE)
+            if (chars_count < INPUT_BUFFER_SIZE)
             {
-                memset(input_buffer, '\0', BUFFER_SIZE);
+                memset(input_buffer, '\0', INPUT_BUFFER_SIZE);
                 strncpy(input_buffer, raw_input_buffer, chars_count);
                 pr_info("%s: no trimming applied, the user provided string was stored as: \"%s\"\n", THIS_MODULE->name,
                         input_buffer);
@@ -120,43 +125,41 @@ static void write_to_input_buffer(char* raw_input_buffer)
     }
 }
 
-static void write_to_data_buffer(void)
+static bool write_to_data_buffer(void)
 {
-    const size_t chars_count = strlen(input_buffer);
+    bool success = false;
+    const size_t input_buffer_length = strlen(input_buffer);
 
     if (settings & USER_INPUT_APPENDING_ENABLED)
     {
-        const size_t used_chars_count = strlen(buffer);
-        const size_t available_chars_count =
-            BUFFER_SIZE - 1 - used_chars_count; // last char position in buffer reserved for terminating '\0'
+        const size_t buffer_length = strlen(buffer);
+        const size_t available_positions_count =
+            BUFFER_SIZE - 1 - buffer_length; // last char position in buffer reserved for terminating '\0'
 
-        // limit the number of chars to append to the available space
-        const size_t chars_to_append_count = chars_count < available_chars_count ? chars_count : available_chars_count;
-
-        strncpy(buffer + used_chars_count, input_buffer, chars_to_append_count);
-
-        if (chars_to_append_count < chars_count)
+        if (input_buffer_length <= available_positions_count)
         {
-            pr_warn("%s: not all input could be appended to the driver buffer. There is not enough space. %lu "
-                    "characters got appended out of %lu.\n",
-                    THIS_MODULE->name, chars_to_append_count, chars_count);
-        }
-        else
-        {
-            pr_info("%s: the input has been appended to the driver buffer\n", THIS_MODULE->name);
+            strncpy(buffer + buffer_length, input_buffer, input_buffer_length);
+            success = true;
         }
     }
     else if (settings & USER_INPUT_FORMATTING_ENABLED)
     {
+        // TODO: refactor the formatting function to return a success code (bool)
         format_and_copy_string(buffer, input_buffer, BUFFER_SIZE, THIS_MODULE->name);
+        success = true;
     }
     else
     {
         memset(buffer, '\0', BUFFER_SIZE);
-        strncpy(buffer, input_buffer, chars_count);
+        strncpy(buffer, input_buffer, input_buffer_length);
+
+        // should always be true as the input buffer should not be larger than the data buffer
+        success = true;
     }
 
     reset_max_output_size();
+
+    return success;
 }
 
 /***** READ/WRITE IMPLEMENTATION FUNCTIONS *****/
@@ -223,7 +226,15 @@ ssize_t device_write_impl(struct file* filp, const char* buf, size_t length, lof
 
     do
     {
-        char* raw_input_buffer = kzalloc(BUFFER_SIZE, GFP_KERNEL);
+        const size_t max_bytes_to_copy_count = INPUT_BUFFER_SIZE - 1;
+
+        if (length > max_bytes_to_copy_count)
+        {
+            pr_err("%s: not enough space in input buffer to copy from raw input buffer!", THIS_MODULE->name);
+            break;
+        }
+
+        char* raw_input_buffer = kzalloc(INPUT_BUFFER_SIZE, GFP_KERNEL);
 
         if (!raw_input_buffer)
         {
@@ -232,29 +243,33 @@ ssize_t device_write_impl(struct file* filp, const char* buf, size_t length, lof
             break;
         }
 
-        memset(raw_input_buffer, '\0', BUFFER_SIZE);
+        memset(raw_input_buffer, '\0', INPUT_BUFFER_SIZE);
 
-        const size_t max_bytes_to_copy_count = BUFFER_SIZE - 1;
-
-        // bytes count to copy into raw input buffer are capped no matter the subsequent operation (trim, append, etc)
-        const size_t bytes_to_copy_count = length > max_bytes_to_copy_count ? max_bytes_to_copy_count : length;
-        const size_t bytes_not_copied_count = copy_from_user(raw_input_buffer, buf, bytes_to_copy_count);
+        const size_t bytes_not_copied_count = copy_from_user(raw_input_buffer, buf, length);
 
         if (bytes_not_copied_count > 0)
         {
-            pr_warn("%s: %ld bytes could not be copied from user\n", THIS_MODULE->name, bytes_not_copied_count);
+            pr_err("%s: %ld bytes could not be copied from user\n", THIS_MODULE->name, bytes_not_copied_count);
+            break;
         }
 
         pr_info("%s: user wrote: %s\n", THIS_MODULE->name, raw_input_buffer);
 
         write_to_input_buffer(raw_input_buffer);
-        write_to_data_buffer();
+
+        // TODO: implement can_write_to_data_buffer() ?
+        if (!write_to_data_buffer())
+        {
+            pr_err("%s: an error occurred when updating the data buffer! The data buffer remains unchanged.\n",
+                   THIS_MODULE->name);
+            break;
+        }
+
+        kfree(raw_input_buffer);
 
         // the total number of chars provided from user space needs to be returned
         // otherwise the function might get called again (possibly indefinitely) when buffer size is exceeded
         result = (ssize_t)length;
-
-        kfree(raw_input_buffer);
     } while (false);
 
     return result;
@@ -637,7 +652,7 @@ long ioctl_get_max_output_size(size_t* max_output_length)
 
 void reset_module_data(void)
 {
-    memset(input_buffer, '\0', BUFFER_SIZE);
+    memset(input_buffer, '\0', INPUT_BUFFER_SIZE);
     memset(buffer, '\0', BUFFER_SIZE);
     memset(output_prefix, '\0', PREFIX_BUFFER_SIZE);
 

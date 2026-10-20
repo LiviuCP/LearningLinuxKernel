@@ -26,10 +26,17 @@ static constexpr std::string_view utilitiesModuleName{"kernel_utilities"};
 static constexpr std::string_view deviceDirPath{"/dev"};
 static constexpr std::string_view baseDeviceFileName{"ioctlstringops"};
 
-static constexpr size_t moduleBufferSize{1024};
+static constexpr size_t moduleInputBufferSize{512};
+
+// should match the kernel module output (data) buffer size,
+// otherwise errors might occur when reading device file
+static constexpr size_t moduleBufferSize{2 * moduleInputBufferSize};
 
 // '\0': there should be minimum one terminating character
 static constexpr size_t maxCharsCountToRead{moduleBufferSize - sizeof('\0')};
+
+// input buffer size excluding last character (terminating '\0')
+static constexpr size_t maxCharsCountToWrite{moduleInputBufferSize - 1};
 
 static constexpr size_t prefixBufferSize{128};
 
@@ -54,6 +61,8 @@ private slots:
     void testEnableUserInputTrimming();
     void testSetOutputPrefix();
     void testEnableInputAppendMode();
+    void testReachingMaximumInputBufferCapacity();
+    void testReachingMaximumOutputBufferCapacity();
     void testEnableInputFormatting();
     void testAppendModeAndFormattingAreMutuallyExclusive();
     void testSetMaxOutputSize_FullBufferTraverseWithFixedOutputSize();
@@ -329,43 +338,126 @@ void IoctlStringOpsModuleTests::testEnableInputAppendMode()
 
     QVERIFY(readFromDeviceFile(m_DeviceFile) == "last");
     QVERIFY(!ioctlIsInputAppendModeEnabled());
+}
 
-    /* Test appending when maximum buffer capacity is reached */
+void IoctlStringOpsModuleTests::testReachingMaximumInputBufferCapacity()
+{
+    std::string str;
+    str.resize(maxCharsCountToWrite, 'a');
+
+    bool success{writeToDeviceFile(m_DeviceFile, str)};
+
+    QVERIFY(success);
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == str);
+
+    success = writeToDeviceFile(m_DeviceFile, str + " ");
+
+    QVERIFY(!success);
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == str);
+
+    success = writeToDeviceFile(m_DeviceFile, " " + str);
+
+    QVERIFY(!success);
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == str);
+
+    resetKernelModule();
+
+    success = writeToDeviceFile(m_DeviceFile, str + " ");
+    std::optional<std::string> result{readFromDeviceFile(m_DeviceFile)};
+
+    QVERIFY(!success);
+    QVERIFY(result && result->empty());
+
+    success = writeToDeviceFile(m_DeviceFile, " " + str);
+    result = readFromDeviceFile(m_DeviceFile);
+
+    QVERIFY(!success);
+    QVERIFY(result && result->empty());
+
+    ioctlEnableInputAppendMode(true);
+
+    success = writeToDeviceFile(m_DeviceFile, "B");
+
+    QVERIFY(success);
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == "B");
+
+    success = writeToDeviceFile(m_DeviceFile, str);
+
+    QVERIFY(success);
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == "B" + str);
+
+    resetKernelModule();
+
+    success = writeToDeviceFile(m_DeviceFile, "B" + str);
+
+    QVERIFY(!success);
+    QVERIFY(result && result->empty());
+
+    success = writeToDeviceFile(m_DeviceFile, " " + str);
+
+    QVERIFY(!success);
+    QVERIFY(result && result->empty());
+
+    success = writeToDeviceFile(m_DeviceFile, str + " ");
+
+    QVERIFY(!success);
+    QVERIFY(result && result->empty());
+}
+
+void IoctlStringOpsModuleTests::testReachingMaximumOutputBufferCapacity()
+{
+    std::string str;
+    str.resize(maxCharsCountToWrite, 'a');
+
+    ioctlEnableInputAppendMode(true);
+
+    bool success{writeToDeviceFile(m_DeviceFile, str)};
+
+    QVERIFY(success);
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == str);
+
+    success = writeToDeviceFile(m_DeviceFile, str);
+
+    QVERIFY(success);
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == str + str);
+
+    success = writeToDeviceFile(m_DeviceFile, "bc");
+
+    QVERIFY(!success);
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == str + str);
+
+    success = writeToDeviceFile(m_DeviceFile, "b");
+
+    QVERIFY(success);
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == str + str + "b");
 
     resetKernelModule();
     ioctlEnableInputAppendMode(true);
 
-    std::string str;
-    constexpr size_t maxCharsCountToWriteToModule{1023}; // buffer size excluding last character (should be '\0')
+    writeToDeviceFile(m_DeviceFile, str);
+    writeToDeviceFile(m_DeviceFile, str);
 
-    str.resize(maxCharsCountToWriteToModule - 1, 'a');
+    success = writeToDeviceFile(m_DeviceFile, "b ");
+
+    QVERIFY(success);
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == str + str + "b");
+
+    resetKernelModule();
+    ioctlEnableInputAppendMode(true);
+    ioctlEnableUserInputTrimming(false);
 
     writeToDeviceFile(m_DeviceFile, str);
-    QVERIFY(readFromDeviceFile(m_DeviceFile) == str);
-
-    writeToDeviceFile(m_DeviceFile, "bc");
-    QVERIFY(readFromDeviceFile(m_DeviceFile) == str + "b");
-
-    writeToDeviceFile(m_DeviceFile, "d");
-    QVERIFY(readFromDeviceFile(m_DeviceFile) == str + "b");
-
-    QVERIFY(ioctlIsInputAppendModeEnabled());
-
-    ioctlEnableInputAppendMode(false);
-
-    writeToDeviceFile(m_DeviceFile, "d");
-    QVERIFY(readFromDeviceFile(m_DeviceFile) == "d");
-
     writeToDeviceFile(m_DeviceFile, str);
-    QVERIFY(readFromDeviceFile(m_DeviceFile) == str);
 
-    writeToDeviceFile(m_DeviceFile, str + "bc");
-    QVERIFY(readFromDeviceFile(m_DeviceFile) == str + "b");
+    success = writeToDeviceFile(m_DeviceFile, "b ");
 
-    writeToDeviceFile(m_DeviceFile, str + "d");
-    QVERIFY(readFromDeviceFile(m_DeviceFile) == str + "d");
+    QVERIFY(!success);
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == str + str);
 
-    QVERIFY(!ioctlIsInputAppendModeEnabled());
+    success = writeToDeviceFile(m_DeviceFile, "b");
+
+    QVERIFY(success);
+    QVERIFY(readFromDeviceFile(m_DeviceFile) == str + str + "b");
 }
 
 void IoctlStringOpsModuleTests::testEnableInputFormatting()

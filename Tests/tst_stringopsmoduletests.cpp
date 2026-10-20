@@ -10,7 +10,17 @@ static constexpr std::string_view baseDeviceFileName{"stringops"};
 
 static constexpr int unsupportedMinorNumber{4};
 
-static constexpr size_t maxCharsCountToRead{255};
+static constexpr size_t moduleInputBufferSize{128};
+
+// should match the kernel module output (data) buffer size,
+// otherwise errors might occur when reading device file
+static constexpr size_t moduleBufferSize{2 * moduleInputBufferSize};
+
+// '\0': there should be minimum one terminating character
+static constexpr size_t maxCharsCountToRead{moduleBufferSize - sizeof('\0')};
+
+// input buffer size excluding last character (terminating '\0')
+static constexpr size_t maxCharsCountToWrite{moduleInputBufferSize - 1};
 
 /* These tests should be run from a terminal using sudo */
 
@@ -32,6 +42,10 @@ private slots:
     void testReadFromAfterWriteToMinorNumber2();
     void testReadFromAfterWriteToMinorNumber3();
     void testCombinedReadFromAfterWriteTo();
+
+    // no need to test the output buffer (like in IoctlStringOps) as input buffer should not be larger than output and
+    // for the moment no append operations are supported (other than string length which is a pretty small addition)
+    void testReachingMaximumInputBufferCapacity();
 
 private:
     void initializeSupportedMinorNumbers();
@@ -297,6 +311,111 @@ void StringOpsModuleTests::testCombinedReadFromAfterWriteTo()
     QVERIFY("well, i would say it's minor number 1, isn't it?" == readFromDeviceFile(m_DeviceFileMinor1));
     QVERIFY("!ti did ew yllaniF\n .2 rebmun s'tI\t !gnorw er'uoY" == readFromDeviceFile(m_DeviceFileMinor2));
     QVERIFY("Minor 3 is \nthe winner!!!; 25" == readFromDeviceFile(m_DeviceFileMinor3));
+}
+
+void StringOpsModuleTests::testReachingMaximumInputBufferCapacity()
+{
+    {
+        std::string str;
+        str.resize(maxCharsCountToWrite, 'a');
+
+        bool success{writeToDeviceFile(m_DeviceFileMinor1, str)};
+
+        QVERIFY(success);
+        QVERIFY(readFromDeviceFile(m_DeviceFileMinor1) == str);
+
+        success = writeToDeviceFile(m_DeviceFileMinor1, str + " ");
+
+        QVERIFY(!success);
+        QVERIFY(readFromDeviceFile(m_DeviceFileMinor1) == str);
+
+        success = writeToDeviceFile(m_DeviceFileMinor1, " " + str);
+
+        QVERIFY(!success);
+        QVERIFY(readFromDeviceFile(m_DeviceFileMinor1) == str);
+
+        resetKernelModule();
+
+        success = writeToDeviceFile(m_DeviceFileMinor1, str + " ");
+        std::optional<std::string> result{readFromDeviceFile(m_DeviceFileMinor1)};
+
+        QVERIFY(!success);
+        QVERIFY(result && result->empty());
+
+        success = writeToDeviceFile(m_DeviceFileMinor1, " " + str);
+        result = readFromDeviceFile(m_DeviceFileMinor1);
+
+        QVERIFY(!success);
+        QVERIFY(result && result->empty());
+    }
+
+    {
+        std::string str;
+        str.resize(maxCharsCountToWrite, 'a');
+
+        bool success{writeToDeviceFile(m_DeviceFileMinor2, str)};
+
+        QVERIFY(success);
+        QVERIFY(readFromDeviceFile(m_DeviceFileMinor2) == str);
+
+        success = writeToDeviceFile(m_DeviceFileMinor2, str + " ");
+
+        QVERIFY(!success);
+        QVERIFY(readFromDeviceFile(m_DeviceFileMinor2) == str);
+
+        success = writeToDeviceFile(m_DeviceFileMinor2, " " + str);
+
+        QVERIFY(!success);
+        QVERIFY(readFromDeviceFile(m_DeviceFileMinor2) == str);
+
+        resetKernelModule();
+
+        success = writeToDeviceFile(m_DeviceFileMinor2, str + " ");
+        std::optional<std::string> result{readFromDeviceFile(m_DeviceFileMinor2)};
+
+        QVERIFY(!success);
+        QVERIFY(result && result->empty());
+
+        success = writeToDeviceFile(m_DeviceFileMinor2, " " + str);
+        result = readFromDeviceFile(m_DeviceFileMinor2);
+
+        QVERIFY(!success);
+        QVERIFY(result && result->empty());
+    }
+
+    {
+        std::string str;
+        str.resize(maxCharsCountToWrite, 'a');
+
+        bool success{writeToDeviceFile(m_DeviceFileMinor3, str)};
+
+        QVERIFY(success);
+        QVERIFY(readFromDeviceFile(m_DeviceFileMinor3) == str + "; " + std::to_string(str.size()));
+
+        success = writeToDeviceFile(m_DeviceFileMinor3, str + " ");
+
+        QVERIFY(!success);
+        QVERIFY(readFromDeviceFile(m_DeviceFileMinor3) == str + "; " + std::to_string(str.size()));
+
+        success = writeToDeviceFile(m_DeviceFileMinor3, " " + str);
+
+        QVERIFY(!success);
+        QVERIFY(readFromDeviceFile(m_DeviceFileMinor3) == str + "; " + std::to_string(str.size()));
+
+        resetKernelModule();
+
+        success = writeToDeviceFile(m_DeviceFileMinor3, str + " ");
+        std::optional<std::string> result{readFromDeviceFile(m_DeviceFileMinor3)};
+
+        QVERIFY(!success);
+        QVERIFY(result && result->empty());
+
+        success = writeToDeviceFile(m_DeviceFileMinor3, " " + str);
+        result = readFromDeviceFile(m_DeviceFileMinor3);
+
+        QVERIFY(!success);
+        QVERIFY(result && result->empty());
+    }
 }
 
 void StringOpsModuleTests::initializeSupportedMinorNumbers()

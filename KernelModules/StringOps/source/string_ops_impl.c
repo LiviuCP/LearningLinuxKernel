@@ -32,13 +32,8 @@ static void append_input_string_length(void)
     }
 }
 
-static void write_to_current_buffer(int minor_number, const char* raw_input_buffer)
+static void write_to_current_data_buffer(int minor_number)
 {
-    trim_and_copy_string(input_buffer, raw_input_buffer, INPUT_BUFFER_SIZE, THIS_MODULE->name);
-
-    pr_info("%s: after trimming the user provided string was stored to minor number %d as: %s\n", THIS_MODULE->name,
-            minor_number, input_buffer);
-
     switch (minor_number)
     {
     case 1: {
@@ -97,32 +92,46 @@ ssize_t device_write_impl(struct file* filp, const char* buffer, size_t length, 
 {
     ssize_t result = -EINVAL;
 
-    if (can_write_to_minor_number(minor_number))
+    do
     {
+        if (!can_write_to_minor_number(minor_number))
+        {
+            pr_err("%s: unsupported write operation for minor number %d!\n", THIS_MODULE->name, minor_number);
+            break;
+        }
+
+        const size_t max_bytes_to_copy_count = INPUT_BUFFER_SIZE - 1;
+
+        if (length > max_bytes_to_copy_count)
+        {
+            pr_err("%s: not enough space in input buffer to copy from raw input buffer!", THIS_MODULE->name);
+            break;
+        }
+
         char raw_input_buffer[INPUT_BUFFER_SIZE];
         memset(raw_input_buffer, '\0', INPUT_BUFFER_SIZE);
 
-        const size_t max_bytes_to_copy_count = INPUT_BUFFER_SIZE - 1;
-        const size_t bytes_to_copy_count = length > max_bytes_to_copy_count ? max_bytes_to_copy_count : length;
-        const size_t bytes_not_copied_count = copy_from_user(raw_input_buffer, buffer, bytes_to_copy_count);
+        const size_t bytes_not_copied_count = copy_from_user(raw_input_buffer, buffer, length);
 
         if (bytes_not_copied_count > 0)
         {
-            pr_warn("%s: %ld bytes could not be copied from user\n", THIS_MODULE->name, bytes_not_copied_count);
+            pr_err("%s: %ld bytes could not be copied from user\n", THIS_MODULE->name, bytes_not_copied_count);
+            break;
         }
+
+        pr_info("%s: user wrote to minor number %d: %s\n", THIS_MODULE->name, minor_number, raw_input_buffer);
+
+        trim_and_copy_string(input_buffer, raw_input_buffer, INPUT_BUFFER_SIZE, THIS_MODULE->name);
+
+        pr_info("%s: after trimming the user provided string was stored to input buffer as: %s\n", THIS_MODULE->name,
+                input_buffer);
+
+        write_to_current_data_buffer(minor_number);
 
         // the total number of chars provided from user space needs to be returned
         // otherwise the function might get called again (possibly indefinitely) when buffer size is exceeded
         result = (ssize_t)length;
-
-        pr_info("%s: user wrote to minor number %d: %s\n", THIS_MODULE->name, minor_number, raw_input_buffer);
-
-        write_to_current_buffer(minor_number, raw_input_buffer);
-    }
-    else
-    {
-        pr_err("%s: unsupported write operation for minor number %d!\n", THIS_MODULE->name, minor_number);
-    }
+    } while (false);
 
     return result;
 }
