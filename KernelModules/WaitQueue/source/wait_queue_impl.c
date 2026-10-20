@@ -145,19 +145,17 @@ ssize_t device_write_impl(struct file* filp, const char* buf, size_t length, lof
 
         if (bytes_not_copied_count > 0)
         {
-            pr_warn("%s: %ld bytes could not be copied from user\n", THIS_MODULE->name, bytes_not_copied_count);
+            pr_err("%s: %ld bytes could not be copied from user\n", THIS_MODULE->name, bytes_not_copied_count);
+            break;
         }
 
         pr_info("%s: user wrote: %s\n", THIS_MODULE->name, raw_input_buffer);
 
-        const size_t copied_chars_count = strlen(raw_input_buffer);
-
-        strncpy(input_buffer + input_buffer_length, raw_input_buffer, copied_chars_count);
-
-        result = (ssize_t)strlen(
-            raw_input_buffer); // the total number of chars provided by user (not the trimmed one) needs to be returned
-
+        strncpy(input_buffer + input_buffer_length, raw_input_buffer, length);
         kfree(raw_input_buffer);
+
+        // the total number of chars provided by user (not the trimmed one) needs to be returned
+        result = (ssize_t)length;
     } while (false);
 
     return result;
