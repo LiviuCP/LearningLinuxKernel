@@ -17,7 +17,7 @@ static const char* synced_status_str = "synced";
 static const size_t divide_cmd_str_length = 6;
 static const size_t reset_cmd_str_length = 5;
 
-extern void trim_and_copy_string(char* dest, const char* src, size_t max_str_length, const char* calling_module_name);
+extern bool trim_and_copy_string(char* dest, const char* src, size_t max_str_length, const char* calling_module_name);
 
 static int compute_quotient_and_remainder(struct division_data* data)
 {
@@ -28,7 +28,7 @@ static int compute_quotient_and_remainder(struct division_data* data)
         if (!data)
         {
             result = -ENULLDATAOBJECT;
-            pr_warn("%s: NULL data object!\n", THIS_MODULE->name);
+            pr_err("%s: NULL data object!\n", THIS_MODULE->name);
             break;
         }
 
@@ -72,7 +72,7 @@ int init_data(struct division_data* data, int divided, int divider)
     else
     {
         result = -ENULLDATAOBJECT;
-        pr_warn("%s: NULL data object!\n", THIS_MODULE->name);
+        pr_err("%s: NULL data object!\n", THIS_MODULE->name);
     }
 
     return result;
@@ -87,14 +87,14 @@ int store_divided_value(struct division_data* data, const char* divided_str)
         if (!data)
         {
             result = -ENULLDATAOBJECT;
-            pr_warn("%s: NULL data object!\n", THIS_MODULE->name);
+            pr_err("%s: NULL data object!\n", THIS_MODULE->name);
             break;
         }
 
         if (!divided_str)
         {
             result = -EOTHERNULLOBJECT;
-            pr_warn("%s: NULL divided string!\n", THIS_MODULE->name);
+            pr_err("%s: NULL divided string!\n", THIS_MODULE->name);
             break;
         }
 
@@ -120,14 +120,14 @@ int store_divider_value(struct division_data* data, const char* divider_str)
         if (!data)
         {
             result = -ENULLDATAOBJECT;
-            pr_warn("%s: NULL data object!\n", THIS_MODULE->name);
+            pr_err("%s: NULL data object!\n", THIS_MODULE->name);
             break;
         }
 
         if (!divider_str)
         {
             result = -EOTHERNULLOBJECT;
-            pr_warn("%s: NULL divider string!\n", THIS_MODULE->name);
+            pr_err("%s: NULL divider string!\n", THIS_MODULE->name);
             break;
         }
 
@@ -162,17 +162,22 @@ void store_command(struct division_data* data, const char* command_str)
     {
         if (!data)
         {
-            pr_warn("%s: NULL data object!\n", THIS_MODULE->name);
+            pr_err("%s: NULL data object!\n", THIS_MODULE->name);
             break;
         }
 
         if (!command_str)
         {
-            pr_warn("%s: NULL command string!\n", THIS_MODULE->name);
+            pr_err("%s: NULL command string!\n", THIS_MODULE->name);
             break;
         }
 
-        trim_and_copy_string(data->command, command_str, COMMAND_BYTES_COUNT, THIS_MODULE->name);
+        if (!trim_and_copy_string(data->command, command_str, COMMAND_BYTES_COUNT, THIS_MODULE->name))
+        {
+            pr_err("%s: cannot trim and copy command!\n", THIS_MODULE->name);
+            break;
+        }
+
         const size_t command_length = strlen(data->command);
 
         pr_info("%s: issued command: %s\n", THIS_MODULE->name, data->command);
@@ -193,7 +198,7 @@ void store_command(struct division_data* data, const char* command_str)
         }
         else
         {
-            pr_warn("%s: invalid command: %s\n", THIS_MODULE->name, data->command);
+            pr_err("%s: invalid command: %s\n", THIS_MODULE->name, data->command);
         }
     } while (false);
 }

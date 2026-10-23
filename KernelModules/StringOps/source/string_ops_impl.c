@@ -2,10 +2,12 @@
 
 #include "string_ops_impl.h"
 
-extern void trim_and_copy_string(char* dest, const char* src, size_t max_str_length, const char* calling_module_name);
-extern void convert_to_same_case_and_copy_string(char* dest, const char* src, size_t chars_count, int to_lower_case,
+#define MAX_STR_TO_APPEND_CHARS_COUNT 16
+
+extern bool trim_and_copy_string(char* dest, const char* src, size_t max_str_length, const char* calling_module_name);
+extern bool convert_to_same_case_and_copy_string(char* dest, const char* src, size_t chars_count, int to_lower_case,
                                                  const char* calling_module_name); // minor 1 operation
-extern void reverse_and_copy_string(char* dest, const char* src, size_t chars_count,
+extern bool reverse_and_copy_string(char* dest, const char* src, size_t chars_count,
                                     const char* calling_module_name); // minor 2 operation
 
 static char input_buffer[INPUT_BUFFER_SIZE]; // shared input buffer (used by any minor number)
@@ -15,43 +17,67 @@ static char minor3_buffer[DATA_BUFFER_SIZE]; // data buffer for minor 3
 
 static char* current_buffer_ptr = NULL; // can point to any buffer depending on minor number and operation (read/write)
 
-static void append_input_string_length(void)
+static bool append_input_string_length(void)
 {
+    bool success = false;
+
     if (current_buffer_ptr)
     {
         const size_t length = strlen(input_buffer);
 
         if (length > 0)
         {
-            sprintf(current_buffer_ptr, "%s; %ld", input_buffer, length);
+            char str_to_append[MAX_STR_TO_APPEND_CHARS_COUNT];
+
+            memset(str_to_append, '\0', MAX_STR_TO_APPEND_CHARS_COUNT);
+            sprintf(str_to_append, "; %ld", length);
+
+            const size_t current_buffer_length = strlen(current_buffer_ptr);
+
+            // terminating '\0' taken into account
+            const size_t max_available_positions_count =
+                current_buffer_length < DATA_BUFFER_SIZE ? DATA_BUFFER_SIZE - current_buffer_length - 1 : 0;
+
+            if (strlen(str_to_append) <= max_available_positions_count)
+            {
+                sprintf(current_buffer_ptr, "%s%s", input_buffer, str_to_append);
+                success = true;
+            }
         }
         else
         {
             memset(current_buffer_ptr, '\0', DATA_BUFFER_SIZE);
+            success = true;
         }
     }
+
+    return success;
 }
 
-static void write_to_current_data_buffer(int minor_number)
+static bool write_to_current_data_buffer(int minor_number)
 {
+    bool success = false;
+
     switch (minor_number)
     {
     case 1: {
-        convert_to_same_case_and_copy_string(current_buffer_ptr, input_buffer, DATA_BUFFER_SIZE, TO_LOWER_CASE,
-                                             THIS_MODULE->name);
+        success = convert_to_same_case_and_copy_string(current_buffer_ptr, input_buffer, DATA_BUFFER_SIZE,
+                                                       TO_LOWER_CASE, THIS_MODULE->name);
         break;
     }
     case 2: {
-        reverse_and_copy_string(current_buffer_ptr, input_buffer, DATA_BUFFER_SIZE, THIS_MODULE->name);
+        success = reverse_and_copy_string(current_buffer_ptr, input_buffer, DATA_BUFFER_SIZE, THIS_MODULE->name);
         break;
     }
     case 3: {
-        append_input_string_length();
+        success = append_input_string_length();
         break;
     }
     default:
         break;
     }
+
+    return success;
 }
 
 static bool can_write_to_minor_number(int minor_number)
@@ -121,12 +147,29 @@ ssize_t device_write_impl(struct file* filp, const char* buffer, size_t length, 
 
         pr_info("%s: user wrote to minor number %d: %s\n", THIS_MODULE->name, minor_number, raw_input_buffer);
 
-        trim_and_copy_string(input_buffer, raw_input_buffer, INPUT_BUFFER_SIZE, THIS_MODULE->name);
+        if (strlen(raw_input_buffer) == 0)
+        {
+            memset(input_buffer, '\0', INPUT_BUFFER_SIZE);
+        }
+        else
+        {
+            if (!trim_and_copy_string(input_buffer, raw_input_buffer, INPUT_BUFFER_SIZE, THIS_MODULE->name))
+            {
+                pr_err("%s: cannot trim and copy to input buffer!\n", THIS_MODULE->name);
+                break;
+            }
+        }
 
         pr_info("%s: after trimming the user provided string was stored to input buffer as: %s\n", THIS_MODULE->name,
                 input_buffer);
 
-        write_to_current_data_buffer(minor_number);
+        if (!write_to_current_data_buffer(minor_number))
+        {
+            pr_err("%s: an error occurred when updating the data buffer for minor number %d! The data buffer remains "
+                   "unchanged.\n",
+                   THIS_MODULE->name, minor_number);
+            break;
+        }
 
         // the total number of chars provided from user space needs to be returned
         // otherwise the function might get called again (possibly indefinitely) when buffer size is exceeded

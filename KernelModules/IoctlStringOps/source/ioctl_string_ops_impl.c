@@ -32,8 +32,8 @@ static size_t chars_left_to_read_count = 0;
 */
 static uint8_t settings = DEFAULT_SETTINGS;
 
-extern void trim_and_copy_string(char* dest, const char* src, size_t max_str_length, const char* calling_module_name);
-extern void format_and_copy_string(char* dest, const char* src, size_t max_chars_count,
+extern bool trim_and_copy_string(char* dest, const char* src, size_t max_str_length, const char* calling_module_name);
+extern bool format_and_copy_string(char* dest, const char* src, size_t max_chars_count,
                                    const char* calling_module_name);
 
 /***** HELPER FUNCTIONS *****/
@@ -95,34 +95,57 @@ char* create_consolidated_buffer(const char* buffer_ptr)
     return consolidated_buffer_ptr;
 }
 
-static void write_to_input_buffer(char* raw_input_buffer)
+static bool write_to_input_buffer(char* raw_input_buffer)
 {
-    if (raw_input_buffer)
+    bool success = false;
+
+    do
     {
+        if (!raw_input_buffer)
+        {
+            pr_err("%s: NULL raw input buffer!\n", THIS_MODULE->name);
+            break;
+        }
+
         if (settings & TRIM_USER_INPUT_ENABLED)
         {
-            trim_and_copy_string(input_buffer, raw_input_buffer, INPUT_BUFFER_SIZE, THIS_MODULE->name);
-            pr_info("%s: after trimming the user provided string was stored as: \"%s\"\n", THIS_MODULE->name,
-                    input_buffer);
-        }
-        else
-        {
-            const size_t chars_count = strlen(raw_input_buffer);
-
-            if (chars_count < INPUT_BUFFER_SIZE)
+            if (strlen(raw_input_buffer) == 0)
             {
                 memset(input_buffer, '\0', INPUT_BUFFER_SIZE);
-                strncpy(input_buffer, raw_input_buffer, chars_count);
-                pr_info("%s: no trimming applied, the user provided string was stored as: \"%s\"\n", THIS_MODULE->name,
-                        input_buffer);
+                pr_info("%s: the input buffer was cleared\n", THIS_MODULE->name);
+                success = true;
+                break;
             }
-            else
+
+            if (!trim_and_copy_string(input_buffer, raw_input_buffer, INPUT_BUFFER_SIZE, THIS_MODULE->name))
             {
-                // defensive programming
-                pr_err("%s: not enough space in input buffer to copy from raw input buffer!", THIS_MODULE->name);
+                pr_err("%s: cannot trim and copy to input buffer!\n", THIS_MODULE->name);
+                break;
             }
+
+            pr_info("%s: after trimming the user provided string was stored as: \"%s\"\n", THIS_MODULE->name,
+                    input_buffer);
+            success = true;
+            break;
         }
-    }
+
+        const size_t chars_count = strlen(raw_input_buffer);
+
+        if (chars_count >= INPUT_BUFFER_SIZE)
+        {
+            // defensive programming
+            pr_err("%s: not enough space in input buffer to copy from raw input buffer!", THIS_MODULE->name);
+            break;
+        }
+
+        memset(input_buffer, '\0', INPUT_BUFFER_SIZE);
+        strncpy(input_buffer, raw_input_buffer, chars_count);
+        pr_info("%s: no trimming applied, the user provided string was stored as: \"%s\"\n", THIS_MODULE->name,
+                input_buffer);
+        success = true;
+    } while (false);
+
+    return success;
 }
 
 static bool write_to_data_buffer(void)
@@ -144,9 +167,7 @@ static bool write_to_data_buffer(void)
     }
     else if (settings & USER_INPUT_FORMATTING_ENABLED)
     {
-        // TODO: refactor the formatting function to return a success code (bool)
-        format_and_copy_string(buffer, input_buffer, BUFFER_SIZE, THIS_MODULE->name);
-        success = true;
+        success = format_and_copy_string(buffer, input_buffer, BUFFER_SIZE, THIS_MODULE->name);
     }
     else
     {
@@ -255,9 +276,11 @@ ssize_t device_write_impl(struct file* filp, const char* buf, size_t length, lof
 
         pr_info("%s: user wrote: %s\n", THIS_MODULE->name, raw_input_buffer);
 
-        write_to_input_buffer(raw_input_buffer);
+        if (!write_to_input_buffer(raw_input_buffer))
+        {
+            break;
+        }
 
-        // TODO: implement can_write_to_data_buffer() ?
         if (!write_to_data_buffer())
         {
             pr_err("%s: an error occurred when updating the data buffer! The data buffer remains unchanged.\n",

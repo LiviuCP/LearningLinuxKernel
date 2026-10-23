@@ -20,7 +20,7 @@ static bool is_exit_requested = false;
 // min nr of chars from input buffer that trigger a formatting operation
 static const size_t input_formatting_threshold = INPUT_BUFFER_SIZE / 3;
 
-extern void format_and_copy_string(char* dest, const char* src, size_t max_chars_count,
+extern bool format_and_copy_string(char* dest, const char* src, size_t max_chars_count,
                                    const char* calling_module_name);
 
 /***** HELPER FUNCTIONS *****/
@@ -49,8 +49,16 @@ static int formatting_thread_function(void* unused)
             break;
         }
 
-        format_and_copy_string(buffer, input_buffer, BUFFER_SIZE, THIS_MODULE->name);
-        pr_info("%s: Formatted string \"%s\" is available in the output buffer\n", THIS_MODULE->name, buffer);
+        const bool success = format_and_copy_string(buffer, input_buffer, BUFFER_SIZE, THIS_MODULE->name);
+
+        if (success)
+        {
+            pr_info("%s: formatted string \"%s\" is available in the output buffer\n", THIS_MODULE->name, buffer);
+        }
+        else
+        {
+            pr_err("%s: an error occurred in formatting and copying string \"%s\"\n", THIS_MODULE->name, input_buffer);
+        }
 
         // input formatting clears the input buffer
         memset(input_buffer, '\0', INPUT_BUFFER_SIZE);

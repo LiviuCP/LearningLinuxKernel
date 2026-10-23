@@ -25,7 +25,7 @@ static void (*destroy_map_element)(struct map_element_data* element_data) = NULL
 
 static struct mapping_data* data = NULL;
 
-extern void trim_and_copy_string(char* dest, const char* src, size_t max_str_length, const char* calling_module_name);
+extern bool trim_and_copy_string(char* dest, const char* src, size_t max_str_length, const char* calling_module_name);
 
 static void reset_key_and_value(void)
 {
@@ -226,7 +226,7 @@ int init_data(struct mapping_data* map_data, struct map_element_data* (*create_e
     else
     {
         result = !map_data ? -ENULLDATAOBJECT : -EOTHERNULLOBJECT;
-        pr_warn("%s: NULL data or function object!\n", THIS_MODULE->name);
+        pr_err("%s: NULL data or function object!\n", THIS_MODULE->name);
     }
 
     return result;
@@ -250,17 +250,24 @@ void clear_map_elements(void)
 
 void store_key(const char* key_str)
 {
-    if (data)
+    do
     {
-        trim_and_copy_string(data->key, key_str, KEY_BYTES_COUNT, THIS_MODULE->name);
+        if (!data)
+        {
+            pr_err("%s: NULL data object (possibly not correctly initialized)\n", THIS_MODULE->name);
+            break;
+        }
+
+        if (!trim_and_copy_string(data->key, key_str, KEY_BYTES_COUNT, THIS_MODULE->name))
+        {
+            pr_err("%s: cannot trim and copy key!\n", THIS_MODULE->name);
+            break;
+        }
+
         memset(data->status, '\0', STATUS_BYTES_COUNT);
         strncpy(data->status, dirty_status_str, strlen(dirty_status_str));
         pr_info("%s: key entered: %s\n", THIS_MODULE->name, data->key);
-    }
-    else
-    {
-        pr_err("%s: NULL data object (possibly not correctly initialized)\n", THIS_MODULE->name);
-    }
+    } while (false);
 }
 
 int store_value(const char* value_str)
@@ -283,9 +290,20 @@ int store_value(const char* value_str)
 
 void store_command(const char* command_str)
 {
-    if (data && create_map_element && destroy_map_element)
+    do
     {
-        trim_and_copy_string(data->command, command_str, COMMAND_BYTES_COUNT, THIS_MODULE->name);
+        if (!data || !create_map_element || !destroy_map_element)
+        {
+            pr_err("%s: NULL data or function object (possibly not correctly initialized)\n", THIS_MODULE->name);
+            break;
+        }
+
+        if (!trim_and_copy_string(data->command, command_str, COMMAND_BYTES_COUNT, THIS_MODULE->name))
+        {
+            pr_err("%s: cannot trim and copy command!\n", THIS_MODULE->name);
+            break;
+        }
+
         const size_t command_length = strlen(data->command);
 
         pr_info("%s: issued command: %s\n", THIS_MODULE->name, data->command);
@@ -294,28 +312,28 @@ void store_command(const char* command_str)
             strncmp(data->command, update_command, update_command_length) == 0)
         {
             update_map_element();
+            break;
         }
-        else if (command_length == remove_command_length &&
-                 strncmp(data->command, remove_command, remove_command_length) == 0)
+
+        if (command_length == remove_command_length &&
+            strncmp(data->command, remove_command, remove_command_length) == 0)
         {
             remove_map_element();
+            break;
         }
-        else if (command_length == get_command_length && strncmp(data->command, get_command, get_command_length) == 0)
+
+        if (command_length == get_command_length && strncmp(data->command, get_command, get_command_length) == 0)
         {
             retrieve_map_element_value();
+            break;
         }
-        else if (command_length == reset_command_length &&
-                 strncmp(data->command, reset_command, reset_command_length) == 0)
+
+        if (command_length == reset_command_length && strncmp(data->command, reset_command, reset_command_length) == 0)
         {
             erase_map_elements();
+            break;
         }
-        else
-        {
-            pr_warn("%s: invalid command: %s\n", THIS_MODULE->name, data->command);
-        }
-    }
-    else
-    {
-        pr_err("%s: NULL data or function object (possibly not correctly initialized)\n", THIS_MODULE->name);
-    }
+
+        pr_err("%s: invalid command: %s\n", THIS_MODULE->name, data->command);
+    } while (false);
 }

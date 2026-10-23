@@ -81,9 +81,10 @@ static size_t get_alphanumeric_chars_count(const char* src)
     return alnum_chars_count;
 }
 
-void trim_and_copy_string(char* dest, const char* src, size_t max_chars_count, const char* calling_module_name)
+bool trim_and_copy_string(char* dest, const char* src, size_t max_chars_count, const char* calling_module_name)
 {
     const char* module_name = calling_module_name ? calling_module_name : "INVALID MODULE NAME";
+    bool success = false;
 
     do
     {
@@ -91,8 +92,6 @@ void trim_and_copy_string(char* dest, const char* src, size_t max_chars_count, c
         {
             break;
         }
-
-        memset(dest, '\0', max_chars_count);
 
         char* temp = kzalloc(max_chars_count, GFP_KERNEL);
 
@@ -128,17 +127,23 @@ void trim_and_copy_string(char* dest, const char* src, size_t max_chars_count, c
         const size_t length = right_index >= left_index ? right_index - left_index + 1 : 0;
         const char* start = temp + left_index;
 
+        memset(dest, '\0', max_chars_count);
         strncpy(dest, start, length);
         kfree(temp);
+
+        success = true;
     } while (false);
+
+    return success;
 }
 
-void convert_to_same_case_and_copy_string(char* dest, const char* src, size_t max_chars_count, bool to_lower_case,
+bool convert_to_same_case_and_copy_string(char* dest, const char* src, size_t max_chars_count, bool to_lower_case,
                                           const char* calling_module_name)
 {
     const char* module_name = calling_module_name ? calling_module_name : "INVALID MODULE NAME";
+    const bool can_copy = can_copy_to_destination(dest, src, max_chars_count, module_name, __func__);
 
-    if (can_copy_to_destination(dest, src, max_chars_count, module_name, __func__))
+    if (can_copy)
     {
         memset(dest, '\0', max_chars_count);
 
@@ -157,13 +162,16 @@ void convert_to_same_case_and_copy_string(char* dest, const char* src, size_t ma
             }
         }
     }
+
+    return can_copy;
 }
 
-void reverse_and_copy_string(char* dest, const char* src, size_t max_chars_count, const char* calling_module_name)
+bool reverse_and_copy_string(char* dest, const char* src, size_t max_chars_count, const char* calling_module_name)
 {
     const char* module_name = calling_module_name ? calling_module_name : "INVALID MODULE NAME";
+    const bool can_copy = can_copy_to_destination(dest, src, max_chars_count, module_name, __func__);
 
-    if (can_copy_to_destination(dest, src, max_chars_count, module_name, __func__))
+    if (can_copy)
     {
         memset(dest, '\0', max_chars_count);
 
@@ -174,6 +182,8 @@ void reverse_and_copy_string(char* dest, const char* src, size_t max_chars_count
             dest[index] = src[length - 1 - index];
         }
     }
+
+    return can_copy;
 }
 
 /* This function formats the source string and copies the resulting content into a destination string.
@@ -197,9 +207,10 @@ void reverse_and_copy_string(char* dest, const char* src, size_t max_chars_count
         - there should be minimum 3 characters in the resulting sequence / each group
         - last two groups (if existing) should have the same number of characters
 */
-void format_and_copy_string(char* dest, const char* src, size_t max_chars_count, const char* calling_module_name)
+bool format_and_copy_string(char* dest, const char* src, size_t max_chars_count, const char* calling_module_name)
 {
     const char* module_name = calling_module_name ? calling_module_name : "INVALID MODULE NAME";
+    bool success = false;
 
     do
     {
@@ -312,7 +323,11 @@ void format_and_copy_string(char* dest, const char* src, size_t max_chars_count,
         {
             dest[current_dest_index++] = '-';
         }
+
+        success = true;
     } while (false);
+
+    return success;
 }
 
 int get_average(const int* array, size_t array_size)
