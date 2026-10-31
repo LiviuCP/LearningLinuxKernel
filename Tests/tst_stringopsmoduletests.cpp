@@ -66,75 +66,70 @@ private:
     std::filesystem::path m_DeviceFileMinor3;
     std::filesystem::path m_UnsupportedMinorNumberDeviceFile;
 
-    const bool m_IsUtilitiesModuleInitiallyLoaded;
+    bool m_IsUtilitiesModuleInitiallyLoaded;
 };
 
-StringOpsModuleTests::StringOpsModuleTests()
-    : m_MajorNumber{0}, m_IsUtilitiesModuleInitiallyLoaded{Utilities::isKernelModuleLoaded(utilitiesModuleName)}
+StringOpsModuleTests::StringOpsModuleTests() : m_MajorNumber{0}
 {
+    const std::expected<bool, std::string> isUtilitiesLoaded{Utilities::isKernelModuleLoaded(utilitiesModuleName)};
+    QVERIFY(isUtilitiesLoaded);
+
+    m_IsUtilitiesModuleInitiallyLoaded = *isUtilitiesLoaded;
 }
 
 void StringOpsModuleTests::initTestCase()
 {
-    try
+    const auto utilitiesModulePath{Utilities::Test::getModulePath(utilitiesModuleName)};
+    QVERIFY(utilitiesModulePath.has_value());
+
+    const auto stringOpsModulePath{Utilities::Test::getModulePath(stringOpsModuleName)};
+    QVERIFY(stringOpsModulePath.has_value());
+
+    if (!m_IsUtilitiesModuleInitiallyLoaded)
     {
-        const auto utilitiesModulePath{Utilities::Test::getModulePath(utilitiesModuleName)};
-        QVERIFY(utilitiesModulePath.has_value());
-
-        const auto stringOpsModulePath{Utilities::Test::getModulePath(stringOpsModuleName)};
-        QVERIFY(stringOpsModulePath.has_value());
-
-        if (!m_IsUtilitiesModuleInitiallyLoaded)
-        {
-            Utilities::loadKernelModule(*utilitiesModulePath);
-        }
-
-        QVERIFY(Utilities::isKernelModuleLoaded(utilitiesModuleName));
-
-        // ensure a fresh start by reloading the module in case already loaded
-        if (Utilities::isKernelModuleLoaded(stringOpsModuleName))
-        {
-            Utilities::unloadKernelModule(stringOpsModuleName);
-        }
-
-        Utilities::loadKernelModule(*stringOpsModulePath);
-
-        QVERIFY(Utilities::isKernelModuleLoaded(stringOpsModuleName));
-
-        m_MajorNumber = Utilities::getMajorDriverNumber(stringOpsModuleName);
-        QVERIFY(m_MajorNumber > 0);
-
-        // these device files should be created automatically when the string_ops kernel module gets loaded
-        initializeSupportedMinorNumbers();
-
-        // this file should be created manually; it is only required for testing purposes
-        initializeUnsupportedMinorNumber();
+        const std::optional<std::string> utilitiesLoadingErrorMessage{
+            Utilities::loadKernelModule(*utilitiesModulePath)};
+        QVERIFY(!utilitiesLoadingErrorMessage.has_value());
     }
-    catch (const std::runtime_error& err)
+
+    const std::expected<bool, std::string> isStringOpsLoaded{Utilities::isKernelModuleLoaded(stringOpsModuleName)};
+    QVERIFY(isStringOpsLoaded.has_value());
+
+    // ensure a fresh start by reloading the module in case already loaded
+    if (*isStringOpsLoaded)
     {
-        QFAIL(err.what());
+        const std::optional<std::string> stringOpsUnloadingErrorMessage{
+            Utilities::unloadKernelModule(stringOpsModuleName)};
+        QVERIFY(stringOpsUnloadingErrorMessage.has_value());
     }
+
+    const std::optional<std::string> stringOpsLoadingErrorMessage{Utilities::loadKernelModule(*stringOpsModulePath)};
+    QVERIFY(!stringOpsLoadingErrorMessage.has_value());
+
+    m_MajorNumber = Utilities::getMajorDriverNumber(stringOpsModuleName);
+    QVERIFY(m_MajorNumber > 0);
+
+    // these device files should be created automatically when the string_ops kernel module gets loaded
+    initializeSupportedMinorNumbers();
+
+    // this file should be created manually; it is only required for testing purposes
+    initializeUnsupportedMinorNumber();
 }
 
 void StringOpsModuleTests::cleanupTestCase()
 {
-    try
-    {
-        removeUnsupportedMinorNumberDeviceFile();
+    removeUnsupportedMinorNumberDeviceFile();
 
-        if (Utilities::isKernelModuleLoaded(stringOpsModuleName))
-        {
-            Utilities::unloadKernelModule(stringOpsModuleName);
-        }
+    // StringOps depends on KernelUtilities so it should be the first to unload
+    const std::optional<std::string> stringOpsUnloadingErrorMessage{Utilities::unloadKernelModule(stringOpsModuleName)};
+    QVERIFY(!stringOpsUnloadingErrorMessage.has_value());
 
-        if (!m_IsUtilitiesModuleInitiallyLoaded && Utilities::isKernelModuleLoaded(utilitiesModuleName))
-        {
-            Utilities::unloadKernelModule(utilitiesModuleName);
-        }
-    }
-    catch (const std::runtime_error& err)
+    if (!m_IsUtilitiesModuleInitiallyLoaded)
     {
-        QFAIL(err.what());
+        // checking utilities unloading is only "for information purposes" as this ends the test case execution
+        const std::optional<std::string> utilitiesUnloadingErrorMessage{
+            Utilities::unloadKernelModule(utilitiesModuleName)};
+        QVERIFY(!utilitiesUnloadingErrorMessage.has_value());
     }
 }
 
@@ -447,9 +442,9 @@ void StringOpsModuleTests::initializeUnsupportedMinorNumber()
 
     // the device files 0-3 should exist when the kernel module got loaded. Minor number 4 is created "manually" for
     // test purposes
-    const bool success{Utilities::createCharacterDeviceFile(m_UnsupportedMinorNumberDeviceFile, m_MajorNumber,
-                                                            unsupportedMinorNumber)};
-    QVERIFY(success);
+    const std::optional<std::string> errorMessage{Utilities::createCharacterDeviceFile(
+        m_UnsupportedMinorNumberDeviceFile, m_MajorNumber, unsupportedMinorNumber)};
+    QVERIFY(!errorMessage);
 
     QVERIFY(std::filesystem::is_character_file(m_UnsupportedMinorNumberDeviceFile));
 }

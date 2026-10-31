@@ -78,12 +78,15 @@ private:
     void addOrModifyElements(const ElementsList& elements);
     std::optional<ElementsMap> retrieveElements();
 
-    const bool m_IsUtilitiesModuleInitiallyLoaded;
+    bool m_IsUtilitiesModuleInitiallyLoaded;
 };
 
 MappingModuleTests::MappingModuleTests()
-    : m_IsUtilitiesModuleInitiallyLoaded{Utilities::isKernelModuleLoaded(utilitiesModuleName)}
 {
+    const std::expected<bool, std::string> isUtilitiesLoaded{Utilities::isKernelModuleLoaded(utilitiesModuleName)};
+    QVERIFY(isUtilitiesLoaded);
+
+    m_IsUtilitiesModuleInitiallyLoaded = *isUtilitiesLoaded;
 }
 
 /* The Mapping and KernelUtilities kernel modules are required for running the tests, so both should be open for a
@@ -98,58 +101,49 @@ MappingModuleTests::MappingModuleTests()
 
 void MappingModuleTests::initTestCase()
 {
-    try
+    const auto utilitiesModulePath{Utilities::Test::getModulePath(utilitiesModuleName)};
+    QVERIFY(utilitiesModulePath.has_value());
+
+    const auto mappingModulePath{Utilities::Test::getModulePath(mappingModuleName)};
+    QVERIFY(mappingModulePath.has_value());
+
+    if (!m_IsUtilitiesModuleInitiallyLoaded)
     {
-        const auto utilitiesModulePath{Utilities::Test::getModulePath(utilitiesModuleName)};
-        QVERIFY(utilitiesModulePath.has_value());
-
-        const auto mappingModulePath{Utilities::Test::getModulePath(mappingModuleName)};
-        QVERIFY(mappingModulePath.has_value());
-
-        if (!m_IsUtilitiesModuleInitiallyLoaded)
-        {
-            Utilities::loadKernelModule(*utilitiesModulePath);
-        }
-
-        QVERIFY(Utilities::isKernelModuleLoaded(utilitiesModuleName));
-
-        // ensure a fresh start by reloading the module in case already loaded
-        if (Utilities::isKernelModuleLoaded(mappingModuleName))
-        {
-            Utilities::unloadKernelModule(mappingModuleName);
-        }
-
-        Utilities::loadKernelModule(*mappingModulePath);
-
-        QVERIFY(Utilities::isKernelModuleLoaded(mappingModuleName));
-        QVERIFY(areKernelModuleFilesAndDirsValid());
-
-        QVERIFY(readKey().has_value() && readValue().has_value() && readStatus().has_value() &&
-                readCount().has_value());
+        const std::optional<std::string> utilitiesLoadingErrorMessage{
+            Utilities::loadKernelModule(*utilitiesModulePath)};
+        QVERIFY(!utilitiesLoadingErrorMessage.has_value());
     }
-    catch (const std::runtime_error& err)
+
+    const std::expected<bool, std::string> isMappingLoaded{Utilities::isKernelModuleLoaded(mappingModuleName)};
+    QVERIFY(isMappingLoaded.has_value());
+
+    // ensure a fresh start by reloading the module in case already loaded
+    if (*isMappingLoaded)
     {
-        QFAIL(err.what());
+        const std::optional<std::string> mappingUnloadingErrorMessage{Utilities::unloadKernelModule(mappingModuleName)};
+        QVERIFY(!mappingUnloadingErrorMessage.has_value());
     }
+
+    const std::optional<std::string> mappingLoadingErrorMessage{Utilities::loadKernelModule(*mappingModulePath)};
+    QVERIFY(!mappingLoadingErrorMessage.has_value());
+
+    QVERIFY(areKernelModuleFilesAndDirsValid());
+
+    QVERIFY(readKey().has_value() && readValue().has_value() && readStatus().has_value() && readCount().has_value());
 }
 
 void MappingModuleTests::cleanupTestCase()
 {
-    try
-    {
-        if (Utilities::isKernelModuleLoaded(mappingModuleName))
-        {
-            Utilities::unloadKernelModule(mappingModuleName);
-        }
+    // Mapping depends on KernelUtilities so it should be the first to unload
+    const std::optional<std::string> mappingUnloadingErrorMessage{Utilities::unloadKernelModule(mappingModuleName)};
+    QVERIFY(!mappingUnloadingErrorMessage.has_value());
 
-        if (!m_IsUtilitiesModuleInitiallyLoaded && Utilities::isKernelModuleLoaded(utilitiesModuleName))
-        {
-            Utilities::unloadKernelModule(utilitiesModuleName);
-        }
-    }
-    catch (const std::runtime_error& err)
+    if (!m_IsUtilitiesModuleInitiallyLoaded)
     {
-        QFAIL(err.what());
+        // checking utilities unloading is only "for information purposes" as this ends the test case execution
+        const std::optional<std::string> utilitiesUnloadingErrorMessage{
+            Utilities::unloadKernelModule(utilitiesModuleName)};
+        QVERIFY(!utilitiesUnloadingErrorMessage.has_value());
     }
 }
 

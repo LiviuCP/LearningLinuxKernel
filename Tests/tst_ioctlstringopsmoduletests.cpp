@@ -100,70 +100,65 @@ private:
 
     int m_MajorNumber;
     std::filesystem::path m_DeviceFile;
-    const bool m_IsUtilitiesModuleInitiallyLoaded;
+    bool m_IsUtilitiesModuleInitiallyLoaded;
 };
 
-IoctlStringOpsModuleTests::IoctlStringOpsModuleTests()
-    : m_MajorNumber{0}, m_IsUtilitiesModuleInitiallyLoaded{Utilities::isKernelModuleLoaded(utilitiesModuleName)}
+IoctlStringOpsModuleTests::IoctlStringOpsModuleTests() : m_MajorNumber{0}
 {
+    const std::expected<bool, std::string> isUtilitiesLoaded{Utilities::isKernelModuleLoaded(utilitiesModuleName)};
+    QVERIFY(isUtilitiesLoaded);
+
+    m_IsUtilitiesModuleInitiallyLoaded = *isUtilitiesLoaded;
 }
 
 void IoctlStringOpsModuleTests::initTestCase()
 {
-    try
+    const auto utilitiesModulePath{Utilities::Test::getModulePath(utilitiesModuleName)};
+    QVERIFY(utilitiesModulePath.has_value());
+
+    const auto stringOpsModulePath{Utilities::Test::getModulePath(stringOpsModuleName)};
+    QVERIFY(stringOpsModulePath.has_value());
+
+    if (!m_IsUtilitiesModuleInitiallyLoaded)
     {
-        const auto utilitiesModulePath{Utilities::Test::getModulePath(utilitiesModuleName)};
-        QVERIFY(utilitiesModulePath.has_value());
-
-        const auto stringOpsModulePath{Utilities::Test::getModulePath(stringOpsModuleName)};
-        QVERIFY(stringOpsModulePath.has_value());
-
-        if (!m_IsUtilitiesModuleInitiallyLoaded)
-        {
-            Utilities::loadKernelModule(*utilitiesModulePath);
-        }
-
-        QVERIFY(Utilities::isKernelModuleLoaded(utilitiesModuleName));
-
-        // ensure a fresh start by reloading the module in case already loaded
-        if (Utilities::isKernelModuleLoaded(stringOpsModuleName))
-        {
-            Utilities::unloadKernelModule(stringOpsModuleName);
-        }
-
-        Utilities::loadKernelModule(*stringOpsModulePath);
-
-        QVERIFY(Utilities::isKernelModuleLoaded(stringOpsModuleName));
-
-        m_MajorNumber = Utilities::getMajorDriverNumber(stringOpsModuleName);
-        QVERIFY(m_MajorNumber > 0);
-
-        // this device file should be created automatically when the ioctl_string_ops kernel module gets loaded
-        initializeDeviceFile();
+        const std::optional<std::string> utilitiesLoadingErrorMessage{
+            Utilities::loadKernelModule(*utilitiesModulePath)};
+        QVERIFY(!utilitiesLoadingErrorMessage.has_value());
     }
-    catch (const std::runtime_error& err)
+
+    const std::expected<bool, std::string> isStringOpsLoaded{Utilities::isKernelModuleLoaded(stringOpsModuleName)};
+    QVERIFY(isStringOpsLoaded.has_value());
+
+    // ensure a fresh start by reloading the module in case already loaded
+    if (*isStringOpsLoaded)
     {
-        QFAIL(err.what());
+        const std::optional<std::string> stringOpsUnloadingErrorMessage{
+            Utilities::unloadKernelModule(stringOpsModuleName)};
+        QVERIFY(!stringOpsUnloadingErrorMessage.has_value());
     }
+
+    const std::optional<std::string> stringOpsLoadingErrorMessage{Utilities::loadKernelModule(*stringOpsModulePath)};
+    QVERIFY(!stringOpsLoadingErrorMessage.has_value());
+
+    m_MajorNumber = Utilities::getMajorDriverNumber(stringOpsModuleName);
+    QVERIFY(m_MajorNumber > 0);
+
+    // this device file should be created automatically when the ioctl_string_ops kernel module gets loaded
+    initializeDeviceFile();
 }
 
 void IoctlStringOpsModuleTests::cleanupTestCase()
 {
-    try
-    {
-        if (Utilities::isKernelModuleLoaded(stringOpsModuleName))
-        {
-            Utilities::unloadKernelModule(stringOpsModuleName);
-        }
+    // IoctlStringOps depends on KernelUtilities so it should be the first to unload
+    const std::optional<std::string> stringOpsUnloadingErrorMessage{Utilities::unloadKernelModule(stringOpsModuleName)};
+    QVERIFY(!stringOpsUnloadingErrorMessage.has_value());
 
-        if (!m_IsUtilitiesModuleInitiallyLoaded && Utilities::isKernelModuleLoaded(utilitiesModuleName))
-        {
-            Utilities::unloadKernelModule(utilitiesModuleName);
-        }
-    }
-    catch (const std::runtime_error& err)
+    if (!m_IsUtilitiesModuleInitiallyLoaded)
     {
-        QFAIL(err.what());
+        // checking utilities unloading is only "for information purposes" as this ends the test case execution
+        const std::optional<std::string> utilitiesUnloadingErrorMessage{
+            Utilities::unloadKernelModule(utilitiesModuleName)};
+        QVERIFY(!utilitiesUnloadingErrorMessage.has_value());
     }
 }
 

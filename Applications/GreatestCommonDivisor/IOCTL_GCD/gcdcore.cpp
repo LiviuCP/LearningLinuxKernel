@@ -1,6 +1,6 @@
-#include <algorithm>
+#include <cassert>
 #include <filesystem>
-#include <stdexcept>
+#include <optional>
 #include <string>
 
 #include <fcntl.h>
@@ -37,129 +37,130 @@ bool isDeviceFileValid()
     return std::filesystem::is_character_file(getDeviceFilePath());
 }
 
-void passDivisionOperandsToKernelModule(int divided, int divider)
+std::optional<std::string> passDivisionOperandsToKernelModule(int divided, int divider)
 {
-    if (!isDeviceFileValid())
+    std::optional<std::string> errorMessage; // std::nullopt for success
+    int fd{-1};
+
+    do
     {
-        throw std::runtime_error("The device file from kernel module " + std::string{divisionModuleName} +
-                                 " does not exist or is invalid!\n"
-                                 "Please check that the module is loaded and generates correct files.");
-    }
+        if (!isDeviceFileValid())
+        {
+            errorMessage = "The device file from kernel module " + std::string{divisionModuleName} +
+                           " does not exist or is invalid!\n"
+                           "Please check that the module is loaded and generates correct files.";
+            break;
+        }
 
-    const int fd{open(getDeviceFilePath().c_str(), O_WRONLY)};
+        fd = open(getDeviceFilePath().c_str(), O_WRONLY);
 
-    if (fd < 0)
-    {
-        throw std::runtime_error("The device file from kernel module " + std::string{divisionModuleName} +
-                                 " cannot be opened for writing!\n"
-                                 "Please try again by running the app with sudo.");
-    }
+        if (fd < 0)
+        {
+            errorMessage = "The device file from kernel module " + std::string{divisionModuleName} +
+                           " cannot be opened for writing!\n"
+                           "Please try again by running the app with sudo.";
+            break;
+        }
 
-    long retVal{ioctl(fd, IOCTL_STORE_DIVIDED_VALUE, &divided)};
+        long retVal{ioctl(fd, IOCTL_STORE_DIVIDED_VALUE, &divided)};
 
-    if (retVal != 0)
+        if (retVal != 0)
+        {
+            errorMessage = "Error in writing divided value to module!";
+            break;
+        }
+
+        retVal = ioctl(fd, IOCTL_STORE_DIVIDER_VALUE, &divider);
+
+        if (retVal != 0)
+        {
+            errorMessage = "Error in writing divider value to module!";
+            break;
+        }
+
+        retVal = ioctl(fd, IOCTL_DIVIDE);
+
+        if (retVal != 0)
+        {
+            errorMessage = "Error in performing division!";
+            break;
+        }
+    } while (false);
+
+    if (fd >= 0)
     {
         close(fd);
-        throw std::runtime_error("Error in writing divided value to module!");
     }
 
-    retVal = ioctl(fd, IOCTL_STORE_DIVIDER_VALUE, &divider);
-
-    if (retVal != 0)
-    {
-        close(fd);
-        throw std::runtime_error("Error in writing divider value to module!");
-    }
-
-    retVal = ioctl(fd, IOCTL_DIVIDE);
-
-    if (retVal != 0)
-    {
-        close(fd);
-        throw std::runtime_error("Error in performing division!");
-    }
-
-    close(fd);
+    return errorMessage;
 }
 
-int retrieveResultFromKernelModule(const unsigned int command)
+std::expected<int, std::string> retrieveResultFromKernelModule(const unsigned int command)
 {
-    int result{0};
-    const int fd{open(getDeviceFilePath().c_str(), O_RDONLY)};
+    std::expected<int, std::string> result;
+    int fd{-1};
 
-    if (fd < 0)
+    do
     {
-        throw std::runtime_error("The device file from kernel module " + std::string{divisionModuleName} +
-                                 " cannot be opened for reading!\n"
-                                 "Please try again by running the app with sudo.");
-    }
+        int commandResult{0};
+        fd = open(getDeviceFilePath().c_str(), O_RDONLY);
 
-    bool isSynced;
-    long retVal{ioctl(fd, IOCTL_GET_SYNCED_STATUS, &isSynced)};
+        if (fd < 0)
+        {
+            result = std::unexpected{"The device file from kernel module " + std::string{divisionModuleName} +
+                                     " cannot be opened for reading!\n"
+                                     "Please try again by running the app with sudo."};
+            break;
+        }
 
-    if (retVal != 0)
+        bool isSynced;
+        long retVal{ioctl(fd, IOCTL_GET_SYNCED_STATUS, &isSynced)};
+
+        if (retVal != 0)
+        {
+            result = std::unexpected{"Error in reading sync status from module!"};
+            break;
+        }
+
+        if (command != IOCTL_SHOW_QUOTIENT_VALUE && command != IOCTL_SHOW_REMAINDER_VALUE)
+        {
+            result = std::unexpected{"Invalid IOCTL command!"};
+            break;
+        }
+
+        retVal = ioctl(fd, command, &commandResult);
+
+        if (retVal != 0)
+        {
+            result = std::unexpected{"Error in reading quotient/remainder from module!"};
+            break;
+        }
+
+        result = commandResult;
+    } while (false);
+
+    if (fd >= 0)
     {
         close(fd);
-        throw std::runtime_error("Error in reading sync status from module!");
     }
-
-    if (command == IOCTL_SHOW_QUOTIENT_VALUE || command == IOCTL_SHOW_REMAINDER_VALUE)
-    {
-        retVal = ioctl(fd, command, &result);
-    }
-    else
-    {
-        close(fd);
-        throw std::runtime_error("Invalid IOCTL command!");
-    }
-
-    if (retVal != 0)
-    {
-        close(fd);
-        throw std::runtime_error("Error in reading quotient/remainder from module!");
-    }
-
-    close(fd);
 
     return result;
 }
 } // namespace
 } // namespace GCD::Core
 
-int GCD::Core::retrieveQuotient(int divided, int divider)
+std::expected<int, std::string> GCD::Core::retrieveQuotient(int divided, int divider)
 {
-    if (divider == 0)
-    {
-        throw std::runtime_error{"Division by 0!"};
-    }
+    const std::optional<std::string> errorMessage{divider != 0 ? passDivisionOperandsToKernelModule(divided, divider)
+                                                               : "Division by 0!"};
 
-    passDivisionOperandsToKernelModule(divided, divider);
-    return retrieveResultFromKernelModule(IOCTL_SHOW_QUOTIENT_VALUE);
+    return !errorMessage ? retrieveResultFromKernelModule(IOCTL_SHOW_QUOTIENT_VALUE) : std::unexpected{*errorMessage};
 }
 
-int GCD::Core::retrieveRemainder(int divided, int divider)
+std::expected<int, std::string> GCD::Core::retrieveRemainder(int divided, int divider)
 {
-    if (divider == 0)
-    {
-        throw std::runtime_error{"Division by 0!"};
-    }
+    const std::optional<std::string> errorMessage{divider != 0 ? passDivisionOperandsToKernelModule(divided, divider)
+                                                               : "Division by 0!"};
 
-    passDivisionOperandsToKernelModule(divided, divider);
-    return retrieveResultFromKernelModule(IOCTL_SHOW_REMAINDER_VALUE);
-}
-
-int GCD::Core::retrieveGreatestCommonDivisor(int first, int second)
-{
-    if (first == 0 && second == 0)
-    {
-        throw std::runtime_error{"Cannot retrieve greatest common divisor when both numbers are 0!"};
-    }
-
-    if (second == 0)
-    {
-        std::swap(first, second);
-    }
-
-    const int remainder{retrieveRemainder(first, second)};
-    return remainder == 0 ? second : retrieveGreatestCommonDivisor(second, remainder);
+    return !errorMessage ? retrieveResultFromKernelModule(IOCTL_SHOW_REMAINDER_VALUE) : std::unexpected{*errorMessage};
 }

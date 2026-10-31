@@ -3,9 +3,9 @@
 #include <cctype>
 #include <climits>
 #include <cstring>
+#include <expected>
 #include <fcntl.h>
 #include <sstream>
-#include <stdexcept>
 #include <unistd.h>
 
 #include "utils.h"
@@ -14,35 +14,42 @@ namespace Utilities
 {
 namespace
 {
-std::string executeCommand(const std::string& command, bool isWriteMode)
+std::expected<std::string, std::string> executeCommand(const std::string& command, bool isWriteMode)
 {
-    std::string commandOutput;
-    char buffer[128];
-    const char* mode{isWriteMode ? "w" : "r"};
+    std::expected<std::string, std::string> result;
 
-    FILE* pipe{popen(command.c_str(), mode)};
-
-    if (!pipe)
+    do
     {
-        throw std::runtime_error{"Failed to open pipe!"};
-    }
+        const char* mode{isWriteMode ? "w" : "r"};
+        FILE* pipe{popen(command.c_str(), mode)};
 
-    try
-    {
-        while (fgets(buffer, sizeof buffer, pipe) != NULL)
+        if (!pipe)
         {
-            commandOutput += buffer;
+            result = std::unexpected{"Failed to open pipe!"};
+            break;
         }
-    }
-    catch (...)
-    {
+
+        try
+        {
+            std::string commandOutput;
+            char buffer[128];
+
+            while (fgets(buffer, sizeof buffer, pipe) != NULL)
+            {
+                commandOutput += buffer;
+            }
+
+            result = commandOutput;
+        }
+        catch (...)
+        {
+            result = std::unexpected{"Error in reading from pipe!"};
+        }
+
         pclose(pipe);
-        throw std::runtime_error{"Error in reading from pipe!"};
-    }
+    } while (false);
 
-    pclose(pipe);
-
-    return commandOutput;
+    return result;
 }
 
 std::string trimAndConvertToStdString(const char* str)
@@ -77,57 +84,202 @@ std::string trimAndConvertToStdString(const char* str)
 } // namespace
 } // namespace Utilities
 
-void Utilities::loadKernelModule(const std::filesystem::path& kernelModulePath)
+std::optional<std::string> Utilities::loadKernelModule(const std::filesystem::path& kernelModulePath)
 {
-    if (std::filesystem::exists(kernelModulePath) && std::filesystem::is_regular_file(kernelModulePath))
+    std::optional<std::string> errorMessage;
+
+    do
     {
+        if (!std::filesystem::exists(kernelModulePath) || !std::filesystem::is_regular_file(kernelModulePath))
+        {
+            errorMessage = "Module file " + kernelModulePath.string() +
+                           " does not exist or is invalid! Cannot load the kernel module.";
+            break;
+        }
+
+        const std::string fileNameWithoutExtension{kernelModulePath.stem().string()};
+        const std::expected<bool, std::string> isModuleInitiallyLoaded{isKernelModuleLoaded(fileNameWithoutExtension)};
+
+        if (!isModuleInitiallyLoaded.has_value())
+        {
+            errorMessage = isModuleInitiallyLoaded.error();
+            break;
+        }
+
+        // module is already loaded, no action needed
+        if (*isModuleInitiallyLoaded)
+        {
+            break;
+        }
+
         // no need to include sudo in the command string -> the user needs to run the app with sudo anyway and if so the
         // command will be executed in sudo mode
-        const std::string loadCommand{"insmod " + kernelModulePath.string() + " 2> /dev/null"};
-        executeCommand(loadCommand, READ_MODE);
-    }
+        const std::string loadCommand{"insmod " + kernelModulePath.string()};
+        const std::expected<std::string, std::string> commandResult{executeCommand(loadCommand, READ_MODE)};
+
+        if (!commandResult.has_value())
+        {
+            errorMessage = commandResult.error();
+            break;
+        }
+
+        const std::expected<bool, std::string> hasModuleSuccessfullyLoaded{
+            isKernelModuleLoaded(fileNameWithoutExtension)};
+
+        if (!hasModuleSuccessfullyLoaded.has_value())
+        {
+            errorMessage = hasModuleSuccessfullyLoaded.error();
+            break;
+        }
+
+        if (!(*hasModuleSuccessfullyLoaded))
+        {
+            errorMessage = "Unable to load module: " + kernelModulePath.string() +
+                           ".\nCheck its dependencies and ensure sudo is being used.";
+            break;
+        }
+
+    } while (false);
+
+    return errorMessage;
 }
 
-void Utilities::unloadKernelModule(const std::string_view kernelModuleName)
+std::optional<std::string> Utilities::unloadKernelModule(const std::string_view kernelModuleName)
 {
-    if (!kernelModuleName.empty())
+    std::optional<std::string> errorMessage;
+
+    do
     {
+        // kernel module name should not include the .ko extension from file (hence should contain only alphanumeric and
+        // '_' characters)
+        if (kernelModuleName.empty() ||
+            std::ranges::any_of(kernelModuleName, [](char ch) { return !isalnum(ch) && ch != '_'; }))
+        {
+            errorMessage = "Invalid module name: " + std::string{kernelModuleName};
+            break;
+        }
+
+        const std::expected<bool, std::string> isModuleInitiallyLoaded{isKernelModuleLoaded(kernelModuleName)};
+
+        if (!isModuleInitiallyLoaded.has_value())
+        {
+            errorMessage = isModuleInitiallyLoaded.error();
+            break;
+        }
+
+        // module is already unloaded, no action needed
+        if (!(*isModuleInitiallyLoaded))
+        {
+            break;
+        }
+
         // no need to include sudo in the command string -> the user needs to run the app with sudo anyway and if so the
         // command will be executed in sudo mode
         const std::string unloadCommand{"rmmod " + std::string{kernelModuleName}};
-        executeCommand(unloadCommand, READ_MODE);
-    }
+        const std::expected<std::string, std::string> commandResult{executeCommand(unloadCommand, READ_MODE)};
+
+        if (!commandResult.has_value())
+        {
+            errorMessage = commandResult.error();
+            break;
+        }
+
+        const std::expected<bool, std::string> isModuleLoaded{isKernelModuleLoaded(kernelModuleName)};
+
+        if (!isModuleLoaded.has_value())
+        {
+            errorMessage = isModuleLoaded.error();
+            break;
+        }
+
+        if ((*isModuleLoaded))
+        {
+            errorMessage = "Unable to unload module: " + std::string{kernelModuleName} +
+                           ".\nCheck its dependencies and ensure sudo is being used.";
+            break;
+        }
+
+    } while (false);
+
+    return errorMessage;
 }
 
-bool Utilities::isKernelModuleLoaded(const std::string_view kernelModuleName)
+std::expected<bool, std::string> Utilities::isKernelModuleLoaded(const std::string_view kernelModuleName)
 {
-    bool isLoaded{false};
+    std::expected<bool, std::string> result;
 
-    if (!kernelModuleName.empty())
+    do
     {
-        const std::string command{"lsmod | grep -w " + std::string{kernelModuleName}};
-        const std::string commandOutput{executeCommand(command, READ_MODE)};
+        // kernel module name should not include the .ko extension from file (hence should contain only alphanumeric and
+        // '_' characters)
+        if (kernelModuleName.empty() ||
+            std::ranges::any_of(kernelModuleName, [](char ch) { return !isalnum(ch) && ch != '_'; }))
+        {
+            result = std::unexpected{"Invalid module name!"};
+            break;
+        }
 
-        isLoaded = commandOutput.starts_with(kernelModuleName);
-    }
+        const std::string kernelModuleNameStr{kernelModuleName};
+        const std::string command{"lsmod | grep -w " + kernelModuleNameStr};
+        const std::expected<std::string, std::string> commandResult{executeCommand(command, READ_MODE)};
 
-    return isLoaded;
+        if (!commandResult)
+        {
+            result = std::unexpected{commandResult.error()};
+            break;
+        }
+
+        // space is required to avoid corner cases where a module name is the prefix of another module name
+        result = commandResult->starts_with(kernelModuleNameStr + ' ');
+    } while (false);
+
+    return result;
 }
 
-bool Utilities::createCharacterDeviceFile(const std::filesystem::path& deviceFilePath, int majorNumber, int minorNumber)
+std::optional<std::string> Utilities::createCharacterDeviceFile(const std::filesystem::path& deviceFilePath,
+                                                                int majorNumber, int minorNumber)
 {
-    bool success{false};
+    std::optional<std::string> errorMessage;
 
-    if (!std::filesystem::exists(deviceFilePath) && majorNumber > 0 && minorNumber >= 0)
+    do
     {
+        if (std::filesystem::exists(deviceFilePath))
+        {
+            errorMessage = "Path " + deviceFilePath.string() + " already exists.";
+            break;
+        }
+
+        if (majorNumber <= 0)
+        {
+            errorMessage = "Invalid major number: " + std::to_string(majorNumber);
+            break;
+        }
+
+        if (minorNumber < 0)
+        {
+            errorMessage = "Invalid minor number: " + std::to_string(minorNumber);
+            break;
+        }
+
         const std::string command{"mknod " + deviceFilePath.string() + " c " + std::to_string(majorNumber) + " " +
                                   std::to_string(minorNumber)};
-        (void)executeCommand(command, WRITE_MODE);
 
-        success = std::filesystem::exists(deviceFilePath);
-    }
+        const std::expected<std::string, std::string> commandResult{executeCommand(command, WRITE_MODE)};
 
-    return success;
+        if (!commandResult.has_value())
+        {
+            errorMessage = commandResult.error();
+            break;
+        }
+
+        if (!std::filesystem::exists(deviceFilePath))
+        {
+            errorMessage = "An unknown error occurred.";
+            break;
+        }
+    } while (false);
+
+    return errorMessage;
 }
 
 int Utilities::getMajorDriverNumber(const std::string_view kernelModuleName)
@@ -137,16 +289,19 @@ int Utilities::getMajorDriverNumber(const std::string_view kernelModuleName)
     if (!kernelModuleName.empty())
     {
         const std::string command{"cat /proc/devices | grep -w " + std::string{kernelModuleName}};
-        const std::string commandOutput{executeCommand(command, READ_MODE)};
+        const std::expected<std::string, std::string> commandResult{executeCommand(command, READ_MODE)};
 
-        int majorNumber = -1;
-        std::istringstream istr{commandOutput};
-
-        istr >> majorNumber;
-
-        if (!istr.fail())
+        if (commandResult)
         {
-            result = majorNumber;
+            int majorNumber = -1;
+            std::istringstream istr{*commandResult};
+
+            istr >> majorNumber;
+
+            if (!istr.fail())
+            {
+                result = majorNumber;
+            }
         }
     }
 
@@ -244,13 +399,7 @@ void Utilities::clearFileContent(const std::filesystem::path& filePath)
 
 void Utilities::clearScreen()
 {
-    try
-    {
-        executeCommand("clear", WRITE_MODE);
-    }
-    catch (...)
-    {
-    }
+    (void)executeCommand("clear", WRITE_MODE);
 }
 
 std::filesystem::path Utilities::getApplicationPath()

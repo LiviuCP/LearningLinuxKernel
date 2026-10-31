@@ -1,8 +1,10 @@
 #pragma once
 
-#include <string_view>
+#include <optional>
+#include <string>
 
 namespace GCD::Loader
 {
-void loadKernelModule(const std::string_view moduleName);
+std::optional<std::string> loadRequiredKernelModules();
+void unloadRequiredKernelModules();
 } // namespace GCD::Loader

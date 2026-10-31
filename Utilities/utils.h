@@ -1,5 +1,6 @@
 #pragma once
 
+#include <expected>
 #include <filesystem>
 #include <optional>
 #include <string>
@@ -13,11 +14,12 @@
 
 namespace Utilities
 {
-void loadKernelModule(const std::filesystem::path& kernelModulePath);
-void unloadKernelModule(const std::string_view kernelModuleName);
-bool isKernelModuleLoaded(const std::string_view kernelModuleName);
+std::optional<std::string> loadKernelModule(const std::filesystem::path& kernelModulePath);
+std::optional<std::string> unloadKernelModule(const std::string_view kernelModuleName);
+std::expected<bool, std::string> isKernelModuleLoaded(const std::string_view kernelModuleName);
 
-bool createCharacterDeviceFile(const std::filesystem::path& deviceFilePath, int majorNumber, int minorNumber);
+std::optional<std::string> createCharacterDeviceFile(const std::filesystem::path& deviceFilePath, int majorNumber,
+                                                     int minorNumber);
 int getMajorDriverNumber(const std::string_view kernelModuleName);
 
 std::optional<int> readIntValueFromFile(
