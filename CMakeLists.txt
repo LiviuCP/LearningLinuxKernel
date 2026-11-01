@@ -10,11 +10,7 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(LIB_TYPE SHARED)
 
 add_subdirectory(Applications)
-
-# the kernel modules should only compile on Linux!
-if (NOT WIN32 AND NOT APPLE)
-    add_subdirectory(KernelModules)
-endif()
+add_subdirectory(KernelModules)
 
 find_package(QT NAMES Qt5 Qt6 COMPONENTS Test QUIET)
 
