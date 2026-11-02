@@ -1,2 +1,3 @@
 add_subdirectory(CapsLockLED)
 add_subdirectory(GreatestCommonDivisor)
+add_subdirectory(StopWatch)
