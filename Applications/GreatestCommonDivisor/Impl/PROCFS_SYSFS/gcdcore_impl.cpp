@@ -1,10 +1,5 @@
-#include <cassert>
-#include <filesystem>
-#include <optional>
-#include <string>
-
 #include "divisionmodulename.h"
-#include "gcdcore.h"
+#include "gcdcore_impl.h"
 #include "utils.h"
 
 #if defined(PROCFS_GCD)
@@ -128,7 +123,7 @@ std::expected<int, std::string> retrieveResultFromKernelModule(const std::string
 } // namespace
 } // namespace GCD::Core
 
-std::expected<int, std::string> GCD::Core::retrieveQuotient(int divided, int divider)
+std::expected<int, std::string> GCD::Core::retrieveQuotientImpl(int divided, int divider)
 {
     const std::optional<std::string> errorMessage{divider != 0 ? passDivisionOperandsToKernelModule(divided, divider)
                                                                : "Division by 0!"};
@@ -136,7 +131,7 @@ std::expected<int, std::string> GCD::Core::retrieveQuotient(int divided, int div
     return !errorMessage ? retrieveResultFromKernelModule(quotientFilePath) : std::unexpected{*errorMessage};
 }
 
-std::expected<int, std::string> GCD::Core::retrieveRemainder(int divided, int divider)
+std::expected<int, std::string> GCD::Core::retrieveRemainderImpl(int divided, int divider)
 {
     const std::optional<std::string> errorMessage{divider != 0 ? passDivisionOperandsToKernelModule(divided, divider)
                                                                : "Division by 0!"};

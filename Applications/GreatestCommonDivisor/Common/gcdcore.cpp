@@ -1,5 +1,5 @@
-#include "gcdcore_common.h"
 #include "gcdcore.h"
+#include "gcdcore_impl.h"
 
 std::expected<int, std::string> GCD::Core::retrieveGreatestCommonDivisor(int first, int second)
 {
@@ -18,7 +18,7 @@ std::expected<int, std::string> GCD::Core::retrieveGreatestCommonDivisor(int fir
             std::swap(first, second);
         }
 
-        const std::expected<int, std::string> remainderResult{retrieveRemainder(first, second)};
+        const std::expected<int, std::string> remainderResult{retrieveRemainderImpl(first, second)};
 
         if (!remainderResult)
         {
@@ -30,4 +30,14 @@ std::expected<int, std::string> GCD::Core::retrieveGreatestCommonDivisor(int fir
     } while (false);
 
     return result;
+}
+
+std::expected<int, std::string> GCD::Core::retrieveQuotient(int divided, int divider)
+{
+    return retrieveQuotientImpl(divided, divider);
+}
+
+std::expected<int, std::string> GCD::Core::retrieveRemainder(int divided, int divider)
+{
+    return retrieveRemainderImpl(divided, divider);
 }

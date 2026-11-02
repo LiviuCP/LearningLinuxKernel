@@ -2,6 +2,7 @@ project(GreatestCommonDivisor LANGUAGES CXX)
 
 include_directories(
     Common
+    Impl/include
     IOCTL_GCD
     PROCFS_SYSFS_GCD
     ../../Utilities
@@ -10,31 +11,31 @@ include_directories(
 add_executable(Ioctl${PROJECT_NAME}
     gcdmain.cpp
     Common/gcdapp.cpp
-    Common/gcdcore_common.cpp
-    Common/gcdloader_common.cpp
+    Common/gcdcore.cpp
+    Common/gcdloader.cpp
     Common/gcdparser.cpp
-    IOCTL_GCD/gcdcore.cpp
-    IOCTL_GCD/gcdloader.cpp
+    Impl/IOCTL/gcdcore_impl.cpp
+    Impl/IOCTL/gcdloader_impl.cpp
 )
 
 add_executable(Procfs${PROJECT_NAME}
     gcdmain.cpp
     Common/gcdapp.cpp
-    Common/gcdcore_common.cpp
-    Common/gcdloader_common.cpp
+    Common/gcdcore.cpp
+    Common/gcdloader.cpp
     Common/gcdparser.cpp
-    PROCFS_SYSFS_GCD/gcdcore.cpp
-    PROCFS_SYSFS_GCD/gcdloader.cpp
+    Impl/PROCFS_SYSFS/gcdcore_impl.cpp
+    Impl/PROCFS_SYSFS/gcdloader_impl.cpp
 )
 
 add_executable(Sysfs${PROJECT_NAME}
     gcdmain.cpp
     Common/gcdapp.cpp
-    Common/gcdcore_common.cpp
-    Common/gcdloader_common.cpp
+    Common/gcdcore.cpp
+    Common/gcdloader.cpp
     Common/gcdparser.cpp
-    PROCFS_SYSFS_GCD/gcdcore.cpp
-    PROCFS_SYSFS_GCD/gcdloader.cpp
+    Impl/PROCFS_SYSFS/gcdcore_impl.cpp
+    Impl/PROCFS_SYSFS/gcdloader_impl.cpp
 )
 
 target_link_libraries(Ioctl${PROJECT_NAME} PRIVATE Utilities)

@@ -1,7 +1,5 @@
-#include <filesystem>
-#include <optional>
-
-#include "gcdloader_common.h"
+#include "gcdloader.h"
+#include "gcdloader_impl.h"
 #include "utils.h"
 
 namespace GCD::Loader
@@ -19,10 +17,21 @@ std::filesystem::path getModulePath(const std::string_view moduleName)
 
     return modulePath;
 }
+
+std::optional<std::string> loadKernelModule(const std::string_view moduleName)
+{
+    return Utilities::loadKernelModule(getModulePath(moduleName));
+}
+
 } // namespace
 } // namespace GCD::Loader
 
-std::optional<std::string> GCD::Loader::loadKernelModule(const std::string_view moduleName)
+std::optional<std::string> GCD::Loader::loadRequiredKernelModules()
 {
-    return Utilities::loadKernelModule(getModulePath(moduleName));
+    return loadRequiredKernelModulesImpl(loadKernelModule);
+}
+
+void GCD::Loader::unloadRequiredKernelModules()
+{
+    unloadRequiredKernelModulesImpl();
 }

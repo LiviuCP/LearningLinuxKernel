@@ -1,14 +1,12 @@
-#include <cassert>
 #include <filesystem>
 #include <optional>
-#include <string>
 
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
 
 #include "divisionmodulename.h"
-#include "gcdcore.h"
+#include "gcdcore_impl.h"
 
 #define IOCTL_STORE_DIVIDED_VALUE _IOW(9999, 'a', int*)
 #define IOCTL_STORE_DIVIDER_VALUE _IOW(9999, 'c', int*)
@@ -149,7 +147,7 @@ std::expected<int, std::string> retrieveResultFromKernelModule(const unsigned in
 } // namespace
 } // namespace GCD::Core
 
-std::expected<int, std::string> GCD::Core::retrieveQuotient(int divided, int divider)
+std::expected<int, std::string> GCD::Core::retrieveQuotientImpl(int divided, int divider)
 {
     const std::optional<std::string> errorMessage{divider != 0 ? passDivisionOperandsToKernelModule(divided, divider)
                                                                : "Division by 0!"};
@@ -157,7 +155,7 @@ std::expected<int, std::string> GCD::Core::retrieveQuotient(int divided, int div
     return !errorMessage ? retrieveResultFromKernelModule(IOCTL_SHOW_QUOTIENT_VALUE) : std::unexpected{*errorMessage};
 }
 
-std::expected<int, std::string> GCD::Core::retrieveRemainder(int divided, int divider)
+std::expected<int, std::string> GCD::Core::retrieveRemainderImpl(int divided, int divider)
 {
     const std::optional<std::string> errorMessage{divider != 0 ? passDivisionOperandsToKernelModule(divided, divider)
                                                                : "Division by 0!"};

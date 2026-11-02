@@ -1,8 +1,7 @@
-#include <expected>
+#include <cassert>
 
 #include "divisionmodulename.h"
-#include "gcdloader.h"
-#include "gcdloader_common.h"
+#include "gcdloader_impl.h"
 #include "utils.h"
 
 namespace GCD::Loader
@@ -13,12 +12,19 @@ std::expected<bool, std::string> isDivisionModuleInitiallyLoaded;
 } // namespace
 } // namespace GCD::Loader
 
-std::optional<std::string> GCD::Loader::loadRequiredKernelModules()
+std::optional<std::string> GCD::Loader::loadRequiredKernelModulesImpl(
+    std::function<std::optional<std::string>(const std::string_view)> loadKernelModuleCallback)
 {
     std::optional<std::string> errorMessage;
 
     do
     {
+        if (!loadKernelModuleCallback)
+        {
+            assert(false);
+            break;
+        }
+
         isDivisionModuleInitiallyLoaded = Utilities::isKernelModuleLoaded(divisionModuleName);
 
         if (!isDivisionModuleInitiallyLoaded.has_value())
@@ -29,7 +35,7 @@ std::optional<std::string> GCD::Loader::loadRequiredKernelModules()
 
         if (!(*isDivisionModuleInitiallyLoaded))
         {
-            const std::optional<std::string> loadErrorMessage{GCD::Loader::loadKernelModule(divisionModuleName)};
+            const std::optional<std::string> loadErrorMessage{loadKernelModuleCallback(divisionModuleName)};
 
             if (loadErrorMessage.has_value())
             {
@@ -43,7 +49,7 @@ std::optional<std::string> GCD::Loader::loadRequiredKernelModules()
 }
 
 // for simplicity error logging will be skipped when unloading modules
-void GCD::Loader::unloadRequiredKernelModules()
+void GCD::Loader::unloadRequiredKernelModulesImpl()
 {
     if (isDivisionModuleInitiallyLoaded.has_value() && !(*isDivisionModuleInitiallyLoaded))
     {
