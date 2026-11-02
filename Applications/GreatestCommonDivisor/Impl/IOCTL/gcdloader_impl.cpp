@@ -22,6 +22,7 @@ std::optional<std::string> GCD::Loader::loadRequiredKernelModulesImpl(
         if (!loadKernelModuleCallback)
         {
             assert(false);
+            errorMessage = "No loading function provided for kernel module " + std::string{divisionModuleName} + "!";
             break;
         }
 

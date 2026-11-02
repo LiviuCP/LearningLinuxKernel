@@ -30,6 +30,7 @@ int GCD::App::run(int argc, char** argv)
         if (modulesLoadingErrorMessage.has_value())
         {
             std::cerr << *modulesLoadingErrorMessage << "\n";
+            break;
         }
 
         const std::expected<int, std::string> gcd{
