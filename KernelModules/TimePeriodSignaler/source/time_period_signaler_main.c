@@ -73,7 +73,7 @@ static int time_period_signaler_init(void)
             break;
         }
 
-        if (!device_create(time_period_signaler_class, NULL, MKDEV(major_number, 0), NULL, "ioctldivision"))
+        if (!device_create(time_period_signaler_class, NULL, MKDEV(major_number, 0), NULL, "timeperiodsignaler"))
         {
             pr_alert("%s: cannot create the device!\n", THIS_MODULE->name);
             do_module_cleanup();
