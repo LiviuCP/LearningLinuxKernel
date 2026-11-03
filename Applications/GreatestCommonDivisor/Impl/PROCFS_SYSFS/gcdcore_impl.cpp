@@ -1,5 +1,5 @@
-#include "divisionmodulename.h"
 #include "gcdcore_impl.h"
+#include "divisionmodulename.h"
 #include "utils.h"
 
 #if defined(PROCFS_GCD)

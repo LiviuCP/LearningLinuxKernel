@@ -20,6 +20,7 @@ add_subdirectory(KernelMutex)
 add_subdirectory(KernelSpinlock)
 add_subdirectory(KernelUtilities)
 add_subdirectory(WaitQueue)
+add_subdirectory(TimePeriodSignaler)
 
 add_dependencies(Average KernelUtilities)
 add_dependencies(SysfsDivision KernelUtilities)
