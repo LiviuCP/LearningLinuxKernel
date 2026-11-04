@@ -40,10 +40,12 @@ long ioctl_request_signal(struct task_struct* task)
 
     if (task && !current_task)
     {
+        pr_info("%s: ioctl_request_signal(): requested timeout signal %d\n", THIS_MODULE->name, SIGTIMEOUT);
+
         current_task = task;
         signal_number = SIGTIMEOUT;
 
-        trigger_timeout_signal();
+        // trigger_timeout_signal();
 
         result = 0;
     }
@@ -53,6 +55,8 @@ long ioctl_request_signal(struct task_struct* task)
 
 long ioctl_reset(void)
 {
+    pr_info("%s: ioctl_reset(): reset requested\n", THIS_MODULE->name);
+
     current_task = NULL;
     signal_number = 0;
 
