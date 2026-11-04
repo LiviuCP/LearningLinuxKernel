@@ -45,7 +45,7 @@ long ioctl_request_signal(struct task_struct* task)
         current_task = task;
         signal_number = SIGTIMEOUT;
 
-        // trigger_timeout_signal();
+        trigger_timeout_signal();
 
         result = 0;
     }

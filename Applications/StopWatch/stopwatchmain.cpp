@@ -11,6 +11,8 @@
 #define IOCTL_REQUEST_SIGNAL _IOW(9999, 'a', void*)
 #define IOCTL_RESET _IOW(9999, 'b', void*)
 
+#define SIGTIMEOUT 44
+
 static constexpr std::string_view devicePath{"/dev/timeperiodsignaler"};
 
 static bool ioctlRequestSignal()
@@ -48,7 +50,7 @@ static bool ioctlReset()
 static void ctrlCInterruptHandler(int signal)
 {
     // backspaces are needed for getting rid of the printed ^C when hitting CTRL+C
-    std::cout << "\b\bInterrupt signal " << signal << " arrived! Goodbye!\n\a";
+    std::cout << "\b\b  \nInterrupt signal " << signal << " arrived! Goodbye!\n\a";
 
     if (!ioctlReset())
     {
@@ -58,11 +60,20 @@ static void ctrlCInterruptHandler(int signal)
     exit(signal);
 }
 
+static void timeoutSignalHandler(int signal)
+{
+    if (signal == SIGTIMEOUT)
+    {
+        std::cout << "Timeout signal " << signal << " arrived!\n" << std::flush;
+    }
+}
+
 int main()
 {
     do
     {
         std::signal(SIGINT, ctrlCInterruptHandler);
+        std::signal(SIGTIMEOUT, timeoutSignalHandler);
 
         const bool deviceFileExists{std::filesystem::exists(std::string{devicePath})};
 
@@ -77,7 +88,7 @@ int main()
             std::cerr << "Requesting signal failed!\n";
         }
 
-        std::cout << "Waiting for interrupt (press CTRL+C)...\n" << std::flush;
+        std::cout << "\nWaiting for interrupt (press CTRL+C)...\n" << std::flush;
 
         for (;;)
             ;
