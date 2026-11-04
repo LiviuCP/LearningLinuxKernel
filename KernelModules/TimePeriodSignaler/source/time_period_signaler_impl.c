@@ -3,9 +3,12 @@
 #include "time_period_signaler_impl.h"
 
 #define SIGTIMEOUT 44
+#define TIMEOUT_PERIOD HZ
 
 static struct task_struct* current_task = NULL;
 static int signal_number = 0;
+
+static struct timer_list timer;
 
 static void trigger_timeout_signal(void)
 {
@@ -34,6 +37,20 @@ static void trigger_timeout_signal(void)
     }
 }
 
+static void handle_timeout(struct timer_list* tm)
+{
+    trigger_timeout_signal();
+    del_timer(tm);
+}
+
+static void start_timer(void)
+{
+    timer.expires = jiffies_64 + HZ;
+    timer_setup(&timer, handle_timeout, 0);
+
+    add_timer(&timer);
+}
+
 long ioctl_request_signal(struct task_struct* task)
 {
     long result = -1;
@@ -45,7 +62,7 @@ long ioctl_request_signal(struct task_struct* task)
         current_task = task;
         signal_number = SIGTIMEOUT;
 
-        trigger_timeout_signal();
+        start_timer();
 
         result = 0;
     }

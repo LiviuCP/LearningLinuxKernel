@@ -49,22 +49,26 @@ static bool ioctlReset()
 
 static void ctrlCInterruptHandler(int signal)
 {
-    // backspaces are needed for getting rid of the printed ^C when hitting CTRL+C
-    std::cout << "\b\b  \nInterrupt signal " << signal << " arrived! Goodbye!\n\a";
-
-    if (!ioctlReset())
+    if (signal == SIGINT)
     {
-        std::cerr << "Reset failed!\n";
-    }
+        // backspaces are needed for getting rid of the printed ^C when hitting CTRL+C
+        std::cout << "\b\bGoodbye!\n\a";
 
-    exit(signal);
+        if (!ioctlReset())
+        {
+            std::cerr << "Reset failed!\n";
+        }
+
+        exit(signal);
+    }
 }
 
 static void timeoutSignalHandler(int signal)
 {
     if (signal == SIGTIMEOUT)
     {
-        std::cout << "Timeout signal " << signal << " arrived!\n" << std::flush;
+        std::cout << "\nTimeout signal " << signal << " arrived! ";
+        std::cout << "Press CTRL + C to exit.\n\n" << std::flush;
     }
 }
 
@@ -88,7 +92,7 @@ int main()
             std::cerr << "Requesting signal failed!\n";
         }
 
-        std::cout << "\nWaiting for interrupt (press CTRL+C)...\n" << std::flush;
+        std::cout << "Waiting for timeout...\n" << std::flush;
 
         for (;;)
             ;
