@@ -3,12 +3,14 @@
 #include "time_period_signaler_impl.h"
 
 #define SIGTIMEOUT 44
-#define TIMEOUT_PERIOD HZ
+#define MILLISECONDS_IN_SECOND 1000
+#define JIFFIES_IN_SECOND HZ
 
 static struct task_struct* current_task = NULL;
 static int signal_number = 0;
 
 static struct timer_list timer;
+static size_t timeout_period_ms = 1000; // default timeout period
 
 static void trigger_timeout_signal(void)
 {
@@ -45,27 +47,40 @@ static void handle_timeout(struct timer_list* tm)
 
 static void start_timer(void)
 {
-    timer.expires = jiffies_64 + HZ;
+    timer.expires = jiffies_64 + (JIFFIES_IN_SECOND * timeout_period_ms) / MILLISECONDS_IN_SECOND;
     timer_setup(&timer, handle_timeout, 0);
 
     add_timer(&timer);
 }
 
-long ioctl_request_signal(struct task_struct* task)
+long ioctl_request_signal(struct task_struct* task, size_t* timeout_period_data)
 {
     long result = -1;
 
-    if (task && !current_task)
+    do
     {
+        if (!task || !timeout_period_data || current_task)
+        {
+            break;
+        }
+
+        size_t timeout_period;
+        size_t bytes_not_copied_count = copy_from_user(&timeout_period, timeout_period_data, sizeof(timeout_period));
+
+        if (bytes_not_copied_count > 0)
+        {
+            break;
+        }
+
         pr_info("%s: ioctl_request_signal(): requested timeout signal %d\n", THIS_MODULE->name, SIGTIMEOUT);
 
         current_task = task;
+        timeout_period_ms = timeout_period;
         signal_number = SIGTIMEOUT;
+        result = 0;
 
         start_timer();
-
-        result = 0;
-    }
+    } while (false);
 
     return result;
 }

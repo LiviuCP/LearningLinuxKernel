@@ -15,6 +15,7 @@
 
 static constexpr std::string_view devicePath{"/dev/timeperiodsignaler"};
 static size_t secondsCount{0};
+static constexpr size_t timePeriodMilliseconds{1000};
 
 static bool ioctlRequestSignal()
 {
@@ -23,7 +24,7 @@ static bool ioctlRequestSignal()
 
     if (fd > 0)
     {
-        const long retVal{ioctl(fd, IOCTL_REQUEST_SIGNAL, nullptr)};
+        const long retVal{ioctl(fd, IOCTL_REQUEST_SIGNAL, &timePeriodMilliseconds)};
         close(fd);
 
         result = retVal == 0;
