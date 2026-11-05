@@ -14,8 +14,8 @@
 #define SIGTIMEOUT 44
 
 static constexpr std::string_view devicePath{"/dev/timeperiodsignaler"};
-static size_t secondsCount{0};
-static constexpr size_t timePeriodMilliseconds{1000};
+static size_t milliSecondsCount{0};
+static constexpr size_t timePeriodMilliseconds{10};
 
 static bool ioctlRequestSignal()
 {
@@ -49,6 +49,17 @@ static bool ioctlReset()
     return result;
 }
 
+static void printTime()
+{
+    const size_t seconds{milliSecondsCount / 1000};
+    const size_t minutes{seconds / 60};
+    const size_t remainingSeconds{seconds % 60};
+    const size_t residual{(milliSecondsCount % 1000) / 10};
+
+    system("clear");
+    std::cout << "\t" << minutes << ":" << remainingSeconds << "." << residual << "\n\n\t" << std::flush;
+}
+
 static void ctrlCInterruptHandler(int signal)
 {
     if (signal == SIGINT)
@@ -69,10 +80,9 @@ static void timeoutSignalHandler(int signal)
 {
     if (signal == SIGTIMEOUT)
     {
-        ++secondsCount;
+        milliSecondsCount += timePeriodMilliseconds;
 
-        system("clear");
-        std::cout << "\t" << secondsCount << "\n\n\t" << std::flush;
+        printTime();
 
         if (!ioctlRequestSignal())
         {
@@ -102,8 +112,7 @@ int main()
             break;
         }
 
-        system("clear");
-        std::cout << "\t" << secondsCount << "\n\n\t" << std::flush;
+        printTime();
 
         for (;;)
             ;
