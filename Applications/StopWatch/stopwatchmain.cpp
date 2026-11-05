@@ -14,6 +14,7 @@
 #define SIGTIMEOUT 44
 
 static constexpr std::string_view devicePath{"/dev/timeperiodsignaler"};
+static size_t secondsCount{0};
 
 static bool ioctlRequestSignal()
 {
@@ -67,8 +68,15 @@ static void timeoutSignalHandler(int signal)
 {
     if (signal == SIGTIMEOUT)
     {
-        std::cout << "\nTimeout signal " << signal << " arrived! ";
-        std::cout << "Press CTRL + C to exit.\n\n" << std::flush;
+        ++secondsCount;
+
+        system("clear");
+        std::cout << "\t" << secondsCount << "\n\n\t" << std::flush;
+
+        if (!ioctlRequestSignal())
+        {
+            std::cerr << "Requesting new timeout failed!\n";
+        }
     }
 }
 
@@ -89,10 +97,12 @@ int main()
 
         if (!ioctlRequestSignal())
         {
-            std::cerr << "Requesting signal failed!\n";
+            std::cerr << "Requesting new timeout failed!\n";
+            break;
         }
 
-        std::cout << "Waiting for timeout...\n" << std::flush;
+        system("clear");
+        std::cout << "\t" << secondsCount << "\n\n\t" << std::flush;
 
         for (;;)
             ;
