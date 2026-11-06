@@ -17,6 +17,10 @@ static constexpr std::string_view devicePath{"/dev/timeperiodsignaler"};
 static size_t milliSecondsCount{0};
 static constexpr size_t timePeriodMilliseconds{10};
 
+// By measuring I noticed that 60 "real seconds" are equivalent to 40 "counted seconds" (kernel measured time)
+// this deviation could differ from device to device so it should be measured and adjusted accordingly
+static constexpr size_t correctedTimePeriodMilliseconds{(timePeriodMilliseconds * 2) / 3};
+
 static bool ioctlRequestSignal()
 {
     bool result{false};
@@ -24,7 +28,7 @@ static bool ioctlRequestSignal()
 
     if (fd > 0)
     {
-        const long retVal{ioctl(fd, IOCTL_REQUEST_SIGNAL, &timePeriodMilliseconds)};
+        const long retVal{ioctl(fd, IOCTL_REQUEST_SIGNAL, &correctedTimePeriodMilliseconds)};
         close(fd);
 
         result = retVal == 0;
