@@ -133,7 +133,7 @@ static long device_ioctl(struct file* file, unsigned int command, unsigned long 
         ioctl_request_signal(get_current(), (size_t*)arg);
         break;
     case IOCTL_RESET:
-        result = ioctl_reset();
+        result = ioctl_reset(get_current());
         break;
     default:
         break;

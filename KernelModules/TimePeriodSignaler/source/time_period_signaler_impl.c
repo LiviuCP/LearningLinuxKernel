@@ -12,6 +12,14 @@ static int signal_number = 0;
 static struct timer_list timer;
 static size_t timeout_period_ms = 1000; // default timeout period
 
+static void reset(void)
+{
+    del_timer(&timer);
+
+    current_task = NULL;
+    signal_number = 0;
+}
+
 static void trigger_timeout_signal(void)
 {
     if (current_task && signal_number == SIGTIMEOUT)
@@ -35,7 +43,7 @@ static void trigger_timeout_signal(void)
         }
 
         // unregister current task
-        ioctl_reset();
+        reset();
     }
 }
 
@@ -59,6 +67,7 @@ long ioctl_request_signal(struct task_struct* task, size_t* timeout_period_data)
 
     do
     {
+        // only a task can be registered at a time; timeout will unregister it automatically
         if (!task || !timeout_period_data || current_task)
         {
             break;
@@ -85,12 +94,18 @@ long ioctl_request_signal(struct task_struct* task, size_t* timeout_period_data)
     return result;
 }
 
-long ioctl_reset(void)
+long ioctl_reset(struct task_struct* task)
 {
-    pr_info("%s: ioctl_reset(): reset requested\n", THIS_MODULE->name);
+    long result = -1;
 
-    current_task = NULL;
-    signal_number = 0;
+    // reset can only be issued by the currently registered task
+    if (task && task == current_task)
+    {
+        pr_info("%s: ioctl_reset(): reset requested\n", THIS_MODULE->name);
 
-    return 0;
+        reset();
+        result = 0;
+    }
+
+    return result;
 }
