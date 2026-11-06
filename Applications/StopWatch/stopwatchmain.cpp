@@ -61,7 +61,29 @@ static void printTime()
     const size_t residual{(milliSecondsCount % 1000) / 10};
 
     system("clear");
-    std::cout << "\t" << minutes << ":" << remainingSeconds << "." << residual << "\n\n\t" << std::flush;
+
+    std::cout << "Elapsed time:\n\n";
+
+    if (minutes < 10)
+    {
+        std::cout << "0";
+    }
+
+    std::cout << minutes << ":";
+
+    if (remainingSeconds < 10)
+    {
+        std::cout << "0";
+    }
+
+    std::cout << remainingSeconds << ".";
+
+    if (residual < 10)
+    {
+        std::cout << "0";
+    }
+
+    std::cout << residual << "\n\n" << std::flush;
 }
 
 static void ctrlCInterruptHandler(int signal)
