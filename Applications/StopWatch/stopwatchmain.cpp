@@ -16,6 +16,8 @@
 static constexpr std::string_view devicePath{"/dev/timeperiodsignaler"};
 static size_t milliSecondsCount{0};
 static constexpr size_t timePeriodMilliseconds{10};
+static bool timeoutRequestSuccess{false};
+static bool interruptOccurred{false};
 
 // By measuring I noticed that 60 "real seconds" are equivalent to 40 "counted seconds" (kernel measured time)
 // this deviation could differ from device to device so it should be measured and adjusted accordingly
@@ -90,15 +92,12 @@ static void ctrlCInterruptHandler(int signal)
 {
     if (signal == SIGINT)
     {
-        // backspaces are needed for getting rid of the printed ^C when hitting CTRL+C
-        std::cout << "\b\bGoodbye!\n\a";
-
         if (!ioctlReset())
         {
             std::cerr << "Reset failed!\n";
         }
 
-        exit(signal);
+        interruptOccurred = true;
     }
 }
 
@@ -109,11 +108,7 @@ static void timeoutSignalHandler(int signal)
         milliSecondsCount += timePeriodMilliseconds;
 
         printTime();
-
-        if (!ioctlRequestSignal())
-        {
-            std::cerr << "Requesting new timeout failed!\n";
-        }
+        timeoutRequestSuccess = ioctlRequestSignal();
     }
 }
 
@@ -132,7 +127,9 @@ int main()
             break;
         }
 
-        if (!ioctlRequestSignal())
+        timeoutRequestSuccess = ioctlRequestSignal();
+
+        if (!timeoutRequestSuccess)
         {
             std::cerr << "Requesting new timeout failed!\n";
             break;
@@ -141,7 +138,21 @@ int main()
         printTime();
 
         for (;;)
-            ;
+        {
+            if (!timeoutRequestSuccess)
+            {
+                std::cerr << "Requesting new timeout failed!\n";
+                break;
+            }
+
+            if (interruptOccurred)
+            {
+                // backspaces are needed for getting rid of the printed ^C when hitting CTRL+C
+                std::cout << "\b\bGoodbye!\n\a" << std::flush;
+
+                break;
+            }
+        }
     } while (false);
 
     return 0;
