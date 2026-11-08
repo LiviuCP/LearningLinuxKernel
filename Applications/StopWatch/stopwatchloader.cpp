@@ -6,10 +6,15 @@
 #include "stopwatchloader.h"
 #include "utils.h"
 
-static constexpr std::string_view timePeriodSignalerModuleName{"time_period_signaler"};
-static std::expected<bool, std::string> isTimePeriodSignalerModuleInitiallyLoaded;
+namespace StopWatch::Loader
+{
+namespace
+{
+constexpr std::string_view timePeriodSignalerModuleName{"time_period_signaler"};
 
-static std::filesystem::path getModulePath(const std::string_view moduleName)
+std::expected<bool, std::string> isTimePeriodSignalerModuleInitiallyLoaded;
+
+std::filesystem::path getModulePath(const std::string_view moduleName)
 {
     const std::filesystem::path applicationPath{Utilities::getApplicationPath()};
 
@@ -21,12 +26,12 @@ static std::filesystem::path getModulePath(const std::string_view moduleName)
     return modulePath;
 }
 
-static std::optional<std::string> loadKernelModule(const std::string_view moduleName)
+std::optional<std::string> loadKernelModule(const std::string_view moduleName)
 {
     return Utilities::loadKernelModule(getModulePath(moduleName));
 }
 
-static std::optional<std::string> loadRequiredKernelModulesImpl(
+std::optional<std::string> loadRequiredKernelModulesImpl(
     std::function<std::optional<std::string>(const std::string_view)> loadKernelModuleCallback)
 {
     std::optional<std::string> errorMessage;
@@ -72,13 +77,15 @@ static void unloadRequiredKernelModulesImpl()
         (void)Utilities::unloadKernelModule(timePeriodSignalerModuleName);
     }
 }
+} // namespace
+} // namespace StopWatch::Loader
 
-std::optional<std::string> loadRequiredKernelModules()
+std::optional<std::string> StopWatch::Loader::loadRequiredKernelModules()
 {
     return loadRequiredKernelModulesImpl(loadKernelModule);
 }
 
-void unloadRequiredKernelModules()
+void StopWatch::Loader::unloadRequiredKernelModules()
 {
     unloadRequiredKernelModulesImpl();
 }

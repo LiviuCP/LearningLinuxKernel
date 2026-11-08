@@ -124,7 +124,7 @@ int main()
     int retVal{ERROR};
     do
     {
-        const std::optional<std::string> modulesLoadingErrorMessage{loadRequiredKernelModules()};
+        const std::optional<std::string> modulesLoadingErrorMessage{StopWatch::Loader::loadRequiredKernelModules()};
 
         if (modulesLoadingErrorMessage.has_value())
         {
@@ -164,7 +164,7 @@ int main()
         retVal = timeoutRequestSuccess ? SUCCESS : ERROR;
     } while (false);
 
-    unloadRequiredKernelModules();
+    StopWatch::Loader::unloadRequiredKernelModules();
 
     return retVal;
 }
