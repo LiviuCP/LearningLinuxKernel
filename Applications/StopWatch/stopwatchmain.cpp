@@ -1,11 +1,13 @@
 #include <cassert>
 #include <csignal>
-#include <filesystem>
 #include <iostream>
 #include <string_view>
 
 #include <fcntl.h>
 #include <sys/ioctl.h>
+
+#include "loader.h"
+#include "utils.h"
 
 // 9999 is an arbitrarily chosen "magic number" (in a "real" (production) system an official assignment would be
 // required; might be the major driver number)
@@ -13,6 +15,9 @@
 #define IOCTL_RESET _IOW(9999, 'b', void*)
 
 #define SIGTIMEOUT 44
+
+#define SUCCESS 0
+#define ERROR 1
 
 static constexpr std::string_view devicePath{"/dev/timeperiodsignaler"};
 static size_t milliSecondsCount{0};
@@ -63,7 +68,7 @@ static void printTime()
     const size_t remainingSeconds{seconds % 60};
     const size_t residual{(milliSecondsCount % 1000) / 10};
 
-    system("clear");
+    Utilities::clearScreen();
 
     std::cout << "Elapsed time:\n\n";
 
@@ -116,18 +121,19 @@ static void signalHandler(int signal)
 
 int main()
 {
+    int retVal{ERROR};
     do
     {
-        std::signal(SIGINT, signalHandler);
-        std::signal(SIGTIMEOUT, signalHandler);
+        const std::optional<std::string> modulesLoadingErrorMessage{loadRequiredKernelModules()};
 
-        const bool deviceFileExists{std::filesystem::exists(std::string{devicePath})};
-
-        if (!deviceFileExists)
+        if (modulesLoadingErrorMessage.has_value())
         {
-            std::cerr << "Device file does not exist! Please check if the driver got loaded.\n";
+            std::cerr << *modulesLoadingErrorMessage << "\n";
             break;
         }
+
+        std::signal(SIGINT, signalHandler);
+        std::signal(SIGTIMEOUT, signalHandler);
 
         timeoutRequestSuccess = ioctlRequestSignal();
 
@@ -151,11 +157,14 @@ int main()
             {
                 // backspaces are needed for getting rid of the printed ^C when hitting CTRL+C
                 std::cout << "\b\bGoodbye!\n\a" << std::flush;
-
                 break;
             }
         }
+
+        retVal = timeoutRequestSuccess ? SUCCESS : ERROR;
     } while (false);
 
-    return 0;
+    unloadRequiredKernelModules();
+
+    return retVal;
 }
