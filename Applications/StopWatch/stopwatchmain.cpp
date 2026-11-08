@@ -6,7 +6,7 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 
-#include "loader.h"
+#include "stopwatchloader.h"
 #include "utils.h"
 
 // 9999 is an arbitrarily chosen "magic number" (in a "real" (production) system an official assignment would be

@@ -4,6 +4,6 @@ include_directories(
     ../../Utilities
 )
 
-add_executable(${PROJECT_NAME} stopwatchmain.cpp loader.cpp)
+add_executable(${PROJECT_NAME} stopwatchmain.cpp stopwatchloader.cpp)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE Utilities)

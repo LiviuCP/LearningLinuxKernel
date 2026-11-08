@@ -3,7 +3,7 @@
 #include <functional>
 #include <string_view>
 
-#include "loader.h"
+#include "stopwatchloader.h"
 #include "utils.h"
 
 static constexpr std::string_view timePeriodSignalerModuleName{"time_period_signaler"};
