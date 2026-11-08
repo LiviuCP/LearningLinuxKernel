@@ -1,3 +1,4 @@
+#include <cassert>
 #include <csignal>
 #include <filesystem>
 #include <iostream>
@@ -88,27 +89,28 @@ static void printTime()
     std::cout << residual << "\n\n" << std::flush;
 }
 
-static void ctrlCInterruptHandler(int signal)
+static void signalHandler(int signal)
 {
-    if (signal == SIGINT)
+    switch (signal)
     {
+    case SIGINT: {
         if (!ioctlReset())
         {
             std::cerr << "Reset failed!\n";
         }
-
         interruptOccurred = true;
+        break;
     }
-}
-
-static void timeoutSignalHandler(int signal)
-{
-    if (signal == SIGTIMEOUT)
-    {
+    case SIGTIMEOUT: {
         milliSecondsCount += timePeriodMilliseconds;
-
         printTime();
         timeoutRequestSuccess = ioctlRequestSignal();
+        break;
+    }
+    default: {
+        assert(false && "Unregistered signal!");
+        break;
+    }
     }
 }
 
@@ -116,8 +118,8 @@ int main()
 {
     do
     {
-        std::signal(SIGINT, ctrlCInterruptHandler);
-        std::signal(SIGTIMEOUT, timeoutSignalHandler);
+        std::signal(SIGINT, signalHandler);
+        std::signal(SIGTIMEOUT, signalHandler);
 
         const bool deviceFileExists{std::filesystem::exists(std::string{devicePath})};
 
@@ -131,7 +133,7 @@ int main()
 
         if (!timeoutRequestSuccess)
         {
-            std::cerr << "Requesting new timeout failed!\n";
+            std::cerr << "Requesting initial timeout failed!\n";
             break;
         }
 
