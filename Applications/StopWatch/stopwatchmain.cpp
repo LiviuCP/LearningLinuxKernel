@@ -1,67 +1,16 @@
 #include <cassert>
-#include <csignal>
 #include <iostream>
-#include <string_view>
 
-#include <fcntl.h>
-#include <sys/ioctl.h>
-
+#include "stopwatchcore.h"
 #include "stopwatchloader.h"
 #include "utils.h"
-
-// 9999 is an arbitrarily chosen "magic number" (in a "real" (production) system an official assignment would be
-// required; might be the major driver number)
-#define IOCTL_REQUEST_SIGNAL _IOW(9999, 'a', void*)
-#define IOCTL_RESET _IOW(9999, 'b', void*)
-
-#define SIGTIMEOUT 44
 
 #define SUCCESS 0
 #define ERROR 1
 
-static constexpr std::string_view devicePath{"/dev/timeperiodsignaler"};
-static size_t milliSecondsCount{0};
-static constexpr size_t timePeriodMilliseconds{10};
-static bool timeoutRequestSuccess{false};
-static bool interruptOccurred{false};
+static bool shouldStop{false};
 
-// By measuring I noticed that 60 "real seconds" are equivalent to 40 "counted seconds" (kernel measured time)
-// this deviation could differ from device to device so it should be measured and adjusted accordingly
-static constexpr size_t correctedTimePeriodMilliseconds{(timePeriodMilliseconds * 2) / 3};
-
-static bool ioctlRequestSignal()
-{
-    bool result{false};
-    const int fd{open(devicePath.data(), O_WRONLY)};
-
-    if (fd > 0)
-    {
-        const long retVal{ioctl(fd, IOCTL_REQUEST_SIGNAL, &correctedTimePeriodMilliseconds)};
-        close(fd);
-
-        result = retVal == 0;
-    }
-
-    return result;
-}
-
-static bool ioctlReset()
-{
-    bool result{false};
-    const int fd{open(devicePath.data(), O_WRONLY)};
-
-    if (fd > 0)
-    {
-        const long retVal{ioctl(fd, IOCTL_RESET, nullptr)};
-        close(fd);
-
-        result = retVal == 0;
-    }
-
-    return result;
-}
-
-static void printTime()
+static void printTimeCallback(size_t milliSecondsCount)
 {
     const size_t seconds{milliSecondsCount / 1000};
     const size_t minutes{seconds / 60};
@@ -94,29 +43,9 @@ static void printTime()
     std::cout << residual << "\n\n" << std::flush;
 }
 
-static void signalHandler(int signal)
+static void stopCallback()
 {
-    switch (signal)
-    {
-    case SIGINT: {
-        if (!ioctlReset())
-        {
-            std::cerr << "Reset failed!\n";
-        }
-        interruptOccurred = true;
-        break;
-    }
-    case SIGTIMEOUT: {
-        milliSecondsCount += timePeriodMilliseconds;
-        printTime();
-        timeoutRequestSuccess = ioctlRequestSignal();
-        break;
-    }
-    default: {
-        assert(false && "Unregistered signal!");
-        break;
-    }
-    }
+    shouldStop = true;
 }
 
 int main()
@@ -132,36 +61,37 @@ int main()
             break;
         }
 
-        std::signal(SIGINT, signalHandler);
-        std::signal(SIGTIMEOUT, signalHandler);
+        const std::optional<std::string> stopWatchStartErrorMessage{
+            StopWatch::Core::start(printTimeCallback, stopCallback)};
 
-        timeoutRequestSuccess = ioctlRequestSignal();
-
-        if (!timeoutRequestSuccess)
+        if (stopWatchStartErrorMessage.has_value())
         {
-            std::cerr << "Requesting initial timeout failed!\n";
+            std::cerr << *stopWatchStartErrorMessage << "\n";
             break;
         }
 
-        printTime();
+        while (!shouldStop)
+            ;
 
-        for (;;)
+        const std::expected<bool, std::string> status{StopWatch::Core::getStatus()};
+
+        if (!status.has_value())
         {
-            if (!timeoutRequestSuccess)
-            {
-                std::cerr << "Requesting new timeout failed!\n";
-                break;
-            }
-
-            if (interruptOccurred)
-            {
-                // backspaces are needed for getting rid of the printed ^C when hitting CTRL+C
-                std::cout << "\b\bGoodbye!\n\a" << std::flush;
-                break;
-            }
+            std::cerr << status.error() << "\n";
+            break;
         }
 
-        retVal = timeoutRequestSuccess ? SUCCESS : ERROR;
+        const bool isStopped{!(*status)};
+
+        if (isStopped)
+        {
+            // backspaces are needed for getting rid of the printed ^C when hitting CTRL+C
+            std::cout << "\b\bGoodbye!\n\a" << std::flush;
+            retVal = SUCCESS;
+            break;
+        }
+
+        assert(false && "Invalid status received!");
     } while (false);
 
     StopWatch::Loader::unloadRequiredKernelModules();

@@ -30,6 +30,9 @@ bool interruptOccurred{false};
 
 std::expected<bool, std::string> status{STOPPED};
 
+void (*printFn)(size_t){nullptr};
+void (*stopFn)(){nullptr};
+
 // By measuring I noticed that 60 "real seconds" are equivalent to 40 "counted seconds" (kernel measured time)
 // this deviation could differ from device to device so it should be measured and adjusted accordingly
 constexpr size_t correctedTimePeriodMilliseconds{(timePeriodMilliseconds * 2) / 3};
@@ -72,12 +75,25 @@ void signalHandler(int signal)
     {
     case SIGINT: {
         status = ioctlReset() ? std::expected<bool, std::string>{STOPPED} : std::unexpected{"Reset failed!"};
+        assert(stopFn);
+        if (stopFn)
+        {
+            stopFn();
+        }
         break;
     }
     case SIGTIMEOUT: {
         milliSecondsCount += timePeriodMilliseconds;
         status = ioctlRequestSignal() ? std::expected<bool, std::string>{RUNNING}
                                       : std::unexpected{"Requesting new timeout failed!"};
+        if (status.has_value())
+        {
+            assert(printFn);
+            if (printFn)
+            {
+                printFn(milliSecondsCount);
+            }
+        }
         break;
     }
     default: {
@@ -89,26 +105,48 @@ void signalHandler(int signal)
 } // namespace
 } // namespace StopWatch::Core
 
-std::optional<std::string> StopWatch::Core::start()
+std::optional<std::string> StopWatch::Core::start(void (*printCallback)(size_t), void (*stopCallback)())
 {
     std::optional<std::string> result;
 
-    std::signal(SIGINT, signalHandler);
-    std::signal(SIGTIMEOUT, signalHandler);
-
-    timeoutRequestSuccess = ioctlRequestSignal();
-
-    if (!timeoutRequestSuccess)
+    do
     {
-        result = "Requesting initial timeout failed!\n";
-    }
+        if (!printCallback)
+        {
+            result = "Missing print callback!";
+            assert(false);
+            break;
+        }
 
-    status = RUNNING;
+        printFn = printCallback;
+
+        if (!stopCallback)
+        {
+            result = "Missing stop callback";
+            assert(false);
+            break;
+        }
+
+        stopFn = stopCallback;
+
+        std::signal(SIGINT, signalHandler);
+        std::signal(SIGTIMEOUT, signalHandler);
+
+        timeoutRequestSuccess = ioctlRequestSignal();
+
+        if (!timeoutRequestSuccess)
+        {
+            result = "Requesting initial timeout failed!";
+            break;
+        }
+
+        status = RUNNING;
+    } while (false);
 
     return result;
 }
 
-std::expected<bool, std::string> StopWatch::Core::running()
+std::expected<bool, std::string> StopWatch::Core::getStatus()
 {
     return status;
 }
