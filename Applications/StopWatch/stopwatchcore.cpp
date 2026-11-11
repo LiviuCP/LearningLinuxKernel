@@ -74,26 +74,35 @@ void signalHandler(int signal)
     switch (signal)
     {
     case SIGINT: {
-        status = ioctlReset() ? std::expected<bool, std::string>{STOPPED} : std::unexpected{"Reset failed!"};
-        assert(stopFn);
-        if (stopFn)
-        {
-            stopFn();
-        }
+        // SIGINT should only trigger while the stopwatch is running
+        assert(status == RUNNING);
+        status = ioctlReset() ? std::expected<bool, std::string>{STOPPED} : std::unexpected{"Warning: reset failed."};
+        stopFn();
         break;
     }
     case SIGTIMEOUT: {
-        milliSecondsCount += timePeriodMilliseconds;
-        status = ioctlRequestSignal() ? std::expected<bool, std::string>{RUNNING}
-                                      : std::unexpected{"Requesting new timeout failed!"};
-        if (status.has_value())
+        // the status might be different if the interrupt signal also triggered
+        if (status == RUNNING)
         {
-            assert(printFn);
-            if (printFn)
+            milliSecondsCount += timePeriodMilliseconds;
+            printFn(milliSecondsCount);
+
+            if (!ioctlRequestSignal())
             {
-                printFn(milliSecondsCount);
+                status = std::unexpected{"Requesting new timeout failed!"};
+                stopFn();
             }
         }
+
+        // the timeout signal handling might get interrupted by SIGINT (e.g. while the above printFn() is running)
+        // SIGINT would then change the status to a non-running one
+        // in that case a clean termination displaying the last recorded time should be ensured
+        if (!status.has_value() || status == STOPPED)
+        {
+            printFn(milliSecondsCount);
+            stopFn();
+        }
+
         break;
     }
     default: {

@@ -73,6 +73,9 @@ int main()
         while (!shouldStop)
             ;
 
+        // backspaces are needed for erasing the printed ^C when hitting CTRL+C
+        std::cout << "\b\bGoodbye!\n\a" << std::flush;
+
         const std::expected<bool, std::string> status{StopWatch::Core::getStatus()};
 
         if (!status.has_value())
@@ -85,12 +88,11 @@ int main()
 
         if (isStopped)
         {
-            // backspaces are needed for getting rid of the printed ^C when hitting CTRL+C
-            std::cout << "\b\bGoodbye!\n\a" << std::flush;
             retVal = SUCCESS;
             break;
         }
 
+        // an invalid running status might trigger this
         assert(false && "Invalid status received!");
     } while (false);
 
