@@ -81,12 +81,16 @@ void signalHandler(int signal)
         break;
     }
     case SIGTIMEOUT: {
-        // the status might be different if the interrupt signal also triggered
+        // the interrupt signal might have triggered before running this section
         if (status == RUNNING)
         {
             milliSecondsCount += timePeriodMilliseconds;
             printFn(milliSecondsCount);
+        }
 
+        // same for this section; it's better to segment checks as SIGINT might occur anytime
+        if (status == RUNNING)
+        {
             if (!ioctlRequestSignal())
             {
                 status = std::unexpected{"Requesting new timeout failed!"};
