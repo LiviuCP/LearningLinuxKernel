@@ -69,12 +69,24 @@ bool ioctlReset()
     return result;
 }
 
+void checkAndHandleRunningInterrupted()
+{
+    // a clean termination displaying the last recorded time should be ensured
+    if (status != RUNNING)
+    {
+        printFn(milliSecondsCount);
+        (void)ioctlReset(); // no need to record the reset result, just a safety precaution
+        stopFn();
+    }
+}
+
 void updateElapsedTime()
 {
     if (status == RUNNING)
     {
         milliSecondsCount += timePeriodMilliseconds;
         printFn(milliSecondsCount);
+        checkAndHandleRunningInterrupted();
     }
 }
 
@@ -85,8 +97,9 @@ void requestNewTimeout()
         if (!ioctlRequestSignal())
         {
             status = std::unexpected{"Requesting new timeout failed!"};
-            stopFn();
         }
+
+        checkAndHandleRunningInterrupted();
     }
 }
 
@@ -104,16 +117,6 @@ void signalHandler(int signal)
     case SIGTIMEOUT: {
         updateElapsedTime();
         requestNewTimeout();
-
-        // the timeout signal handling might get interrupted by SIGINT (e.g. while the above printFn() is running)
-        // SIGINT would then change the status to a non-running one
-        // in that case a clean termination displaying the last recorded time should be ensured
-        if (!status.has_value() || status == STOPPED)
-        {
-            printFn(milliSecondsCount);
-            stopFn();
-        }
-
         break;
     }
     default: {
