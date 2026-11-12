@@ -98,14 +98,31 @@ long ioctl_reset(struct task_struct* task)
 {
     long result = -1;
 
-    // reset can only be issued by the currently registered task
-    if (task && task == current_task)
+    do
     {
-        pr_info("%s: ioctl_reset(): reset requested\n", THIS_MODULE->name);
+        if (!task)
+        {
+            break;
+        }
 
-        reset();
+        if (current_task)
+        {
+            // reset can only be issued by the currently registered task
+            if (task != current_task)
+            {
+                break;
+            }
+
+            pr_info("%s: ioctl_reset(): reset requested\n", THIS_MODULE->name);
+            reset();
+        }
+        else
+        {
+            pr_info("%s: ioctl_reset(): already reset\n", THIS_MODULE->name);
+        }
+
         result = 0;
-    }
+    } while (false);
 
     return result;
 }
