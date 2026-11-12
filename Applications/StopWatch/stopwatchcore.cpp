@@ -69,6 +69,27 @@ bool ioctlReset()
     return result;
 }
 
+void updateElapsedTime()
+{
+    if (status == RUNNING)
+    {
+        milliSecondsCount += timePeriodMilliseconds;
+        printFn(milliSecondsCount);
+    }
+}
+
+void requestNewTimeout()
+{
+    if (status == RUNNING)
+    {
+        if (!ioctlRequestSignal())
+        {
+            status = std::unexpected{"Requesting new timeout failed!"};
+            stopFn();
+        }
+    }
+}
+
 void signalHandler(int signal)
 {
     switch (signal)
@@ -81,22 +102,8 @@ void signalHandler(int signal)
         break;
     }
     case SIGTIMEOUT: {
-        // the interrupt signal might have triggered before running this section
-        if (status == RUNNING)
-        {
-            milliSecondsCount += timePeriodMilliseconds;
-            printFn(milliSecondsCount);
-        }
-
-        // same for this section; it's better to segment checks as SIGINT might occur anytime
-        if (status == RUNNING)
-        {
-            if (!ioctlRequestSignal())
-            {
-                status = std::unexpected{"Requesting new timeout failed!"};
-                stopFn();
-            }
-        }
+        updateElapsedTime();
+        requestNewTimeout();
 
         // the timeout signal handling might get interrupted by SIGINT (e.g. while the above printFn() is running)
         // SIGINT would then change the status to a non-running one
