@@ -23,8 +23,10 @@ namespace
 {
 
 constexpr std::string_view devicePath{"/dev/timeperiodsignaler"};
-size_t milliSecondsCount{0};
 constexpr size_t timePeriodMilliseconds{10};
+
+size_t milliSecondsCount{0};
+size_t resetThresholdMilliSeconds{0};
 
 std::expected<bool, std::string> status{STOPPED};
 
@@ -83,6 +85,13 @@ void updateElapsedTime()
     if (status == RUNNING)
     {
         milliSecondsCount += timePeriodMilliseconds;
+
+        // auto-reset
+        if (milliSecondsCount == resetThresholdMilliSeconds)
+        {
+            milliSecondsCount = 0;
+        }
+
         printFn(milliSecondsCount);
         checkAndHandleRunningInterrupted();
     }
@@ -126,7 +135,8 @@ void signalHandler(int signal)
 } // namespace
 } // namespace StopWatch::Core
 
-std::optional<std::string> StopWatch::Core::start(void (*printCallback)(size_t), void (*stopCallback)())
+std::optional<std::string> StopWatch::Core::start(void (*printCallback)(size_t), void (*stopCallback)(),
+                                                  size_t resetThresholdMs)
 {
     std::optional<std::string> result;
 
@@ -149,6 +159,15 @@ std::optional<std::string> StopWatch::Core::start(void (*printCallback)(size_t),
         }
 
         stopFn = stopCallback;
+
+        if (resetThresholdMs == 0)
+        {
+            result = "Invalid reset threshold";
+            assert(false);
+            break;
+        }
+
+        resetThresholdMilliSeconds = resetThresholdMs;
 
         std::signal(SIGINT, signalHandler);
         std::signal(SIGTIMEOUT, signalHandler);

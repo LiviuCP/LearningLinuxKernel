@@ -20,6 +20,7 @@ constexpr size_t minutesInHour{60};
 constexpr size_t secondsInMinute{60};
 constexpr size_t millisecondsInSecond{1000};
 constexpr size_t millisecondsSubScaleFactor{10};
+constexpr size_t resetThresholdMilliseconds{300000}; // auto-reset after 5 minutes
 
 void printTimeUnit(size_t value, const std::string& terminatingStr)
 {
@@ -73,7 +74,7 @@ int StopWatch::App::run()
         }
 
         const std::optional<std::string> stopWatchStartErrorMessage{
-            StopWatch::Core::start(printTimeCallback, stopCallback)};
+            StopWatch::Core::start(printTimeCallback, stopCallback, resetThresholdMilliseconds)};
 
         if (stopWatchStartErrorMessage.has_value())
         {

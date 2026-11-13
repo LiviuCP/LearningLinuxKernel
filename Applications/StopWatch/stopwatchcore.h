@@ -6,6 +6,6 @@
 
 namespace StopWatch::Core
 {
-std::optional<std::string> start(void (*printCallback)(size_t), void (*stopCallback)());
+std::optional<std::string> start(void (*printCallback)(size_t), void (*stopCallback)(), size_t resetThresholdMs);
 std::expected<bool, std::string> getStatus();
 } // namespace StopWatch::Core
