@@ -25,8 +25,6 @@ namespace
 constexpr std::string_view devicePath{"/dev/timeperiodsignaler"};
 size_t milliSecondsCount{0};
 constexpr size_t timePeriodMilliseconds{10};
-bool timeoutRequestSuccess{false};
-bool interruptOccurred{false};
 
 std::expected<bool, std::string> status{STOPPED};
 
@@ -155,9 +153,7 @@ std::optional<std::string> StopWatch::Core::start(void (*printCallback)(size_t),
         std::signal(SIGINT, signalHandler);
         std::signal(SIGTIMEOUT, signalHandler);
 
-        timeoutRequestSuccess = ioctlRequestSignal();
-
-        if (!timeoutRequestSuccess)
+        if (!ioctlRequestSignal())
         {
             result = "Requesting initial timeout failed!";
             break;

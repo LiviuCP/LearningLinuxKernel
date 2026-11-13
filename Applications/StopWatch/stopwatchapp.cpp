@@ -58,8 +58,8 @@ void stopCallback()
 {
     shouldStop = true;
 }
-}
-}
+} // namespace
+} // namespace StopWatch::App
 
 int StopWatch::App::run()
 {
