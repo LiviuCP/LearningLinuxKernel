@@ -32,14 +32,14 @@ void printTimeUnit(size_t value, const std::string& terminatingStr)
     std::cout << value << terminatingStr;
 }
 
-void printTimeCallback(size_t milliSecondsCount)
+void printTimeCallback(size_t millisecondsCount)
 {
-    const size_t seconds{milliSecondsCount / millisecondsInSecond};
+    const size_t seconds{millisecondsCount / millisecondsInSecond};
     const size_t minutes{seconds / secondsInMinute};
     const size_t hours{minutes / minutesInHour};
     const size_t minutesToDisplay{minutes % minutesInHour};
     const size_t secondsToDisplay{seconds % secondsInMinute};
-    const size_t secondSubDivisionsToDisplay{(milliSecondsCount % millisecondsInSecond) / millisecondsSubScaleFactor};
+    const size_t secondSubDivisionsToDisplay{(millisecondsCount % millisecondsInSecond) / millisecondsSubScaleFactor};
 
     Utilities::clearScreen();
 

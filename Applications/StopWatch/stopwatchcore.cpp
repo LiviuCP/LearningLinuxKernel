@@ -25,8 +25,8 @@ namespace
 constexpr std::string_view devicePath{"/dev/timeperiodsignaler"};
 constexpr size_t timePeriodMilliseconds{10};
 
-size_t milliSecondsCount{0};
-size_t resetThresholdMilliSeconds{0};
+size_t millisecondsCount{0};
+size_t resetThresholdMilliseconds{0};
 
 std::expected<bool, std::string> status{STOPPED};
 
@@ -74,7 +74,7 @@ void checkAndHandleRunningInterrupted()
     // a clean termination displaying the last recorded time should be ensured
     if (status != RUNNING)
     {
-        printFn(milliSecondsCount);
+        printFn(millisecondsCount);
         (void)ioctlReset(); // no need to record the reset result, just a safety precaution
         stopFn();
     }
@@ -84,15 +84,15 @@ void updateElapsedTime()
 {
     if (status == RUNNING)
     {
-        milliSecondsCount += timePeriodMilliseconds;
+        millisecondsCount += timePeriodMilliseconds;
 
         // auto-reset
-        if (milliSecondsCount == resetThresholdMilliSeconds)
+        if (millisecondsCount == resetThresholdMilliseconds)
         {
-            milliSecondsCount = 0;
+            millisecondsCount = 0;
         }
 
-        printFn(milliSecondsCount);
+        printFn(millisecondsCount);
         checkAndHandleRunningInterrupted();
     }
 }
@@ -167,7 +167,7 @@ std::optional<std::string> StopWatch::Core::start(void (*printCallback)(size_t),
             break;
         }
 
-        resetThresholdMilliSeconds = resetThresholdMs;
+        resetThresholdMilliseconds = resetThresholdMs;
 
         std::signal(SIGINT, signalHandler);
         std::signal(SIGTIMEOUT, signalHandler);
