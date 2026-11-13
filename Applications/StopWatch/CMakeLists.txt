@@ -6,6 +6,7 @@ include_directories(
 
 add_executable(${PROJECT_NAME}
     stopwatchmain.cpp
+    stopwatchapp.cpp
     stopwatchcore.cpp
     stopwatchloader.cpp
 )
