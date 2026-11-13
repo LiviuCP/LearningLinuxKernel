@@ -173,8 +173,3 @@ std::expected<bool, std::string> StopWatch::Core::getStatus()
 {
     return status;
 }
-
-size_t StopWatch::Core::getMilliSecondsCount()
-{
-    return milliSecondsCount;
-}
