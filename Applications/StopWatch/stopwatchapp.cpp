@@ -21,37 +21,35 @@ constexpr size_t secondsInMinute{60};
 constexpr size_t millisecondsInSecond{1000};
 constexpr size_t millisecondsSubScaleFactor{10};
 
+void printTimeUnit(size_t value, const std::string& terminatingStr)
+{
+    if (value < 10)
+    {
+        std::cout << "0";
+    }
+
+    std::cout << value << terminatingStr;
+}
+
 void printTimeCallback(size_t milliSecondsCount)
 {
     const size_t seconds{milliSecondsCount / millisecondsInSecond};
-    const size_t minutesToDisplay{seconds / secondsInMinute};
+    const size_t minutes{seconds / secondsInMinute};
+    const size_t hours{minutes / minutesInHour};
+    const size_t minutesToDisplay{minutes % minutesInHour};
     const size_t secondsToDisplay{seconds % secondsInMinute};
-    const size_t subDivisionsToDisplay{(milliSecondsCount % millisecondsInSecond) / millisecondsSubScaleFactor};
+    const size_t secondSubDivisionsToDisplay{(milliSecondsCount % millisecondsInSecond) / millisecondsSubScaleFactor};
 
     Utilities::clearScreen();
 
     std::cout << "Elapsed time:\n\n";
 
-    if (minutesToDisplay < 10)
-    {
-        std::cout << "0";
-    }
+    printTimeUnit(hours, ":");
+    printTimeUnit(minutesToDisplay, ":");
+    printTimeUnit(secondsToDisplay, ".");
+    printTimeUnit(secondSubDivisionsToDisplay, "\n\n");
 
-    std::cout << minutesToDisplay << ":";
-
-    if (secondsToDisplay < 10)
-    {
-        std::cout << "0";
-    }
-
-    std::cout << secondsToDisplay << ".";
-
-    if (subDivisionsToDisplay < 10)
-    {
-        std::cout << "0";
-    }
-
-    std::cout << subDivisionsToDisplay << "\n\n" << std::flush;
+    std::cout << std::flush;
 }
 
 void stopCallback()
