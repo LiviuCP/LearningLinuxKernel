@@ -10,37 +10,42 @@
 
 static bool shouldStop{false};
 
+static constexpr size_t minutesInHour{60};
+static constexpr size_t secondsInMinute{60};
+static constexpr size_t millisecondsInSecond{1000};
+static constexpr size_t millisecondsSubScaleFactor{10};
+
 static void printTimeCallback(size_t milliSecondsCount)
 {
-    const size_t seconds{milliSecondsCount / 1000};
-    const size_t minutes{seconds / 60};
-    const size_t remainingSeconds{seconds % 60};
-    const size_t residual{(milliSecondsCount % 1000) / 10};
+    const size_t seconds{milliSecondsCount / millisecondsInSecond};
+    const size_t minutesToDisplay{seconds / secondsInMinute};
+    const size_t secondsToDisplay{seconds % secondsInMinute};
+    const size_t subDivisionsToDisplay{(milliSecondsCount % millisecondsInSecond) / millisecondsSubScaleFactor};
 
     Utilities::clearScreen();
 
     std::cout << "Elapsed time:\n\n";
 
-    if (minutes < 10)
+    if (minutesToDisplay < 10)
     {
         std::cout << "0";
     }
 
-    std::cout << minutes << ":";
+    std::cout << minutesToDisplay << ":";
 
-    if (remainingSeconds < 10)
+    if (secondsToDisplay < 10)
     {
         std::cout << "0";
     }
 
-    std::cout << remainingSeconds << ".";
+    std::cout << secondsToDisplay << ".";
 
-    if (residual < 10)
+    if (subDivisionsToDisplay < 10)
     {
         std::cout << "0";
     }
 
-    std::cout << residual << "\n\n" << std::flush;
+    std::cout << subDivisionsToDisplay << "\n\n" << std::flush;
 }
 
 static void stopCallback()
@@ -70,6 +75,7 @@ int main()
             break;
         }
 
+        // this loop runs continuously until stopped by the stop callback
         while (!shouldStop)
             ;
 
