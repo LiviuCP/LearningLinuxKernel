@@ -9,6 +9,7 @@ add_executable(${PROJECT_NAME}
     stopwatchapp.cpp
     stopwatchcore.cpp
     stopwatchloader.cpp
+    stopwatchparser.cpp
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE Utilities)
