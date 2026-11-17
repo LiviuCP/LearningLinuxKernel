@@ -11,6 +11,7 @@ namespace
 {
 // excluding the application name
 constexpr size_t maxArgumentsCount{3};
+constexpr size_t minSecondsCount{10};
 constexpr size_t maxSecondsCount{3600};
 
 std::vector<std::string> collectArguments(int argc, char** argv)
@@ -103,7 +104,7 @@ std::expected<StopWatch::Parser::Result, std::string> StopWatch::Parser::parse(i
                     break;
                 }
 
-                if (secondsCount > maxSecondsCount)
+                if (secondsCount < minSecondsCount || secondsCount > maxSecondsCount)
                 {
                     hasOutOfBoundsArgument = true;
                     break;
@@ -132,9 +133,9 @@ std::expected<StopWatch::Parser::Result, std::string> StopWatch::Parser::parse(i
 
         if (hasOutOfBoundsArgument)
         {
-            expectedValue =
-                std::unexpected<std::string>{"A time interval larger than maximum allowed (" +
-                                             std::to_string(maxSecondsCount) + " seconds) has been provided!"};
+            expectedValue = std::unexpected<std::string>{
+                "The provided time interval is out of bounds!\nShould be within range: " +
+                std::to_string(minSecondsCount) + " - " + std::to_string(maxSecondsCount) + " seconds"};
             break;
         }
 
