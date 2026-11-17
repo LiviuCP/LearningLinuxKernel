@@ -7,6 +7,7 @@
 #include <sys/ioctl.h>
 
 #include "stopwatchcore.h"
+#include "stopwatchparser.h"
 
 // 9999 is an arbitrarily chosen "magic number" (in a "real" (production) system an official assignment would be
 // required; might be the major driver number)
@@ -138,7 +139,7 @@ void signalHandler(int signal)
 } // namespace StopWatch::Core
 
 std::optional<std::string> StopWatch::Core::start(void (*printCallback)(size_t), void (*stopCallback)(),
-                                                  size_t resetThresholdMs)
+                                                  const StopWatch::Parser::Result& params)
 {
     std::optional<std::string> result;
 
@@ -162,14 +163,14 @@ std::optional<std::string> StopWatch::Core::start(void (*printCallback)(size_t),
 
         stopFn = stopCallback;
 
-        if (resetThresholdMs == 0)
+        if (params.seconds == 0)
         {
             result = "Invalid reset threshold!";
             assert(false);
             break;
         }
 
-        resetThresholdMilliseconds = resetThresholdMs;
+        resetThresholdMilliseconds = params.seconds * 1000;
 
         std::signal(SIGINT, signalHandler);
         std::signal(SIGTIMEOUT, signalHandler);

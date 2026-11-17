@@ -4,6 +4,7 @@
 #include "stopwatchapp.h"
 #include "stopwatchcore.h"
 #include "stopwatchloader.h"
+#include "stopwatchparser.h"
 
 #include "utils.h"
 
@@ -20,7 +21,6 @@ constexpr size_t minutesInHour{60};
 constexpr size_t secondsInMinute{60};
 constexpr size_t millisecondsInSecond{1000};
 constexpr size_t millisecondsSubScaleFactor{10};
-constexpr size_t resetThresholdMilliseconds{300000}; // auto-reset after 5 minutes
 
 void printTimeUnit(size_t value, const std::string& terminatingStr)
 {
@@ -60,11 +60,19 @@ void stopCallback()
 } // namespace
 } // namespace StopWatch::App
 
-int StopWatch::App::run()
+int StopWatch::App::run(int argc, char** argv)
 {
     int retVal{ERROR};
     do
     {
+        const std::expected<StopWatch::Parser::Result, std::string> parsingResult{StopWatch::Parser::parse(argc, argv)};
+
+        if (!parsingResult)
+        {
+            std::cerr << parsingResult.error() << "\n";
+            break;
+        }
+
         const std::optional<std::string> modulesLoadingErrorMessage{StopWatch::Loader::loadRequiredKernelModules()};
 
         if (modulesLoadingErrorMessage.has_value())
@@ -74,7 +82,7 @@ int StopWatch::App::run()
         }
 
         const std::optional<std::string> stopWatchStartErrorMessage{
-            StopWatch::Core::start(printTimeCallback, stopCallback, resetThresholdMilliseconds)};
+            StopWatch::Core::start(printTimeCallback, stopCallback, *parsingResult)};
 
         if (stopWatchStartErrorMessage.has_value())
         {

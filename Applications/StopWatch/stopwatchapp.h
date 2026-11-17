@@ -2,5 +2,5 @@
 
 namespace StopWatch::App
 {
-int run();
+int run(int argc, char** argv);
 }
