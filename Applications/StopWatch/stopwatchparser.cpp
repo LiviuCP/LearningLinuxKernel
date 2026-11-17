@@ -43,7 +43,6 @@ std::vector<std::string> collectArguments(int argc, char** argv)
 std::expected<StopWatch::Parser::Result, std::string> StopWatch::Parser::parse(int argc, char** argv)
 {
     std::expected<StopWatch::Parser::Result, std::string> expectedValue;
-    StopWatch::Parser::Result result;
     std::optional<size_t> seconds;
 
     do
@@ -52,13 +51,15 @@ std::expected<StopWatch::Parser::Result, std::string> StopWatch::Parser::parse(i
 
         if (argumentsToParse.empty())
         {
-            expectedValue = Result{.seconds = maxSecondsCount};
+            expectedValue = {.seconds = maxSecondsCount};
             break;
         }
 
-        bool duplicate{false};
-        bool invalid{false};
-        bool maxSecondsValueExceeded{false};
+        StopWatch::Parser::Result result;
+
+        bool hasInvalidArgument{false};
+        bool hasDuplicateArgument{false};
+        bool hasOutOfBoundsArgument{false};
 
         for (const auto& argument : argumentsToParse)
         {
@@ -66,7 +67,7 @@ std::expected<StopWatch::Parser::Result, std::string> StopWatch::Parser::parse(i
             {
                 if (result.reverse)
                 {
-                    duplicate = true;
+                    hasDuplicateArgument = true;
                     break;
                 }
 
@@ -78,7 +79,7 @@ std::expected<StopWatch::Parser::Result, std::string> StopWatch::Parser::parse(i
             {
                 if (result.autoReset)
                 {
-                    duplicate = true;
+                    hasDuplicateArgument = true;
                     break;
                 }
 
@@ -88,17 +89,23 @@ std::expected<StopWatch::Parser::Result, std::string> StopWatch::Parser::parse(i
 
             try
             {
+                if (std::ranges::any_of(argument, [](char c) { return !isdigit(c); }))
+                {
+                    hasInvalidArgument = true;
+                    break;
+                }
+
                 const size_t secondsCount{std::stoul(argument)};
 
                 if (seconds)
                 {
-                    duplicate = true;
+                    hasDuplicateArgument = true;
                     break;
                 }
 
                 if (secondsCount > maxSecondsCount)
                 {
-                    maxSecondsValueExceeded = true;
+                    hasOutOfBoundsArgument = true;
                     break;
                 }
 
@@ -106,26 +113,28 @@ std::expected<StopWatch::Parser::Result, std::string> StopWatch::Parser::parse(i
             }
             catch (...)
             {
-                invalid = true;
+                hasInvalidArgument = true;
                 break;
             }
         }
 
-        if (duplicate)
-        {
-            expectedValue = std::unexpected<std::string>{"Duplicate arguments!"};
-            break;
-        }
-
-        if (invalid)
+        if (hasInvalidArgument)
         {
             expectedValue = std::unexpected<std::string>{"At least one argument is invalid!"};
             break;
         }
 
-        if (maxSecondsValueExceeded)
+        if (hasDuplicateArgument)
         {
-            expectedValue = std::unexpected<std::string>{"The maximum allowed time interval has been exceeded!"};
+            expectedValue = std::unexpected<std::string>{"At least one argument is duplicate!"};
+            break;
+        }
+
+        if (hasOutOfBoundsArgument)
+        {
+            expectedValue =
+                std::unexpected<std::string>{"A time interval larger than maximum allowed (" +
+                                             std::to_string(maxSecondsCount) + " seconds) has been provided!"};
             break;
         }
 
