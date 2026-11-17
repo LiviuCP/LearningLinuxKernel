@@ -12,6 +12,31 @@ namespace
 // excluding the application name
 constexpr size_t maxArgumentsCount{3};
 constexpr size_t maxSecondsCount{3600};
+
+std::vector<std::string> collectArguments(int argc, char** argv)
+{
+    std::vector<std::string> arguments;
+    assert(argv && argc >= 1);
+
+    if (argv && argc > 1)
+    {
+        const size_t argumentsToParseCount{std::min<size_t>(static_cast<size_t>(argc - 1), maxArgumentsCount)};
+        arguments.reserve(argumentsToParseCount);
+
+        for (size_t index{0}; index < argumentsToParseCount; ++index)
+        {
+            const char* const currentArg{argv[index + 1]};
+            assert(currentArg);
+
+            if (currentArg)
+            {
+                arguments.emplace_back(currentArg);
+            }
+        }
+    }
+
+    return arguments;
+}
 } // namespace
 } // namespace StopWatch::Parser
 
@@ -23,25 +48,12 @@ std::expected<StopWatch::Parser::Result, std::string> StopWatch::Parser::parse(i
 
     do
     {
-        assert(argv && argc >= 1);
+        const std::vector<std::string> argumentsToParse{collectArguments(argc, argv)};
 
-        if (!argv || argc <= 1)
+        if (argumentsToParse.empty())
         {
+            expectedValue = Result{.seconds = maxSecondsCount};
             break;
-        }
-
-        const size_t argumentsToParseCount{std::min<size_t>(static_cast<size_t>(argc - 1), maxArgumentsCount)};
-
-        std::vector<std::string> argumentsToParse;
-
-        for (size_t index{1}; index <= argumentsToParseCount; ++index)
-        {
-            assert(argv[index]);
-
-            if (argv[index])
-            {
-                argumentsToParse.emplace_back(std::string{argv[index]});
-            }
         }
 
         bool duplicate{false};
