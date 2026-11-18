@@ -41,9 +41,9 @@ std::vector<std::string> collectArguments(int argc, char** argv)
 } // namespace
 } // namespace StopWatch::Parser
 
-std::expected<StopWatch::Parser::Result, std::string> StopWatch::Parser::parse(int argc, char** argv)
+std::expected<StopWatch::Settings::Parameters, std::string> StopWatch::Parser::parse(int argc, char** argv)
 {
-    std::expected<StopWatch::Parser::Result, std::string> expectedValue;
+    std::expected<StopWatch::Settings::Parameters, std::string> expectedValue;
     std::optional<size_t> seconds;
 
     do
@@ -52,11 +52,11 @@ std::expected<StopWatch::Parser::Result, std::string> StopWatch::Parser::parse(i
 
         if (argumentsToParse.empty())
         {
-            expectedValue = {.seconds = maxSecondsCount};
+            expectedValue = {.interval = maxSecondsCount};
             break;
         }
 
-        StopWatch::Parser::Result result;
+        StopWatch::Settings::Parameters result;
 
         bool hasInvalidArgument{false};
         bool hasDuplicateArgument{false};
@@ -139,7 +139,7 @@ std::expected<StopWatch::Parser::Result, std::string> StopWatch::Parser::parse(i
             break;
         }
 
-        result.seconds = seconds ? *seconds : maxSecondsCount;
+        result.interval = seconds ? *seconds : maxSecondsCount;
         expectedValue = result;
     } while (false);
 

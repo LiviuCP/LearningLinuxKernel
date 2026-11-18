@@ -5,6 +5,7 @@
 #include "stopwatchcore.h"
 #include "stopwatchloader.h"
 #include "stopwatchparser.h"
+#include "stopwatchsettings.h"
 
 #include "utils.h"
 
@@ -65,7 +66,8 @@ int StopWatch::App::run(int argc, char** argv)
     int retVal{ERROR};
     do
     {
-        const std::expected<StopWatch::Parser::Result, std::string> parsingResult{StopWatch::Parser::parse(argc, argv)};
+        const std::expected<StopWatch::Settings::Parameters, std::string> parsingResult{
+            StopWatch::Parser::parse(argc, argv)};
 
         if (!parsingResult)
         {

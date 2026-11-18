@@ -4,14 +4,14 @@
 #include <optional>
 #include <string>
 
-namespace StopWatch::Parser
+namespace StopWatch::Settings
 {
-struct Result;
+struct Parameters;
 }
 
 namespace StopWatch::Core
 {
 std::optional<std::string> start(void (*printCallback)(size_t), void (*stopCallback)(),
-                                 const StopWatch::Parser::Result& params);
+                                 const StopWatch::Settings::Parameters& params);
 std::expected<bool, std::string> getStatus();
 } // namespace StopWatch::Core
