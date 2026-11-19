@@ -29,6 +29,7 @@ constexpr size_t timeoutPeriodMilliseconds{10};
 size_t millisecondsCount{0};
 size_t intervalMs{0};
 bool shouldAutoReset{false};
+bool shouldCountInReverse{false};
 
 std::expected<bool, std::string> status{STOPPED};
 
@@ -84,29 +85,52 @@ void checkAndHandleRunningInterrupted(bool shouldPrintElapsedTime = true)
 
 void updateElapsedTime()
 {
-    if (status == RUNNING)
+    do
     {
+        if (status != RUNNING)
+        {
+            break;
+        }
+
+        if (shouldCountInReverse)
+        {
+            assert(millisecondsCount > 0);
+            millisecondsCount -= timeoutPeriodMilliseconds;
+
+            if (0 == millisecondsCount)
+            {
+                if (shouldAutoReset)
+                {
+                    millisecondsCount = intervalMs;
+                }
+                else if (status == RUNNING)
+                {
+                    std::raise(SIGINT);
+                }
+            }
+
+            printFn(millisecondsCount);
+            checkAndHandleRunningInterrupted();
+            break;
+        }
+
         millisecondsCount += timeoutPeriodMilliseconds;
 
-        // auto-reset
         if (millisecondsCount == intervalMs)
         {
             if (shouldAutoReset)
             {
                 millisecondsCount = 0;
             }
-            else
+            else if (status == RUNNING)
             {
-                if (status == RUNNING)
-                {
-                    std::raise(SIGINT);
-                }
+                std::raise(SIGINT);
             }
         }
 
         printFn(millisecondsCount);
         checkAndHandleRunningInterrupted();
-    }
+    } while (false);
 }
 
 void requestNewTimeout()
@@ -183,6 +207,12 @@ std::optional<std::string> StopWatch::Core::start(void (*printCallback)(size_t),
 
         intervalMs = params.interval * 1000;
         shouldAutoReset = params.autoReset;
+        shouldCountInReverse = params.reverse;
+
+        if (shouldCountInReverse)
+        {
+            millisecondsCount = intervalMs;
+        }
 
         std::signal(SIGINT, signalHandler);
         std::signal(SIGTIMEOUT, signalHandler);
