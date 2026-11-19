@@ -83,6 +83,23 @@ void checkAndHandleRunningInterrupted(bool shouldPrintElapsedTime = true)
     }
 }
 
+void checkAndHandleIntervalPassed()
+{
+    const size_t millisecondsValueAfterIntervalPass = shouldCountInReverse ? 0 : intervalMs;
+
+    if (millisecondsCount == millisecondsValueAfterIntervalPass)
+    {
+        if (shouldAutoReset)
+        {
+            millisecondsCount = shouldCountInReverse ? intervalMs : 0;
+        }
+        else if (status == RUNNING)
+        {
+            std::raise(SIGINT);
+        }
+    }
+}
+
 void updateElapsedTime()
 {
     do
@@ -96,38 +113,13 @@ void updateElapsedTime()
         {
             assert(millisecondsCount > 0);
             millisecondsCount -= timeoutPeriodMilliseconds;
-
-            if (0 == millisecondsCount)
-            {
-                if (shouldAutoReset)
-                {
-                    millisecondsCount = intervalMs;
-                }
-                else if (status == RUNNING)
-                {
-                    std::raise(SIGINT);
-                }
-            }
-
-            printFn(millisecondsCount);
-            checkAndHandleRunningInterrupted();
-            break;
         }
-
-        millisecondsCount += timeoutPeriodMilliseconds;
-
-        if (millisecondsCount == intervalMs)
+        else
         {
-            if (shouldAutoReset)
-            {
-                millisecondsCount = 0;
-            }
-            else if (status == RUNNING)
-            {
-                std::raise(SIGINT);
-            }
+            millisecondsCount += timeoutPeriodMilliseconds;
         }
 
+        checkAndHandleIntervalPassed();
         printFn(millisecondsCount);
         checkAndHandleRunningInterrupted();
     } while (false);
