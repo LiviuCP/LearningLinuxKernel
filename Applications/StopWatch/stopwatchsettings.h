@@ -12,5 +12,4 @@ struct Parameters
     bool reverse{false};
     bool autoReset{false};
 };
-}
-
+} // namespace StopWatch::Settings

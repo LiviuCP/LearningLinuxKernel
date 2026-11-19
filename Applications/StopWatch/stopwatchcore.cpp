@@ -27,7 +27,8 @@ constexpr std::string_view devicePath{"/dev/timeoutsignaler"};
 constexpr size_t timeoutPeriodMilliseconds{10};
 
 size_t millisecondsCount{0};
-size_t resetThresholdMilliseconds{0};
+size_t intervalMs{0};
+bool shouldAutoReset{false};
 
 std::expected<bool, std::string> status{STOPPED};
 
@@ -88,9 +89,19 @@ void updateElapsedTime()
         millisecondsCount += timeoutPeriodMilliseconds;
 
         // auto-reset
-        if (millisecondsCount == resetThresholdMilliseconds)
+        if (millisecondsCount == intervalMs)
         {
-            millisecondsCount = 0;
+            if (shouldAutoReset)
+            {
+                millisecondsCount = 0;
+            }
+            else
+            {
+                if (status == RUNNING)
+                {
+                    std::raise(SIGINT);
+                }
+            }
         }
 
         printFn(millisecondsCount);
@@ -165,12 +176,13 @@ std::optional<std::string> StopWatch::Core::start(void (*printCallback)(size_t),
 
         if (params.interval == 0)
         {
-            result = "Invalid reset threshold!";
+            result = "Invalid interval!";
             assert(false);
             break;
         }
 
-        resetThresholdMilliseconds = params.interval * 1000;
+        intervalMs = params.interval * 1000;
+        shouldAutoReset = params.autoReset;
 
         std::signal(SIGINT, signalHandler);
         std::signal(SIGTIMEOUT, signalHandler);
