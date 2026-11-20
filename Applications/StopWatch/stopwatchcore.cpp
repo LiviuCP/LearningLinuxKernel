@@ -33,7 +33,7 @@ std::expected<bool, std::string> status{STOPPED};
 
 void (*printFn)(size_t){nullptr};
 void (*stopFn)(){nullptr};
-void (*updateFn)(){nullptr};
+void (*updateCurrentTimeFn)(){nullptr};
 
 // By measuring I noticed that 60 "real seconds" are equivalent to 40 "counted seconds" (kernel measured time)
 // this deviation could differ from device to device so it should be measured and adjusted accordingly
@@ -124,7 +124,7 @@ void reverseAutoResetModeTimeUpdate()
     }
 }
 
-void updateElapsedTime()
+void updateCurrentTime()
 {
     do
     {
@@ -133,7 +133,7 @@ void updateElapsedTime()
             break;
         }
 
-        updateFn();
+        updateCurrentTimeFn();
 
         printFn(currentTimeValueMs);
         checkAndHandleRunningInterrupted();
@@ -167,7 +167,7 @@ void signalHandler(int signal)
         break;
     }
     case SIGTIMEOUT: {
-        updateElapsedTime();
+        updateCurrentTime();
         requestNewTimeout();
         break;
     }
@@ -180,8 +180,9 @@ void signalHandler(int signal)
 
 void setMode(bool shouldAutoReset, bool shouldCountInReverse)
 {
-    updateFn = shouldCountInReverse ? (shouldAutoReset ? reverseAutoResetModeTimeUpdate : reverseStopModeTimeUpdate)
-                                    : (shouldAutoReset ? forwardAutoResetModeTimeUpdate : forwardStopModeTimeUpdate);
+    updateCurrentTimeFn = shouldCountInReverse
+                              ? (shouldAutoReset ? reverseAutoResetModeTimeUpdate : reverseStopModeTimeUpdate)
+                              : (shouldAutoReset ? forwardAutoResetModeTimeUpdate : forwardStopModeTimeUpdate);
 
     currentTimeValueMs = shouldCountInReverse ? intervalMs : 0;
 }
