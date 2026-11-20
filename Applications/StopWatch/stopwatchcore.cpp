@@ -26,7 +26,7 @@ namespace
 constexpr std::string_view devicePath{"/dev/timeoutsignaler"};
 constexpr size_t timeoutPeriodMilliseconds{10};
 
-size_t millisecondsCount{0};
+size_t currentTimeValueMs{0};
 size_t intervalMs{0};
 bool shouldAutoReset{false};
 bool shouldCountInReverse{false};
@@ -77,7 +77,7 @@ void checkAndHandleRunningInterrupted(bool shouldPrintElapsedTime = true)
     // a clean termination displaying the last recorded time should be ensured
     if (status != RUNNING)
     {
-        printFn(millisecondsCount);
+        printFn(currentTimeValueMs);
         (void)ioctlCancelTimeoutSignalRequest(); // no need to record the reset result, just a safety precaution
         stopFn();
     }
@@ -87,11 +87,11 @@ void checkAndHandleIntervalPassed()
 {
     const size_t millisecondsValueAfterIntervalPass = shouldCountInReverse ? 0 : intervalMs;
 
-    if (millisecondsCount == millisecondsValueAfterIntervalPass)
+    if (currentTimeValueMs == millisecondsValueAfterIntervalPass)
     {
         if (shouldAutoReset)
         {
-            millisecondsCount = shouldCountInReverse ? intervalMs : 0;
+            currentTimeValueMs = shouldCountInReverse ? intervalMs : 0;
         }
         else if (status == RUNNING)
         {
@@ -111,16 +111,16 @@ void updateElapsedTime()
 
         if (shouldCountInReverse)
         {
-            assert(millisecondsCount > 0);
-            millisecondsCount -= timeoutPeriodMilliseconds;
+            assert(currentTimeValueMs > 0);
+            currentTimeValueMs -= timeoutPeriodMilliseconds;
         }
         else
         {
-            millisecondsCount += timeoutPeriodMilliseconds;
+            currentTimeValueMs += timeoutPeriodMilliseconds;
         }
 
         checkAndHandleIntervalPassed();
-        printFn(millisecondsCount);
+        printFn(currentTimeValueMs);
         checkAndHandleRunningInterrupted();
     } while (false);
 }
@@ -203,7 +203,7 @@ std::optional<std::string> StopWatch::Core::start(void (*printCallback)(size_t),
 
         if (shouldCountInReverse)
         {
-            millisecondsCount = intervalMs;
+            currentTimeValueMs = intervalMs;
         }
 
         std::signal(SIGINT, signalHandler);
