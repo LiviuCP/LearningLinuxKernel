@@ -28,8 +28,6 @@ constexpr size_t timeoutPeriodMilliseconds{10};
 
 size_t currentTimeValueMs{0};
 size_t intervalMs{0};
-bool shouldAutoReset{false};
-bool shouldCountInReverse{false};
 
 std::expected<bool, std::string> status{STOPPED};
 
@@ -126,33 +124,6 @@ void updateReverseResetImpl()
     }
 }
 
-void updateElapsedTimeImpl()
-{
-    if (shouldCountInReverse)
-    {
-        assert(currentTimeValueMs > 0);
-        currentTimeValueMs -= timeoutPeriodMilliseconds;
-    }
-    else
-    {
-        currentTimeValueMs += timeoutPeriodMilliseconds;
-    }
-
-    const size_t millisecondsValueAfterIntervalPass = shouldCountInReverse ? 0 : intervalMs;
-
-    if (currentTimeValueMs == millisecondsValueAfterIntervalPass)
-    {
-        if (shouldAutoReset)
-        {
-            currentTimeValueMs = shouldCountInReverse ? intervalMs : 0;
-        }
-        else if (status == RUNNING)
-        {
-            std::raise(SIGINT);
-        }
-    }
-}
-
 void updateElapsedTime()
 {
     do
@@ -206,6 +177,14 @@ void signalHandler(int signal)
     }
     }
 }
+
+void setMode(bool shouldAutoReset, bool shouldCountInReverse)
+{
+    updateFn = shouldCountInReverse ? (shouldAutoReset ? updateReverseResetImpl : updateReverseStopImpl)
+                                    : (shouldAutoReset ? updateForwardResetImpl : updateForwardStopImpl);
+
+    currentTimeValueMs = shouldCountInReverse ? intervalMs : 0;
+}
 } // namespace
 } // namespace StopWatch::Core
 
@@ -242,16 +221,8 @@ std::optional<std::string> StopWatch::Core::start(void (*printCallback)(size_t),
         }
 
         intervalMs = params.interval * 1000;
-        shouldAutoReset = params.autoReset;
-        shouldCountInReverse = params.reverse;
 
-        if (shouldCountInReverse)
-        {
-            currentTimeValueMs = intervalMs;
-        }
-
-        updateFn = shouldCountInReverse ? (shouldAutoReset ? updateReverseResetImpl : updateReverseStopImpl)
-                                        : (shouldAutoReset ? updateForwardResetImpl : updateForwardStopImpl);
+        setMode(params.autoReset, params.reverse);
 
         std::signal(SIGINT, signalHandler);
         std::signal(SIGTIMEOUT, signalHandler);
