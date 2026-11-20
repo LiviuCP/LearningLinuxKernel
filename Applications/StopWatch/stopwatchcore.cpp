@@ -82,7 +82,7 @@ void checkAndHandleRunningInterrupted(bool shouldPrintElapsedTime = true)
     }
 }
 
-void updateForwardStopImpl()
+void forwardStopModeTimeUpdate()
 {
     currentTimeValueMs += timeoutPeriodMilliseconds;
 
@@ -92,7 +92,7 @@ void updateForwardStopImpl()
     }
 }
 
-void updateForwardResetImpl()
+void forwardAutoResetModeTimeUpdate()
 {
     currentTimeValueMs += timeoutPeriodMilliseconds;
 
@@ -102,7 +102,7 @@ void updateForwardResetImpl()
     }
 }
 
-void updateReverseStopImpl()
+void reverseStopModeTimeUpdate()
 {
     assert(currentTimeValueMs > 0);
     currentTimeValueMs -= timeoutPeriodMilliseconds;
@@ -113,7 +113,7 @@ void updateReverseStopImpl()
     }
 }
 
-void updateReverseResetImpl()
+void reverseAutoResetModeTimeUpdate()
 {
     assert(currentTimeValueMs > 0);
     currentTimeValueMs -= timeoutPeriodMilliseconds;
@@ -180,8 +180,8 @@ void signalHandler(int signal)
 
 void setMode(bool shouldAutoReset, bool shouldCountInReverse)
 {
-    updateFn = shouldCountInReverse ? (shouldAutoReset ? updateReverseResetImpl : updateReverseStopImpl)
-                                    : (shouldAutoReset ? updateForwardResetImpl : updateForwardStopImpl);
+    updateFn = shouldCountInReverse ? (shouldAutoReset ? reverseAutoResetModeTimeUpdate : reverseStopModeTimeUpdate)
+                                    : (shouldAutoReset ? forwardAutoResetModeTimeUpdate : forwardStopModeTimeUpdate);
 
     currentTimeValueMs = shouldCountInReverse ? intervalMs : 0;
 }
