@@ -83,8 +83,18 @@ void checkAndHandleRunningInterrupted(bool shouldPrintElapsedTime = true)
     }
 }
 
-void checkAndHandleIntervalPassed()
+void updateElapsedTimeImpl()
 {
+    if (shouldCountInReverse)
+    {
+        assert(currentTimeValueMs > 0);
+        currentTimeValueMs -= timeoutPeriodMilliseconds;
+    }
+    else
+    {
+        currentTimeValueMs += timeoutPeriodMilliseconds;
+    }
+
     const size_t millisecondsValueAfterIntervalPass = shouldCountInReverse ? 0 : intervalMs;
 
     if (currentTimeValueMs == millisecondsValueAfterIntervalPass)
@@ -109,17 +119,8 @@ void updateElapsedTime()
             break;
         }
 
-        if (shouldCountInReverse)
-        {
-            assert(currentTimeValueMs > 0);
-            currentTimeValueMs -= timeoutPeriodMilliseconds;
-        }
-        else
-        {
-            currentTimeValueMs += timeoutPeriodMilliseconds;
-        }
+        updateElapsedTimeImpl();
 
-        checkAndHandleIntervalPassed();
         printFn(currentTimeValueMs);
         checkAndHandleRunningInterrupted();
     } while (false);
