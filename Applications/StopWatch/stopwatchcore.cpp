@@ -35,6 +35,7 @@ std::expected<bool, std::string> status{STOPPED};
 
 void (*printFn)(size_t){nullptr};
 void (*stopFn)(){nullptr};
+void (*updateFn)(){nullptr};
 
 // By measuring I noticed that 60 "real seconds" are equivalent to 40 "counted seconds" (kernel measured time)
 // this deviation could differ from device to device so it should be measured and adjusted accordingly
@@ -83,6 +84,48 @@ void checkAndHandleRunningInterrupted(bool shouldPrintElapsedTime = true)
     }
 }
 
+void updateForwardStopImpl()
+{
+    currentTimeValueMs += timeoutPeriodMilliseconds;
+
+    if (currentTimeValueMs == intervalMs && status == RUNNING)
+    {
+        std::raise(SIGINT);
+    }
+}
+
+void updateForwardResetImpl()
+{
+    currentTimeValueMs += timeoutPeriodMilliseconds;
+
+    if (currentTimeValueMs == intervalMs)
+    {
+        currentTimeValueMs = 0;
+    }
+}
+
+void updateReverseStopImpl()
+{
+    assert(currentTimeValueMs > 0);
+    currentTimeValueMs -= timeoutPeriodMilliseconds;
+
+    if (currentTimeValueMs == 0 && status == RUNNING)
+    {
+        std::raise(SIGINT);
+    }
+}
+
+void updateReverseResetImpl()
+{
+    assert(currentTimeValueMs > 0);
+    currentTimeValueMs -= timeoutPeriodMilliseconds;
+
+    if (currentTimeValueMs == 0)
+    {
+        currentTimeValueMs = intervalMs;
+    }
+}
+
 void updateElapsedTimeImpl()
 {
     if (shouldCountInReverse)
@@ -119,7 +162,7 @@ void updateElapsedTime()
             break;
         }
 
-        updateElapsedTimeImpl();
+        updateFn();
 
         printFn(currentTimeValueMs);
         checkAndHandleRunningInterrupted();
@@ -206,6 +249,9 @@ std::optional<std::string> StopWatch::Core::start(void (*printCallback)(size_t),
         {
             currentTimeValueMs = intervalMs;
         }
+
+        updateFn = shouldCountInReverse ? (shouldAutoReset ? updateReverseResetImpl : updateReverseStopImpl)
+                                        : (shouldAutoReset ? updateForwardResetImpl : updateForwardStopImpl);
 
         std::signal(SIGINT, signalHandler);
         std::signal(SIGTIMEOUT, signalHandler);
