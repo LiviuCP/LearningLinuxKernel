@@ -4,6 +4,8 @@
 #include "stopwatchapp.h"
 #include "stopwatchcore.h"
 #include "stopwatchloader.h"
+#include "stopwatchparser.h"
+#include "stopwatchsettings.h"
 
 #include "utils.h"
 
@@ -19,12 +21,11 @@ bool shouldStop{false};
 constexpr size_t minutesInHour{60};
 constexpr size_t secondsInMinute{60};
 constexpr size_t millisecondsInSecond{1000};
-constexpr size_t millisecondsSubScaleFactor{10};
-constexpr size_t resetThresholdMilliseconds{300000}; // auto-reset after 5 minutes
+constexpr size_t millisecondsSubScaleFactor{100};
 
-void printTimeUnit(size_t value, const std::string& terminatingStr)
+void printTimeUnit(size_t value, const std::string& terminatingStr, bool shouldUsePrecedingZero = true)
 {
-    if (value < 10)
+    if (shouldUsePrecedingZero && value < 10)
     {
         std::cout << "0";
     }
@@ -48,7 +49,7 @@ void printTimeCallback(size_t millisecondsCount)
     printTimeUnit(hours, ":");
     printTimeUnit(minutesToDisplay, ":");
     printTimeUnit(secondsToDisplay, ".");
-    printTimeUnit(secondSubDivisionsToDisplay, "\n\n");
+    printTimeUnit(secondSubDivisionsToDisplay, "\n\n", false);
 
     std::cout << std::flush;
 }
@@ -60,12 +61,20 @@ void stopCallback()
 } // namespace
 } // namespace StopWatch::App
 
-int StopWatch::App::run()
+int StopWatch::App::run(int argc, char** argv)
 {
     int retVal{ERROR};
     do
     {
-        const std::optional<std::string> modulesLoadingErrorMessage{StopWatch::Loader::loadRequiredKernelModules()};
+        const std::expected<Settings::Parameters, std::string> parsingResult{Parser::parse(argc, argv)};
+
+        if (!parsingResult)
+        {
+            std::cerr << parsingResult.error() << "\n";
+            break;
+        }
+
+        const std::optional<std::string> modulesLoadingErrorMessage{Loader::loadRequiredKernelModules()};
 
         if (modulesLoadingErrorMessage.has_value())
         {
@@ -74,7 +83,7 @@ int StopWatch::App::run()
         }
 
         const std::optional<std::string> stopWatchStartErrorMessage{
-            StopWatch::Core::start(printTimeCallback, stopCallback, resetThresholdMilliseconds)};
+            Core::start(printTimeCallback, stopCallback, *parsingResult)};
 
         if (stopWatchStartErrorMessage.has_value())
         {
@@ -89,7 +98,7 @@ int StopWatch::App::run()
         // backspaces are needed for erasing the printed ^C when hitting CTRL+C
         std::cout << "\b\bGoodbye!\n\a" << std::flush;
 
-        const std::expected<bool, std::string> status{StopWatch::Core::getStatus()};
+        const std::expected<bool, std::string> status{Core::getStatus()};
 
         if (!status.has_value())
         {
@@ -109,7 +118,7 @@ int StopWatch::App::run()
         assert(false && "Invalid status received!");
     } while (false);
 
-    StopWatch::Loader::unloadRequiredKernelModules();
+    Loader::unloadRequiredKernelModules();
 
     return retVal;
 }

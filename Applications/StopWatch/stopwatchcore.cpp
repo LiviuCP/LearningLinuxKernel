@@ -7,6 +7,7 @@
 #include <sys/ioctl.h>
 
 #include "stopwatchcore.h"
+#include "stopwatchsettings.h"
 
 // 9999 is an arbitrarily chosen "magic number" (in a "real" (production) system an official assignment would be
 // required; might be the major driver number)
@@ -23,19 +24,16 @@ namespace
 {
 
 constexpr std::string_view devicePath{"/dev/timeoutsignaler"};
-constexpr size_t timeoutPeriodMilliseconds{10};
+constexpr size_t millisecondsInSecond{1000};
 
-size_t millisecondsCount{0};
-size_t resetThresholdMilliseconds{0};
+size_t currentTimeValueMs{0};
+size_t intervalMs{0};
 
 std::expected<bool, std::string> status{STOPPED};
 
 void (*printFn)(size_t){nullptr};
 void (*stopFn)(){nullptr};
-
-// By measuring I noticed that 60 "real seconds" are equivalent to 40 "counted seconds" (kernel measured time)
-// this deviation could differ from device to device so it should be measured and adjusted accordingly
-constexpr size_t correctedTimeoutPeriodMilliseconds{(timeoutPeriodMilliseconds * 2) / 3};
+void (*updateCurrentTimeFn)(){nullptr};
 
 bool ioctlRequestTimeoutSignal()
 {
@@ -44,7 +42,7 @@ bool ioctlRequestTimeoutSignal()
 
     if (fd > 0)
     {
-        const long retVal{ioctl(fd, IOCTL_REQUEST_TIMEOUT_SIGNAL, &correctedTimeoutPeriodMilliseconds)};
+        const long retVal{ioctl(fd, IOCTL_REQUEST_TIMEOUT_SIGNAL, &Settings::tickValueMs)};
         close(fd);
 
         result = retVal == 0;
@@ -69,32 +67,84 @@ bool ioctlCancelTimeoutSignalRequest()
     return result;
 }
 
+void updateCurrentTimeInForwardStopMode()
+{
+    currentTimeValueMs += Settings::tickValueMs;
+
+    if (currentTimeValueMs == intervalMs && status == RUNNING)
+    {
+        std::raise(SIGINT);
+    }
+}
+
+void updateCurrentTimeInForwardAutoResetMode()
+{
+    currentTimeValueMs += Settings::tickValueMs;
+
+    if (currentTimeValueMs == intervalMs)
+    {
+        currentTimeValueMs = 0;
+    }
+}
+
+void updateCurrentTimeInReverseStopMode()
+{
+    assert(currentTimeValueMs > 0);
+    currentTimeValueMs -= Settings::tickValueMs;
+
+    if (currentTimeValueMs == 0 && status == RUNNING)
+    {
+        std::raise(SIGINT);
+    }
+}
+
+void updateCurrentTimeInReverseAutoResetMode()
+{
+    assert(currentTimeValueMs > 0);
+    currentTimeValueMs -= Settings::tickValueMs;
+
+    if (currentTimeValueMs == 0)
+    {
+        currentTimeValueMs = intervalMs;
+    }
+}
+
+void setRunningConfig(const Settings::Parameters& params)
+{
+    updateCurrentTimeFn =
+        params.reverse
+            ? (params.autoReset ? updateCurrentTimeInReverseAutoResetMode : updateCurrentTimeInReverseStopMode)
+            : (params.autoReset ? updateCurrentTimeInForwardAutoResetMode : updateCurrentTimeInForwardStopMode);
+
+    intervalMs = params.interval * millisecondsInSecond;
+    currentTimeValueMs = params.reverse ? intervalMs : 0;
+}
+
 void checkAndHandleRunningInterrupted(bool shouldPrintElapsedTime = true)
 {
     // a clean termination displaying the last recorded time should be ensured
     if (status != RUNNING)
     {
-        printFn(millisecondsCount);
+        printFn(currentTimeValueMs);
         (void)ioctlCancelTimeoutSignalRequest(); // no need to record the reset result, just a safety precaution
         stopFn();
     }
 }
 
-void updateElapsedTime()
+void updateCurrentTime()
 {
-    if (status == RUNNING)
+    do
     {
-        millisecondsCount += timeoutPeriodMilliseconds;
-
-        // auto-reset
-        if (millisecondsCount == resetThresholdMilliseconds)
+        if (status != RUNNING)
         {
-            millisecondsCount = 0;
+            break;
         }
 
-        printFn(millisecondsCount);
+        updateCurrentTimeFn();
+
+        printFn(currentTimeValueMs);
         checkAndHandleRunningInterrupted();
-    }
+    } while (false);
 }
 
 void requestNewTimeout()
@@ -124,7 +174,7 @@ void signalHandler(int signal)
         break;
     }
     case SIGTIMEOUT: {
-        updateElapsedTime();
+        updateCurrentTime();
         requestNewTimeout();
         break;
     }
@@ -134,11 +184,12 @@ void signalHandler(int signal)
     }
     }
 }
+
 } // namespace
 } // namespace StopWatch::Core
 
 std::optional<std::string> StopWatch::Core::start(void (*printCallback)(size_t), void (*stopCallback)(),
-                                                  size_t resetThresholdMs)
+                                                  const StopWatch::Settings::Parameters& params)
 {
     std::optional<std::string> result;
 
@@ -162,14 +213,14 @@ std::optional<std::string> StopWatch::Core::start(void (*printCallback)(size_t),
 
         stopFn = stopCallback;
 
-        if (resetThresholdMs == 0)
+        if (params.interval == 0)
         {
-            result = "Invalid reset threshold!";
+            result = "Invalid interval!";
             assert(false);
             break;
         }
 
-        resetThresholdMilliseconds = resetThresholdMs;
+        setRunningConfig(params);
 
         std::signal(SIGINT, signalHandler);
         std::signal(SIGTIMEOUT, signalHandler);
