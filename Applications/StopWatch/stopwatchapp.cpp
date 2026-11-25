@@ -66,7 +66,7 @@ int StopWatch::App::run(int argc, char** argv)
     int retVal{ERROR};
     do
     {
-        const std::expected<Settings::Parameters, std::string> parsingResult{Parser::parse(argc, argv)};
+        const Parser::ParsingResult parsingResult{Parser::parse(argc, argv)};
 
         if (!parsingResult)
         {

@@ -141,9 +141,9 @@ std::string getErrorMessage(ErrorCode errorCode)
 } // namespace
 } // namespace StopWatch::Parser
 
-std::expected<StopWatch::Settings::Parameters, std::string> StopWatch::Parser::parse(int argc, char** argv)
+StopWatch::Parser::ParsingResult StopWatch::Parser::parse(int argc, char** argv)
 {
-    std::expected<Settings::Parameters, std::string> result;
+    ParsingResult result;
     std::optional<size_t> userEnteredIntervalValueSec;
 
     do
@@ -152,15 +152,13 @@ std::expected<StopWatch::Settings::Parameters, std::string> StopWatch::Parser::p
 
         if (argumentsToParse.empty())
         {
-            result = {.interval = Settings::defaultIntervalValueSec};
+            result->interval = Settings::defaultIntervalValueSec;
             break;
         }
 
-        Settings::Parameters parameters;
-
         for (const auto& argument : argumentsToParse)
         {
-            bool optionFound{checkIfValidOption(argument, "--reverse", parameters.reverse)};
+            bool optionFound{checkIfValidOption(argument, "--reverse", result->reverse)};
 
             if (errorCode)
             {
@@ -172,7 +170,7 @@ std::expected<StopWatch::Settings::Parameters, std::string> StopWatch::Parser::p
                 continue;
             }
 
-            optionFound = checkIfValidOption(argument, "--autoreset", parameters.autoReset);
+            optionFound = checkIfValidOption(argument, "--autoreset", result->autoReset);
 
             if (errorCode)
             {
@@ -194,12 +192,14 @@ std::expected<StopWatch::Settings::Parameters, std::string> StopWatch::Parser::p
 
             if (userEnteredIntervalValueSec)
             {
-                parameters.interval = *userEnteredIntervalValueSec;
+                result->interval = *userEnteredIntervalValueSec;
             }
         }
 
-        result = !errorCode ? std::expected<Settings::Parameters, std::string>{parameters}
-                            : std::unexpected{getErrorMessage(*errorCode)};
+        if (errorCode)
+        {
+            result = ParsingError{getErrorMessage(*errorCode)};
+        }
     } while (false);
 
     return result;

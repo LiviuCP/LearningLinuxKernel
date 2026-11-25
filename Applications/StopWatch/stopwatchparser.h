@@ -7,5 +7,8 @@
 
 namespace StopWatch::Parser
 {
-std::expected<StopWatch::Settings::Parameters, std::string> parse(int argc, char** argv);
+using ParsingResult = std::expected<StopWatch::Settings::Parameters, std::string>;
+using ParsingError = std::unexpected<std::string>;
+
+ParsingResult parse(int argc, char** argv);
 } // namespace StopWatch::Parser
