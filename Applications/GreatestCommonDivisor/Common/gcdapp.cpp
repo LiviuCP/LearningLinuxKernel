@@ -13,7 +13,7 @@
 int GCD::App::run(int argc, char** argv)
 {
     int retVal{ERROR};
-    const ParsedArguments parsedArguments{GCD::Parser::parseArguments(argc, argv)};
+    const ParsedArguments parsedArguments{Parser::parseArguments(argc, argv)};
 
     do
     {
@@ -25,7 +25,7 @@ int GCD::App::run(int argc, char** argv)
 
         Utilities::clearScreen();
 
-        const std::optional<std::string> modulesLoadingErrorMessage{GCD::Loader::loadRequiredKernelModules()};
+        const std::optional<std::string> modulesLoadingErrorMessage{Loader::loadRequiredKernelModules()};
 
         if (modulesLoadingErrorMessage.has_value())
         {
@@ -34,7 +34,7 @@ int GCD::App::run(int argc, char** argv)
         }
 
         const std::expected<int, std::string> gcd{
-            GCD::Core::retrieveGreatestCommonDivisor(parsedArguments->first, parsedArguments->second)};
+            Core::retrieveGreatestCommonDivisor(parsedArguments->first, parsedArguments->second)};
 
         if (!gcd.has_value())
         {
@@ -43,7 +43,7 @@ int GCD::App::run(int argc, char** argv)
         }
 
         const std::expected<int, std::string> firstUncommonDivisor{
-            GCD::Core::retrieveQuotient(parsedArguments->first, *gcd)};
+            Core::retrieveQuotient(parsedArguments->first, *gcd)};
 
         if (!firstUncommonDivisor.has_value())
         {
@@ -52,7 +52,7 @@ int GCD::App::run(int argc, char** argv)
         }
 
         const std::expected<int, std::string> secondUncommonDivisor{
-            GCD::Core::retrieveQuotient(parsedArguments->second, *gcd)};
+            Core::retrieveQuotient(parsedArguments->second, *gcd)};
 
         if (!secondUncommonDivisor.has_value())
         {
@@ -75,7 +75,7 @@ int GCD::App::run(int argc, char** argv)
         }
     } while (false);
 
-    GCD::Loader::unloadRequiredKernelModules();
+    Loader::unloadRequiredKernelModules();
 
     return retVal;
 }
