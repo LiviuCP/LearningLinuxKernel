@@ -11,7 +11,7 @@ struct Parameters;
 
 namespace StopWatch::Core
 {
-std::optional<std::string> start(void (*printCallback)(size_t), void (*stopCallback)(),
+std::optional<std::string> start(void (*printCallback)(size_t), void (*stopCallback)(bool),
                                  const StopWatch::Settings::Parameters& params);
 std::expected<bool, std::string> getStatus();
 } // namespace StopWatch::Core

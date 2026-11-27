@@ -29,10 +29,13 @@ constexpr size_t millisecondsInSecond{1000};
 size_t currentTimeValueMs{0};
 size_t intervalMs{0};
 
+// used for notifying the application that a manual triggering of SIGINT (auto-stop) occurred
+bool autoStopTriggered{false};
+
 std::expected<bool, std::string> status{STOPPED};
 
 void (*printFn)(size_t){nullptr};
-void (*stopFn)(){nullptr};
+void (*stopFn)(bool){nullptr};
 void (*updateCurrentTimeFn)(){nullptr};
 
 bool ioctlRequestTimeoutSignal()
@@ -67,13 +70,22 @@ bool ioctlCancelTimeoutSignalRequest()
     return result;
 }
 
+void triggerAutoStop()
+{
+    if (status == RUNNING)
+    {
+        autoStopTriggered = true;
+        std::raise(SIGINT);
+    }
+}
+
 void updateCurrentTimeInForwardStopMode()
 {
     currentTimeValueMs += Settings::tickValueMs;
 
-    if (currentTimeValueMs == intervalMs && status == RUNNING)
+    if (currentTimeValueMs == intervalMs)
     {
-        std::raise(SIGINT);
+        triggerAutoStop();
     }
 }
 
@@ -92,9 +104,9 @@ void updateCurrentTimeInReverseStopMode()
     assert(currentTimeValueMs > 0);
     currentTimeValueMs -= Settings::tickValueMs;
 
-    if (currentTimeValueMs == 0 && status == RUNNING)
+    if (currentTimeValueMs == 0)
     {
-        std::raise(SIGINT);
+        triggerAutoStop();
     }
 }
 
@@ -127,7 +139,7 @@ void checkAndHandleRunningInterrupted(bool shouldPrintElapsedTime = true)
     {
         printFn(currentTimeValueMs);
         (void)ioctlCancelTimeoutSignalRequest(); // no need to record the reset result, just a safety precaution
-        stopFn();
+        stopFn(autoStopTriggered);
     }
 }
 
@@ -170,7 +182,7 @@ void signalHandler(int signal)
         assert(status == RUNNING);
         status = ioctlCancelTimeoutSignalRequest() ? std::expected<bool, std::string>{STOPPED}
                                                    : std::unexpected{"Warning: cancelling timeout request failed."};
-        stopFn();
+        stopFn(autoStopTriggered);
         break;
     }
     case SIGTIMEOUT: {
@@ -188,7 +200,7 @@ void signalHandler(int signal)
 } // namespace
 } // namespace StopWatch::Core
 
-std::optional<std::string> StopWatch::Core::start(void (*printCallback)(size_t), void (*stopCallback)(),
+std::optional<std::string> StopWatch::Core::start(void (*printCallback)(size_t), void (*stopCallback)(bool),
                                                   const StopWatch::Settings::Parameters& params)
 {
     std::optional<std::string> result;

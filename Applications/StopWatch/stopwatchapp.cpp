@@ -18,6 +18,7 @@ namespace StopWatch::App
 namespace
 {
 bool shouldStop{false};
+bool autoStopTriggered{false};
 
 constexpr size_t minutesInHour{60};
 constexpr size_t secondsInMinute{60};
@@ -52,7 +53,7 @@ std::string computeTimeString(size_t millisecondsCount)
     printTimeUnit(out, hours, ":");
     printTimeUnit(out, minutesToDisplay, ":");
     printTimeUnit(out, secondsToDisplay, ".");
-    printTimeUnit(out, secondSubDivisionsToDisplay, "   ", false);
+    printTimeUnit(out, secondSubDivisionsToDisplay, " ", false);
 
     const std::string& resultingTimeString{out.str()};
 
@@ -76,9 +77,10 @@ void printTimeCallback(size_t millisecondsCount)
     std::cout << backspaceSequence << computeTimeString(millisecondsCount) << std::flush;
 }
 
-void stopCallback()
+void stopCallback(bool wasAutoStopTriggered)
 {
     shouldStop = true;
+    autoStopTriggered = wasAutoStopTriggered;
 }
 } // namespace
 } // namespace StopWatch::App
@@ -122,8 +124,12 @@ int StopWatch::App::run(int argc, char** argv)
             ;
 
         // backspaces are needed for erasing the printed ^C when hitting CTRL+C
-        // TODO: find a way to differentiate between CTRL+C stop and auto-stop (once the interval is reached)
-        std::cout << "\b\b... Goodbye!\n\a" << std::flush;
+        if (!autoStopTriggered)
+        {
+            std::cout << "\b\b";
+        }
+
+        std::cout << "... Goodbye!\n\a" << std::flush;
 
         const std::expected<bool, std::string> status{Core::getStatus()};
 
